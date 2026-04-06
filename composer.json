@@ -1,0 +1,13 @@
+{
+  "name": "institucion/sgeap",
+  "description": "Base MVC simple en PHP nativo con PostgreSQL.",
+  "type": "project",
+  "require": {
+    "php": ">=8.0"
+  },
+  "autoload": {
+    "classmap": [
+      "app/"
+    ]
+  }
+}
