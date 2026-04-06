@@ -55,14 +55,15 @@ class AuthController extends Controller
 
     public function dashboard(): void
     {
-        if (empty($_SESSION['auth'])) {
-            sessionFlash('error', 'Debe iniciar sesion para continuar.');
-            $this->redirect('/login');
-        }
+        $user = $this->requireAuth();
 
         $this->view('auth.dashboard', [
             'appName' => config('app')['name'] ?? 'SGEap',
-            'user' => $_SESSION['auth'],
+            'pageTitle' => 'Dashboard',
+            'currentSection' => 'dashboard',
+            'user' => $user,
+            'success' => sessionFlash('success'),
+            'error' => sessionFlash('error'),
         ]);
     }
 
