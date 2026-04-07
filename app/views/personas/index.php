@@ -6,7 +6,9 @@ require BASE_PATH . '/app/views/partials/header.php';
 ?>
 <div class="toolbar">
     <p>Base de datos de personas registradas en el sistema.</p>
-    <a class="btn-primary btn-auto" href="<?= htmlspecialchars(baseUrl('personas/crear'), ENT_QUOTES, 'UTF-8'); ?>">Nueva persona</a>
+    <a class="btn-primary btn-auto btn-icon-only btn-icon-small" href="<?= htmlspecialchars(baseUrl('personas/crear'), ENT_QUOTES, 'UTF-8'); ?>" title="Nueva persona" aria-label="Nueva persona">
+        <i class="fa fa-user-plus" aria-hidden="true"></i>
+    </a>
 </div>
 
 <div class="toolbar toolbar-filter">

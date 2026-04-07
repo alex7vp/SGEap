@@ -27,14 +27,18 @@ require BASE_PATH . '/app/views/partials/header.php';
                     <tr>
                         <td><?= htmlspecialchars((string) $student['percedula'], ENT_QUOTES, 'UTF-8'); ?></td>
                         <td>
-                            <strong><?= htmlspecialchars((string) $student['perapellidos'], ENT_QUOTES, 'UTF-8'); ?></strong><br>
-                            <?= htmlspecialchars((string) $student['pernombres'], ENT_QUOTES, 'UTF-8'); ?>
+                            <span class="cell-title"><?= htmlspecialchars((string) $student['perapellidos'], ENT_QUOTES, 'UTF-8'); ?></span>
+                            <span class="cell-subtitle"><?= htmlspecialchars((string) $student['pernombres'], ENT_QUOTES, 'UTF-8'); ?></span>
                         </td>
                         <td>
-                            <?= htmlspecialchars((string) ($student['estdireccion'] ?: 'Sin direccion'), ENT_QUOTES, 'UTF-8'); ?><br>
-                            <?= htmlspecialchars((string) ($student['estparroquia'] ?: 'Sin parroquia'), ENT_QUOTES, 'UTF-8'); ?>
+                            <span class="cell-title"><?= htmlspecialchars((string) ($student['estdireccion'] ?: 'Sin direccion'), ENT_QUOTES, 'UTF-8'); ?></span>
+                            <span class="cell-subtitle"><?= htmlspecialchars((string) ($student['estparroquia'] ?: 'Sin parroquia'), ENT_QUOTES, 'UTF-8'); ?></span>
                         </td>
-                        <td><?= !empty($student['estestado']) ? 'Activo' : 'Inactivo'; ?></td>
+                        <td>
+                            <span class="state-pill <?= !empty($student['estestado']) ? 'state-pill-active' : 'state-pill-inactive'; ?>">
+                                <?= !empty($student['estestado']) ? 'Activo' : 'Inactivo'; ?>
+                            </span>
+                        </td>
                     </tr>
                 <?php endforeach; ?>
             </tbody>

@@ -9,6 +9,8 @@ require BASE_PATH . '/app/views/partials/header.php';
     <a class="text-link" href="<?= htmlspecialchars(baseUrl('personas'), ENT_QUOTES, 'UTF-8'); ?>">Volver al listado</a>
 </div>
 
+<p class="module-note">Este formato queda como base visual para formularios de registro en los siguientes modulos.</p>
+
 <form class="data-form" method="POST" action="<?= htmlspecialchars((string) ($formAction ?? baseUrl('personas')), ENT_QUOTES, 'UTF-8'); ?>">
     <?php if (!empty($old['perid'])): ?>
         <input type="hidden" name="perid" value="<?= htmlspecialchars((string) $old['perid'], ENT_QUOTES, 'UTF-8'); ?>">
