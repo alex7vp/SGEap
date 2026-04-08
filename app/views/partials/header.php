@@ -13,7 +13,7 @@ $topModules = [
     ],
     'configuracion' => [
         'label' => 'Configuracion',
-        'url' => '#',
+        'url' => baseUrl('configuracion/catalogos'),
     ],
     'reportes' => [
         'label' => 'Reportes',
@@ -75,6 +75,11 @@ $sidebarModules = [
     'configuracion' => [
         'title' => 'Configuracion',
         'items' => [
+            [
+                'key' => 'catalogos',
+                'label' => 'Catalogos',
+                'url' => baseUrl('configuracion/catalogos'),
+            ],
             [
                 'key' => 'institucion',
                 'label' => 'Institucion',

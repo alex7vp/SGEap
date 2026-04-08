@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Controllers\AuthController;
+use App\Controllers\ConfigurationController;
 use App\Controllers\PersonController;
 use App\Controllers\StudentController;
 use App\Core\Router;
@@ -13,6 +14,11 @@ return static function (Router $router): void {
     $router->post('/login', [AuthController::class, 'authenticate']);
     $router->get('/dashboard', [AuthController::class, 'dashboard']);
     $router->post('/logout', [AuthController::class, 'logout']);
+
+    $router->get('/configuracion/catalogos', [ConfigurationController::class, 'catalogs']);
+    $router->post('/configuracion/catalogos', [ConfigurationController::class, 'storeCatalogItem']);
+    $router->post('/configuracion/catalogos/actualizar', [ConfigurationController::class, 'updateCatalogItem']);
+    $router->post('/configuracion/catalogos/eliminar', [ConfigurationController::class, 'deleteCatalogItem']);
 
     $router->get('/personas', [PersonController::class, 'index']);
     $router->get('/personas/crear', [PersonController::class, 'create']);

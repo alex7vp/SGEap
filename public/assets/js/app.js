@@ -28,6 +28,55 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    const catalogRows = document.querySelectorAll('[data-catalog-row]');
+
+    catalogRows.forEach((row) => {
+        if (!(row instanceof HTMLTableRowElement)) {
+            return;
+        }
+
+        const editButton = row.querySelector('[data-catalog-edit]');
+        const cancelButton = row.querySelector('[data-catalog-cancel]');
+        const editForm = row.querySelector('[data-catalog-edit-form]');
+        const editInput = row.querySelector('[data-catalog-input]');
+        const saveButton = row.querySelector('[data-catalog-save]');
+        const actionGroup = row.querySelector('[data-catalog-actions]');
+
+        if (
+            !(editButton instanceof HTMLButtonElement)
+            || !(cancelButton instanceof HTMLButtonElement)
+            || !(editForm instanceof HTMLFormElement)
+            || !(editInput instanceof HTMLInputElement)
+            || !(saveButton instanceof HTMLButtonElement)
+            || !(actionGroup instanceof HTMLElement)
+        ) {
+            return;
+        }
+
+        const originalValue = editInput.value;
+
+        editButton.addEventListener('click', () => {
+            row.classList.add('is-editing');
+            actionGroup.hidden = true;
+            editInput.readOnly = false;
+            editInput.classList.add('is-editing');
+            saveButton.hidden = false;
+            cancelButton.hidden = false;
+            editInput.focus();
+            editInput.select();
+        });
+
+        cancelButton.addEventListener('click', () => {
+            row.classList.remove('is-editing');
+            actionGroup.hidden = false;
+            saveButton.hidden = true;
+            cancelButton.hidden = true;
+            editInput.readOnly = true;
+            editInput.value = originalValue;
+            editInput.classList.remove('is-editing');
+        });
+    });
+
     const searchInput = document.querySelector('[data-person-search]');
     const tableBody = document.querySelector('[data-person-table-body]');
     const tableWrapper = document.querySelector('[data-person-table-wrapper]');
