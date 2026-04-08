@@ -1,9 +1,32 @@
 document.addEventListener('DOMContentLoaded', () => {
     const firstField = document.querySelector('input[name="username"]');
+    const sidebarToggle = document.querySelector('[data-sidebar-toggle]');
+    const shell = document.querySelector('.shell');
+    const alertCloseButtons = document.querySelectorAll('[data-alert-close]');
 
     if (firstField instanceof HTMLInputElement) {
         firstField.focus();
     }
+
+    if (sidebarToggle instanceof HTMLButtonElement && shell instanceof HTMLElement) {
+        sidebarToggle.addEventListener('click', () => {
+            shell.classList.toggle('sidebar-open');
+        });
+    }
+
+    alertCloseButtons.forEach((button) => {
+        if (!(button instanceof HTMLButtonElement)) {
+            return;
+        }
+
+        button.addEventListener('click', () => {
+            const alert = button.closest('[data-alert]');
+
+            if (alert instanceof HTMLElement) {
+                alert.remove();
+            }
+        });
+    });
 
     const searchInput = document.querySelector('[data-person-search]');
     const tableBody = document.querySelector('[data-person-table-body]');
