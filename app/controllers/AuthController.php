@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Core\Controller;
+use App\Models\PeriodModel;
 use App\Models\UserModel;
 
 class AuthController extends Controller
@@ -49,6 +50,10 @@ class AuthController extends Controller
             'username' => (string) $user['usunombre'],
         ];
 
+        $periodModel = new PeriodModel();
+        $activePeriod = $periodModel->active();
+        setCurrentAcademicPeriod($activePeriod !== false ? $activePeriod : null);
+
         $userModel->updateLastAccess((int) $user['usuid']);
         $this->redirect('/dashboard');
     }
@@ -70,6 +75,7 @@ class AuthController extends Controller
     public function logout(): void
     {
         unset($_SESSION['auth']);
+        setCurrentAcademicPeriod(null);
         sessionFlash('success', 'Sesion cerrada correctamente.');
         $this->redirect('/login');
     }

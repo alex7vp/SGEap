@@ -21,7 +21,7 @@ $topModules = [
     ],
     'seguridad' => [
         'label' => 'Seguridad',
-        'url' => '#',
+        'url' => baseUrl('seguridad/catalogos'),
     ],
 ];
 
@@ -29,6 +29,13 @@ $sectionModuleMap = [
     'dashboard' => 'inicio',
     'personas' => 'academico',
     'estudiantes' => 'academico',
+    'grados' => 'academico',
+    'cursos' => 'academico',
+    'institucion' => 'configuracion',
+    'periodos' => 'configuracion',
+    'seguridad_catalogos' => 'seguridad',
+    'seguridad_usuarios' => 'seguridad',
+    'seguridad_roles_permisos' => 'seguridad',
 ];
 
 $sidebarModules = [
@@ -54,6 +61,16 @@ $sidebarModules = [
                 'key' => 'estudiantes',
                 'label' => 'Estudiantes',
                 'url' => baseUrl('estudiantes'),
+            ],
+            [
+                'key' => 'grados',
+                'label' => 'Grados',
+                'url' => baseUrl('grados'),
+            ],
+            [
+                'key' => 'cursos',
+                'label' => 'Cursos',
+                'url' => baseUrl('cursos'),
             ],
             [
                 'key' => 'docentes',
@@ -83,12 +100,12 @@ $sidebarModules = [
             [
                 'key' => 'institucion',
                 'label' => 'Institucion',
-                'url' => '#',
+                'url' => baseUrl('configuracion/institucion'),
             ],
             [
                 'key' => 'periodos',
                 'label' => 'Periodos lectivos',
-                'url' => '#',
+                'url' => baseUrl('configuracion/periodos'),
             ],
             [
                 'key' => 'usuarios',
@@ -116,14 +133,19 @@ $sidebarModules = [
         'title' => 'Seguridad',
         'items' => [
             [
-                'key' => 'roles',
-                'label' => 'Roles',
-                'url' => '#',
+                'key' => 'seguridad_catalogos',
+                'label' => 'Catalogos',
+                'url' => baseUrl('seguridad/catalogos'),
             ],
             [
-                'key' => 'permisos',
-                'label' => 'Permisos',
-                'url' => '#',
+                'key' => 'seguridad_usuarios',
+                'label' => 'Usuarios',
+                'url' => baseUrl('seguridad/usuarios'),
+            ],
+            [
+                'key' => 'seguridad_roles_permisos',
+                'label' => 'Roles y permisos',
+                'url' => baseUrl('seguridad/roles-permisos'),
             ],
             [
                 'key' => 'auditoria',
@@ -136,6 +158,8 @@ $sidebarModules = [
 
 $currentModule = $currentModule ?? ($sectionModuleMap[$currentSection ?? ''] ?? 'inicio');
 $activeSidebar = $sidebarModules[$currentModule] ?? $sidebarModules['inicio'];
+$currentPeriod = currentAcademicPeriod();
+$availablePeriods = availableAcademicPeriods();
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -171,10 +195,30 @@ $activeSidebar = $sidebarModules[$currentModule] ?? $sidebarModules['inicio'];
             </nav>
 
             <div class="topbar-end">
-                <div class="topbar-chip">
-                    <span class="topbar-chip-label">Periodo</span>
-                    <strong>2026 - 2027</strong>
-                </div>
+                <details class="topbar-period-picker">
+                    <summary class="topbar-chip">
+                        <span class="topbar-chip-label">Periodo</span>
+                        <strong><?= htmlspecialchars((string) ($currentPeriod['pledescripcion'] ?? 'Sin periodo'), ENT_QUOTES, 'UTF-8'); ?></strong>
+                    </summary>
+                    <div class="topbar-period-menu">
+                        <?php if (empty($availablePeriods)): ?>
+                            <div class="empty-state">No existen periodos lectivos registrados.</div>
+                        <?php else: ?>
+                            <form method="POST" action="<?= htmlspecialchars(baseUrl('configuracion/periodo-actual'), ENT_QUOTES, 'UTF-8'); ?>" class="topbar-period-form">
+                                <input type="hidden" name="redirect_to" value="<?= htmlspecialchars(currentPath(), ENT_QUOTES, 'UTF-8'); ?>">
+                                <label for="topbar-period-select">Periodo lectivo</label>
+                                <select id="topbar-period-select" name="pleid">
+                                    <?php foreach ($availablePeriods as $period): ?>
+                                        <option value="<?= htmlspecialchars((string) $period['pleid'], ENT_QUOTES, 'UTF-8'); ?>" <?= (int) ($currentPeriod['pleid'] ?? 0) === (int) $period['pleid'] ? 'selected' : ''; ?>>
+                                            <?= htmlspecialchars((string) $period['pledescripcion'], ENT_QUOTES, 'UTF-8'); ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                                <button class="btn-primary btn-auto" type="submit">Aplicar</button>
+                            </form>
+                        <?php endif; ?>
+                    </div>
+                </details>
                 <div class="topbar-user">
                     <span><?= htmlspecialchars((string) ($user['username'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></span>
                 </div>

@@ -90,3 +90,48 @@ function sessionFlash(string $key, ?string $value = null): ?string
 
     return $message;
 }
+
+function setCurrentAcademicPeriod(?array $period): void
+{
+    if ($period === null) {
+        unset($_SESSION['current_period']);
+        return;
+    }
+
+    $_SESSION['current_period'] = [
+        'pleid' => (int) ($period['pleid'] ?? 0),
+        'pledescripcion' => (string) ($period['pledescripcion'] ?? ''),
+        'pleactivo' => !empty($period['pleactivo']),
+    ];
+}
+
+function currentAcademicPeriod(): ?array
+{
+    if (!empty($_SESSION['current_period'])) {
+        return $_SESSION['current_period'];
+    }
+
+    try {
+        $model = new \App\Models\PeriodModel();
+        $period = $model->active();
+
+        if ($period !== false) {
+            setCurrentAcademicPeriod($period);
+            return $_SESSION['current_period'];
+        }
+    } catch (\Throwable) {
+        return null;
+    }
+
+    return null;
+}
+
+function availableAcademicPeriods(): array
+{
+    try {
+        $model = new \App\Models\PeriodModel();
+        return $model->allOrdered();
+    } catch (\Throwable) {
+        return [];
+    }
+}

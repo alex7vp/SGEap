@@ -6,6 +6,8 @@ namespace App\Controllers;
 
 use App\Core\Controller;
 use App\Models\CatalogModel;
+use App\Models\InstitutionModel;
+use App\Models\PeriodModel;
 
 class ConfigurationController extends Controller
 {
@@ -24,6 +26,201 @@ class ConfigurationController extends Controller
             'catalogs' => $catalogModel->allCatalogs(),
             'catalogFeedback' => $catalogFeedback,
         ]);
+    }
+
+    public function periods(): void
+    {
+        $user = $this->requireAuth();
+        $periodModel = new PeriodModel();
+        $editId = (int) ($_GET['edit'] ?? 0);
+        $editPeriod = $editId > 0 ? $periodModel->find($editId) : false;
+
+        $this->view('configuracion.periodos', [
+            'appName' => config('app')['name'] ?? 'SGEap',
+            'pageTitle' => 'Periodos lectivos',
+            'currentModule' => 'configuracion',
+            'currentSection' => 'periodos',
+            'user' => $user,
+            'periods' => $periodModel->allOrdered(),
+            'success' => sessionFlash('success'),
+            'error' => sessionFlash('error'),
+            'periodListFeedback' => $this->periodListFeedback(),
+            'old' => [
+                'pleid' => sessionFlash('old_period_pleid') ?? ($editPeriod !== false ? (string) $editPeriod['pleid'] : ''),
+                'pledescripcion' => sessionFlash('old_period_description') ?? ($editPeriod !== false ? (string) $editPeriod['pledescripcion'] : ''),
+                'plefechainicio' => sessionFlash('old_period_start') ?? ($editPeriod !== false ? (string) $editPeriod['plefechainicio'] : ''),
+                'plefechafin' => sessionFlash('old_period_end') ?? ($editPeriod !== false ? (string) $editPeriod['plefechafin'] : ''),
+                'pleactivo' => sessionFlash('old_period_active') ?? ($editPeriod !== false && !empty($editPeriod['pleactivo']) ? '1' : '0'),
+            ],
+        ]);
+    }
+
+    public function institution(): void
+    {
+        $user = $this->requireAuth();
+        $institutionModel = new InstitutionModel();
+        $institution = $institutionModel->current();
+
+        $this->view('configuracion.institucion', [
+            'appName' => config('app')['name'] ?? 'SGEap',
+            'pageTitle' => 'Institucion',
+            'currentModule' => 'configuracion',
+            'currentSection' => 'institucion',
+            'user' => $user,
+            'institution' => $institution,
+            'success' => sessionFlash('success'),
+            'error' => sessionFlash('error'),
+            'old' => [
+                'insid' => sessionFlash('old_institution_id') ?? ($institution !== false ? (string) $institution['insid'] : ''),
+                'insnombre' => sessionFlash('old_institution_name') ?? ($institution !== false ? (string) $institution['insnombre'] : ''),
+                'insrazonsocial' => sessionFlash('old_institution_business_name') ?? ($institution !== false ? (string) ($institution['insrazonsocial'] ?? '') : ''),
+                'insruc' => sessionFlash('old_institution_ruc') ?? ($institution !== false ? (string) ($institution['insruc'] ?? '') : ''),
+                'inscodigoamie' => sessionFlash('old_institution_amie') ?? ($institution !== false ? (string) ($institution['inscodigoamie'] ?? '') : ''),
+                'insdireccion' => sessionFlash('old_institution_address') ?? ($institution !== false ? (string) ($institution['insdireccion'] ?? '') : ''),
+                'instelefono' => sessionFlash('old_institution_phone') ?? ($institution !== false ? (string) ($institution['instelefono'] ?? '') : ''),
+                'inscorreoelectronico' => sessionFlash('old_institution_email') ?? ($institution !== false ? (string) ($institution['inscorreoelectronico'] ?? '') : ''),
+                'insrepresentantelegal' => sessionFlash('old_institution_legal_rep') ?? ($institution !== false ? (string) ($institution['insrepresentantelegal'] ?? '') : ''),
+            ],
+        ]);
+    }
+
+    public function storeInstitution(): void
+    {
+        $this->requireAuth();
+
+        $data = $this->institutionFormData();
+        $institutionModel = new InstitutionModel();
+        $current = $institutionModel->current();
+
+        if ($data['insnombre'] === '') {
+            $this->flashInstitutionFormData($data);
+            sessionFlash('error', 'El nombre de la institucion es obligatorio.');
+            $this->redirect('/configuracion/institucion');
+        }
+
+        $currentId = $current !== false ? (int) $current['insid'] : null;
+
+        if ($institutionModel->existsByRuc($data['insruc'], $currentId)) {
+            $this->flashInstitutionFormData($data);
+            sessionFlash('error', 'El RUC ya esta registrado en otra institucion.');
+            $this->redirect('/configuracion/institucion');
+        }
+
+        if ($institutionModel->existsByAmie($data['inscodigoamie'], $currentId)) {
+            $this->flashInstitutionFormData($data);
+            sessionFlash('error', 'El codigo AMIE ya esta registrado en otra institucion.');
+            $this->redirect('/configuracion/institucion');
+        }
+
+        if ($current === false) {
+            $institutionModel->create($data);
+            sessionFlash('success', 'Datos institucionales registrados correctamente.');
+            $this->redirect('/configuracion/institucion');
+        }
+
+        $institutionModel->updateInstitution((int) $current['insid'], $data);
+        sessionFlash('success', 'Datos institucionales actualizados correctamente.');
+        $this->redirect('/configuracion/institucion');
+    }
+
+    public function storePeriod(): void
+    {
+        $this->requireAuth();
+
+        $data = $this->periodFormData();
+        $data['pleactivo'] = false;
+        $periodModel = new PeriodModel();
+
+        if ($data['pledescripcion'] === '' || $data['plefechainicio'] === '' || $data['plefechafin'] === '') {
+            $this->flashPeriodFormData($data);
+            sessionFlash('error', 'Descripcion, fecha de inicio y fecha de fin son obligatorias.');
+            $this->redirect('/configuracion/periodos');
+        }
+
+        if ($data['plefechainicio'] > $data['plefechafin']) {
+            $this->flashPeriodFormData($data);
+            sessionFlash('error', 'La fecha de inicio no puede ser mayor que la fecha de fin.');
+            $this->redirect('/configuracion/periodos');
+        }
+
+        if ($periodModel->existsByDescription($data['pledescripcion'])) {
+            $this->flashPeriodFormData($data);
+            sessionFlash('error', 'La descripcion del periodo ya existe.');
+            $this->redirect('/configuracion/periodos');
+        }
+
+        $periodModel->create($data);
+
+        sessionFlash('success', 'Periodo lectivo registrado correctamente.');
+        $this->redirect('/configuracion/periodos');
+    }
+
+    public function updatePeriod(): void
+    {
+        $this->requireAuth();
+
+        $periodId = (int) ($_POST['pleid'] ?? 0);
+        $data = $this->periodFormData();
+        $periodModel = new PeriodModel();
+
+        if ($periodId <= 0) {
+            sessionFlash('error', 'El periodo a actualizar no es valido.');
+            $this->redirect('/configuracion/periodos');
+        }
+
+        if ($data['pledescripcion'] === '' || $data['plefechainicio'] === '' || $data['plefechafin'] === '') {
+            $this->flashPeriodFormData($data + ['pleid' => (string) $periodId]);
+            sessionFlash('error', 'Descripcion, fecha de inicio y fecha de fin son obligatorias.');
+            $this->redirect('/configuracion/periodos');
+        }
+
+        if ($data['plefechainicio'] > $data['plefechafin']) {
+            $this->flashPeriodFormData($data + ['pleid' => (string) $periodId]);
+            sessionFlash('error', 'La fecha de inicio no puede ser mayor que la fecha de fin.');
+            $this->redirect('/configuracion/periodos');
+        }
+
+        if ($periodModel->find($periodId) === false) {
+            sessionFlash('error', 'El periodo solicitado no existe.');
+            $this->redirect('/configuracion/periodos');
+        }
+
+        if ($periodModel->existsByDescription($data['pledescripcion'], $periodId)) {
+            $this->flashPeriodFormData($data + ['pleid' => (string) $periodId]);
+            sessionFlash('error', 'La descripcion del periodo ya existe en otro registro.');
+            $this->redirect('/configuracion/periodos');
+        }
+
+        $periodModel->update($periodId, $data);
+
+        if ($data['pleactivo']) {
+            $activePeriod = $periodModel->active();
+            setCurrentAcademicPeriod($activePeriod !== false ? $activePeriod : null);
+        }
+
+        sessionFlash('success', 'Periodo lectivo actualizado correctamente.');
+        $this->redirect('/configuracion/periodos');
+    }
+
+    public function selectCurrentPeriod(): void
+    {
+        $this->requireAuth();
+
+        $periodId = (int) ($_POST['pleid'] ?? 0);
+        $redirectTo = trim($_POST['redirect_to'] ?? '/dashboard');
+        $periodModel = new PeriodModel();
+        $period = $periodModel->find($periodId);
+
+        if ($period === false) {
+            $this->flashPeriodListFeedback('error', 'El periodo seleccionado no existe.');
+            $this->redirect($redirectTo . '#periodos-registrados');
+        }
+
+        $periodModel->activate($periodId);
+        $activePeriod = $periodModel->find($periodId);
+        setCurrentAcademicPeriod($activePeriod !== false ? $activePeriod : null);
+        $this->flashPeriodListFeedback('success', 'Periodo lectivo activado correctamente.');
+        $this->redirect($redirectTo . '#periodos-registrados');
     }
 
     public function storeCatalogItem(): void
@@ -155,5 +352,71 @@ class ConfigurationController extends Controller
         }
 
         $this->redirect($path);
+    }
+
+    private function periodFormData(): array
+    {
+        return [
+            'pledescripcion' => trim($_POST['pledescripcion'] ?? ''),
+            'plefechainicio' => trim($_POST['plefechainicio'] ?? ''),
+            'plefechafin' => trim($_POST['plefechafin'] ?? ''),
+            'pleactivo' => ($_POST['pleactivo'] ?? '0') === '1',
+        ];
+    }
+
+    private function institutionFormData(): array
+    {
+        return [
+            'insnombre' => trim($_POST['insnombre'] ?? ''),
+            'insrazonsocial' => trim($_POST['insrazonsocial'] ?? ''),
+            'insruc' => trim($_POST['insruc'] ?? ''),
+            'inscodigoamie' => trim($_POST['inscodigoamie'] ?? ''),
+            'insdireccion' => trim($_POST['insdireccion'] ?? ''),
+            'instelefono' => trim($_POST['instelefono'] ?? ''),
+            'inscorreoelectronico' => trim($_POST['inscorreoelectronico'] ?? ''),
+            'insrepresentantelegal' => trim($_POST['insrepresentantelegal'] ?? ''),
+        ];
+    }
+
+    private function flashPeriodFormData(array $data): void
+    {
+        sessionFlash('old_period_pleid', (string) ($data['pleid'] ?? ''));
+        sessionFlash('old_period_description', (string) ($data['pledescripcion'] ?? ''));
+        sessionFlash('old_period_start', (string) ($data['plefechainicio'] ?? ''));
+        sessionFlash('old_period_end', (string) ($data['plefechafin'] ?? ''));
+        sessionFlash('old_period_active', !empty($data['pleactivo']) ? '1' : '0');
+    }
+
+    private function flashInstitutionFormData(array $data): void
+    {
+        sessionFlash('old_institution_name', (string) ($data['insnombre'] ?? ''));
+        sessionFlash('old_institution_business_name', (string) ($data['insrazonsocial'] ?? ''));
+        sessionFlash('old_institution_ruc', (string) ($data['insruc'] ?? ''));
+        sessionFlash('old_institution_amie', (string) ($data['inscodigoamie'] ?? ''));
+        sessionFlash('old_institution_address', (string) ($data['insdireccion'] ?? ''));
+        sessionFlash('old_institution_phone', (string) ($data['instelefono'] ?? ''));
+        sessionFlash('old_institution_email', (string) ($data['inscorreoelectronico'] ?? ''));
+        sessionFlash('old_institution_legal_rep', (string) ($data['insrepresentantelegal'] ?? ''));
+    }
+
+    private function flashPeriodListFeedback(string $type, string $message): void
+    {
+        sessionFlash('period_list_feedback_type', $type);
+        sessionFlash('period_list_feedback_message', $message);
+    }
+
+    private function periodListFeedback(): ?array
+    {
+        $type = sessionFlash('period_list_feedback_type');
+        $message = sessionFlash('period_list_feedback_message');
+
+        if ($type === null || $message === null) {
+            return null;
+        }
+
+        return [
+            'type' => $type,
+            'message' => $message,
+        ];
     }
 }
