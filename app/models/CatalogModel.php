@@ -47,6 +47,12 @@ class CatalogModel extends Model
             'label' => 'Estados de matricula',
             'description' => 'Estados usados dentro del proceso de matriculacion.',
         ],
+        'tipo_personal' => [
+            'id' => 'tpid',
+            'name' => 'tpnombre',
+            'label' => 'Tipos de personal',
+            'description' => 'Catalogo para clasificar al personal institucional.',
+        ],
     ];
 
     public function allCatalogs(): array
@@ -57,7 +63,7 @@ class CatalogModel extends Model
             $statement = $this->db->query(
                 "SELECT {$config['id']} AS id, {$config['name']} AS name
                  FROM {$table}
-                 ORDER BY {$config['name']} ASC"
+                 ORDER BY {$config['id']} ASC"
             );
 
             $catalogs[] = [

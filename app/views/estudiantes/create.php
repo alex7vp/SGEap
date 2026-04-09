@@ -38,21 +38,21 @@ require BASE_PATH . '/app/views/partials/header.php';
             <div class="form-group">
                 <div class="input-group">
                     <span class="input-addon">Origen</span>
-                    <input id="estlugarnacimiento" name="estlugarnacimiento" value="<?= htmlspecialchars((string) ($old['estlugarnacimiento'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>">
+                    <input id="estlugarnacimiento" name="estlugarnacimiento" placeholder="Ingrese lugar de nacimiento" value="<?= htmlspecialchars((string) ($old['estlugarnacimiento'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>">
                 </div>
             </div>
 
             <div class="form-group">
                 <div class="input-group">
                     <span class="input-addon">Parroquia</span>
-                    <input id="estparroquia" name="estparroquia" value="<?= htmlspecialchars((string) ($old['estparroquia'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>">
+                    <input id="estparroquia" name="estparroquia" placeholder="Ingrese parroquia" value="<?= htmlspecialchars((string) ($old['estparroquia'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>">
                 </div>
             </div>
 
             <div class="form-group form-group-full">
                 <div class="input-group">
                     <span class="input-addon">Direccion</span>
-                    <input id="estdireccion" name="estdireccion" value="<?= htmlspecialchars((string) ($old['estdireccion'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>">
+                    <input id="estdireccion" name="estdireccion" placeholder="Ingrese direccion" value="<?= htmlspecialchars((string) ($old['estdireccion'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>">
                 </div>
             </div>
 

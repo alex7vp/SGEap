@@ -20,7 +20,7 @@ require BASE_PATH . '/app/views/partials/header.php';
         <div class="form-group">
             <div class="input-group">
                 <span class="input-addon">Cédula</span>
-                <input id="percedula" name="percedula" maxlength="10" required value="<?= htmlspecialchars((string) ($old['percedula'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>">
+                <input id="percedula" name="percedula" maxlength="10" placeholder="Ingrese la cedula" required value="<?= htmlspecialchars((string) ($old['percedula'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>">
             </div>
         </div>
 
@@ -38,35 +38,35 @@ require BASE_PATH . '/app/views/partials/header.php';
         <div class="form-group">
             <div class="input-group">
                 <span class="input-addon">Nombres</span>
-                <input id="pernombres" name="pernombres" required value="<?= htmlspecialchars((string) ($old['pernombres'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>">
+                <input id="pernombres" name="pernombres" placeholder="Ingrese los nombres" required value="<?= htmlspecialchars((string) ($old['pernombres'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>">
             </div>
         </div>
 
         <div class="form-group">
             <div class="input-group">
                 <span class="input-addon">Apellidos</span>
-                <input id="perapellidos" name="perapellidos" required value="<?= htmlspecialchars((string) ($old['perapellidos'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>">
+                <input id="perapellidos" name="perapellidos" placeholder="Ingrese los apellidos" required value="<?= htmlspecialchars((string) ($old['perapellidos'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>">
             </div>
         </div>
 
         <div class="form-group">
             <div class="input-group">
                 <span class="input-addon">Celular</span>
-                <input id="pertelefono1" name="pertelefono1" value="<?= htmlspecialchars((string) ($old['pertelefono1'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>">
+                <input id="pertelefono1" name="pertelefono1" placeholder="Ingrese telefono celular" value="<?= htmlspecialchars((string) ($old['pertelefono1'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>">
             </div>
         </div>
 
         <div class="form-group">
             <div class="input-group">
                 <span class="input-addon">Fijo</span>
-                <input id="pertelefono2" name="pertelefono2" value="<?= htmlspecialchars((string) ($old['pertelefono2'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>">
+                <input id="pertelefono2" name="pertelefono2" placeholder="Ingrese telefono fijo" value="<?= htmlspecialchars((string) ($old['pertelefono2'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>">
             </div>
         </div>
 
         <div class="form-group form-group-full">
             <div class="input-group">
                 <span class="input-addon">E-mail</span>
-                <input id="percorreo" name="percorreo" type="email" value="<?= htmlspecialchars((string) ($old['percorreo'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>">
+                <input id="percorreo" name="percorreo" type="email" placeholder="Ingrese el correo electronico" value="<?= htmlspecialchars((string) ($old['percorreo'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>">
             </div>
         </div>
     </div>

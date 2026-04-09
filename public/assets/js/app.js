@@ -53,9 +53,9 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        const originalValue = editInput.value;
+        let originalValue = editInput.value;
 
-        editButton.addEventListener('click', () => {
+        const enableCatalogEdit = () => {
             row.classList.add('is-editing');
             actionGroup.hidden = true;
             editInput.readOnly = false;
@@ -64,7 +64,9 @@ document.addEventListener('DOMContentLoaded', () => {
             cancelButton.hidden = false;
             editInput.focus();
             editInput.select();
-        });
+        };
+
+        editButton.addEventListener('click', enableCatalogEdit);
 
         cancelButton.addEventListener('click', () => {
             row.classList.remove('is-editing');
@@ -74,6 +76,10 @@ document.addEventListener('DOMContentLoaded', () => {
             editInput.readOnly = true;
             editInput.value = originalValue;
             editInput.classList.remove('is-editing');
+        });
+
+        editForm.addEventListener('submit', () => {
+            originalValue = editInput.value;
         });
     });
 
