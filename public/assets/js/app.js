@@ -83,6 +83,37 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    const applyPhoneMask = (value) => {
+        const digits = String(value || '').replace(/\D+/g, '').slice(0, 10);
+
+        if (digits.length === 0) {
+            return '';
+        }
+
+        if (digits.length <= 2) {
+            return '(' + digits;
+        }
+
+        if (digits.length <= 6) {
+            return '(' + digits.slice(0, 2) + ') ' + digits.slice(2);
+        }
+
+        return '(' + digits.slice(0, 2) + ') ' + digits.slice(2, 6) + ' ' + digits.slice(6);
+    };
+
+    const wirePhoneMask = (input) => {
+        if (!(input instanceof HTMLInputElement)) {
+            return;
+        }
+
+        input.value = applyPhoneMask(input.value);
+        input.addEventListener('input', () => {
+            input.value = applyPhoneMask(input.value);
+        });
+    };
+
+    document.querySelectorAll('[data-phone-mask]').forEach(wirePhoneMask);
+
     const securityRows = document.querySelectorAll('[data-security-row]');
 
     securityRows.forEach((row) => {
@@ -480,6 +511,238 @@ document.addEventListener('DOMContentLoaded', () => {
 
             personPickerTimer = window.setTimeout(searchPersons, 250);
         });
+    }
+
+    const wizardTabs = document.querySelectorAll('[data-wizard-tab]');
+    const wizardPanels = document.querySelectorAll('[data-wizard-panel]');
+    const matriculaForm = document.querySelector('[data-matricula-form]');
+    const matriculaDraftButtons = document.querySelectorAll('[data-matricula-draft-save]');
+    const matriculaDraftAlert = document.querySelector('[data-matricula-draft-alert]');
+
+    if (matriculaForm instanceof HTMLFormElement) {
+        const draftKey = 'sgeap_matricula_draft';
+
+        const showDraftAlert = () => {
+            if (!(matriculaDraftAlert instanceof HTMLElement)) {
+                return;
+            }
+
+            matriculaDraftAlert.hidden = false;
+        };
+
+        const serializeForm = () => {
+            const formData = new FormData(matriculaForm);
+            const payload = {};
+
+            formData.forEach((value, key) => {
+                if (value instanceof File) {
+                    return;
+                }
+
+                payload[key] = String(value);
+            });
+
+            return payload;
+        };
+
+        const restoreDraft = () => {
+            const raw = window.localStorage.getItem(draftKey);
+
+            if (raw === null) {
+                return;
+            }
+
+            try {
+                const payload = JSON.parse(raw);
+
+                Object.entries(payload).forEach(([name, value]) => {
+                    const field = matriculaForm.querySelector(`[name="${CSS.escape(name)}"]`);
+
+                    if (field instanceof HTMLInputElement || field instanceof HTMLSelectElement || field instanceof HTMLTextAreaElement) {
+                        field.value = String(value);
+
+                        if (field instanceof HTMLInputElement && field.hasAttribute('data-phone-mask')) {
+                            field.dispatchEvent(new Event('input', { bubbles: true }));
+                        }
+                    }
+                });
+            } catch (error) {
+                window.localStorage.removeItem(draftKey);
+            }
+        };
+
+        restoreDraft();
+
+        matriculaDraftButtons.forEach((button) => {
+            if (!(button instanceof HTMLButtonElement)) {
+                return;
+            }
+
+            button.addEventListener('click', () => {
+                window.localStorage.setItem(draftKey, JSON.stringify(serializeForm()));
+                showDraftAlert();
+            });
+        });
+
+        matriculaForm.addEventListener('submit', () => {
+            window.localStorage.removeItem(draftKey);
+        });
+    }
+
+    if (wizardTabs.length > 0 && wizardPanels.length > 0) {
+        const activateWizardTab = (target) => {
+            wizardTabs.forEach((tab) => {
+                if (!(tab instanceof HTMLButtonElement)) {
+                    return;
+                }
+
+                tab.classList.toggle('is-active', tab.dataset.wizardTab === target);
+            });
+
+            wizardPanels.forEach((panel) => {
+                if (!(panel instanceof HTMLElement)) {
+                    return;
+                }
+
+                const isActive = panel.dataset.wizardPanel === target;
+                panel.hidden = !isActive;
+                panel.classList.toggle('is-active', isActive);
+            });
+        };
+
+        wizardTabs.forEach((tab) => {
+            if (!(tab instanceof HTMLButtonElement)) {
+                return;
+            }
+
+            tab.addEventListener('click', () => {
+                activateWizardTab(tab.dataset.wizardTab || 'persona');
+            });
+        });
+    }
+
+    const familyContainer = document.querySelector('[data-family-rows]');
+    const familyTemplate = document.querySelector('[data-family-template]');
+    const familyAddButton = document.querySelector('[data-family-add]');
+    const representativeOptions = document.querySelector('[data-representative-options]');
+    const representativeIndexInput = document.querySelector('[data-representative-index-input]');
+
+    if (
+        familyContainer instanceof HTMLElement
+        && familyTemplate instanceof HTMLTemplateElement
+        && familyAddButton instanceof HTMLButtonElement
+        && representativeOptions instanceof HTMLElement
+        && representativeIndexInput instanceof HTMLInputElement
+    ) {
+        const buildRepresentativeLabel = (row) => {
+            const nombres = row.querySelector('[data-family-field="nombres"]');
+            const apellidos = row.querySelector('[data-family-field="apellidos"]');
+            const parentesco = row.querySelector('[data-family-field="parentesco"]');
+            const fullName = ((apellidos instanceof HTMLInputElement ? apellidos.value : '') + ' ' + (nombres instanceof HTMLInputElement ? nombres.value : '')).trim();
+            const relationshipLabel =
+                parentesco instanceof HTMLSelectElement && parentesco.selectedOptions.length > 0
+                    ? parentesco.selectedOptions[0].textContent?.trim() || ''
+                    : '';
+
+            if (fullName === '') {
+                return 'Familiar sin nombre';
+            }
+
+            return relationshipLabel !== '' && relationshipLabel !== 'Seleccione'
+                ? fullName + ' (' + relationshipLabel + ')'
+                : fullName;
+        };
+
+        const syncRepresentativeOptions = () => {
+            representativeOptions.innerHTML = '';
+            const rows = Array.from(familyContainer.querySelectorAll('[data-family-row]'));
+
+            if (rows.length === 0) {
+                representativeOptions.innerHTML = '<div class="empty-state">Agrega al menos un familiar para definir el representante.</div>';
+                representativeIndexInput.value = '-1';
+                return;
+            }
+
+            rows.forEach((row, index) => {
+                if (!(row instanceof HTMLElement)) {
+                    return;
+                }
+
+                row.dataset.familyIndex = String(index);
+                const option = document.createElement('label');
+                const radio = document.createElement('input');
+                const content = document.createElement('span');
+
+                option.className = 'representative-card';
+                radio.type = 'radio';
+                radio.name = 'representative_option_visual';
+                radio.value = String(index);
+                radio.checked = representativeIndexInput.value === String(index);
+                radio.addEventListener('change', () => {
+                    representativeIndexInput.value = radio.value;
+                });
+                content.textContent = buildRepresentativeLabel(row);
+                option.appendChild(radio);
+                option.appendChild(content);
+                representativeOptions.appendChild(option);
+            });
+
+            if (
+                representativeIndexInput.value === ''
+                || Number.parseInt(representativeIndexInput.value, 10) >= rows.length
+                || Number.parseInt(representativeIndexInput.value, 10) < 0
+            ) {
+                representativeIndexInput.value = '0';
+                const firstRadio = representativeOptions.querySelector('input[type="radio"]');
+
+                if (firstRadio instanceof HTMLInputElement) {
+                    firstRadio.checked = true;
+                }
+            }
+        };
+
+        const wireFamilyRow = (row) => {
+            if (!(row instanceof HTMLElement)) {
+                return;
+            }
+
+            const removeButton = row.querySelector('[data-family-remove]');
+            const inputs = row.querySelectorAll('input, select');
+
+            if (removeButton instanceof HTMLButtonElement) {
+                removeButton.addEventListener('click', () => {
+                    row.remove();
+                    syncRepresentativeOptions();
+                });
+            }
+
+            inputs.forEach((input) => {
+                input.addEventListener('input', syncRepresentativeOptions);
+                input.addEventListener('change', syncRepresentativeOptions);
+                if (input instanceof HTMLInputElement && input.hasAttribute('data-phone-mask')) {
+                    wirePhoneMask(input);
+                }
+            });
+        };
+
+        Array.from(familyContainer.querySelectorAll('[data-family-row]')).forEach(wireFamilyRow);
+
+        familyAddButton.addEventListener('click', () => {
+            const nextIndex = familyContainer.querySelectorAll('[data-family-row]').length;
+            const markup = familyTemplate.innerHTML
+                .replace(/__INDEX__/g, String(nextIndex))
+                .replace(/__NUMBER__/g, String(nextIndex + 1));
+            familyContainer.insertAdjacentHTML('beforeend', markup);
+            const lastRow = familyContainer.querySelector('[data-family-row]:last-child');
+
+            if (lastRow instanceof HTMLElement) {
+                wireFamilyRow(lastRow);
+            }
+
+            syncRepresentativeOptions();
+        });
+
+        syncRepresentativeOptions();
     }
 
     const gradeSearchInput = document.querySelector('[data-grade-search]');

@@ -135,3 +135,63 @@ function availableAcademicPeriods(): array
         return [];
     }
 }
+
+function matriculationPhotoBasename(string $cedula, string $periodDescription): string
+{
+    $normalizedCedula = preg_replace('/\D+/', '', trim($cedula)) ?? '';
+    $normalizedPeriod = preg_replace('/\D+/', '', trim($periodDescription)) ?? '';
+
+    if ($normalizedPeriod === '') {
+        $normalizedPeriod = preg_replace('/[^a-z0-9]+/i', '', strtolower(trim($periodDescription))) ?? '';
+    }
+
+    return trim($normalizedCedula . '_' . $normalizedPeriod, '_');
+}
+
+function storeMatriculationPhoto(array $file, string $cedula, string $periodDescription): ?string
+{
+    $errorCode = (int) ($file['error'] ?? UPLOAD_ERR_NO_FILE);
+
+    if ($errorCode === UPLOAD_ERR_NO_FILE) {
+        return null;
+    }
+
+    if ($errorCode !== UPLOAD_ERR_OK) {
+        throw new \RuntimeException('No se pudo cargar la foto de matricula.');
+    }
+
+    $tmpName = (string) ($file['tmp_name'] ?? '');
+
+    if ($tmpName === '' || !is_uploaded_file($tmpName)) {
+        throw new \RuntimeException('El archivo de la foto de matricula no es valido.');
+    }
+
+    $originalName = (string) ($file['name'] ?? '');
+    $extension = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
+    $allowedExtensions = ['jpg', 'jpeg', 'png', 'webp'];
+
+    if (!in_array($extension, $allowedExtensions, true)) {
+        throw new \RuntimeException('La foto de matricula debe estar en formato JPG, PNG o WEBP.');
+    }
+
+    $baseName = matriculationPhotoBasename($cedula, $periodDescription);
+
+    if ($baseName === '') {
+        throw new \RuntimeException('No se pudo generar el nombre base para la foto de matricula.');
+    }
+
+    $targetDirectory = BASE_PATH . '/public/assets/photos';
+
+    if (!is_dir($targetDirectory) && !mkdir($targetDirectory, 0775, true) && !is_dir($targetDirectory)) {
+        throw new \RuntimeException('No se pudo preparar el directorio de fotos de matricula.');
+    }
+
+    $fileName = $baseName . '.' . $extension;
+    $targetPath = $targetDirectory . '/' . $fileName;
+
+    if (!move_uploaded_file($tmpName, $targetPath)) {
+        throw new \RuntimeException('No se pudo guardar la foto de matricula.');
+    }
+
+    return 'photos/' . $fileName;
+}

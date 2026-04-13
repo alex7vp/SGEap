@@ -6,6 +6,7 @@ use App\Controllers\AuthController;
 use App\Controllers\ConfigurationController;
 use App\Controllers\CourseController;
 use App\Controllers\GradeController;
+use App\Controllers\MatriculationController;
 use App\Controllers\PersonController;
 use App\Controllers\SecurityController;
 use App\Controllers\StudentController;
@@ -45,6 +46,7 @@ return static function (Router $router): void {
 
     $router->get('/personas', [PersonController::class, 'index']);
     $router->get('/grados', [GradeController::class, 'index']);
+    $router->get('/matriculas', [MatriculationController::class, 'index']);
     $router->get('/cursos', [CourseController::class, 'index']);
     $router->get('/grados/crear', [GradeController::class, 'create']);
     $router->get('/grados/editar', [GradeController::class, 'edit']);
@@ -54,6 +56,7 @@ return static function (Router $router): void {
     $router->get('/personas/buscar', [PersonController::class, 'search']);
     $router->post('/personas', [PersonController::class, 'store']);
     $router->post('/grados', [GradeController::class, 'store']);
+    $router->post('/matriculas', [MatriculationController::class, 'store']);
     $router->post('/cursos', [CourseController::class, 'store']);
     $router->post('/cursos/estado', [CourseController::class, 'toggleStatus']);
     $router->post('/grados/actualizar', [GradeController::class, 'update']);

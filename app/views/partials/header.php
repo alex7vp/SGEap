@@ -30,9 +30,9 @@ $sectionModuleMap = [
     'personas' => 'academico',
     'estudiantes' => 'academico',
     'grados' => 'academico',
-    'cursos' => 'academico',
     'institucion' => 'configuracion',
     'periodos' => 'configuracion',
+    'cursos' => 'configuracion',
     'seguridad_catalogos' => 'seguridad',
     'seguridad_usuarios' => 'seguridad',
     'seguridad_roles_permisos' => 'seguridad',
@@ -68,11 +68,6 @@ $sidebarModules = [
                 'url' => baseUrl('grados'),
             ],
             [
-                'key' => 'cursos',
-                'label' => 'Cursos',
-                'url' => baseUrl('cursos'),
-            ],
-            [
                 'key' => 'docentes',
                 'label' => 'Docentes',
                 'url' => '#',
@@ -85,32 +80,47 @@ $sidebarModules = [
             [
                 'key' => 'matriculas',
                 'label' => 'Matriculas',
-                'url' => '#',
+                'url' => baseUrl('matriculas'),
             ],
         ],
     ],
     'configuracion' => [
         'title' => 'Configuracion',
-        'items' => [
+        'groups' => [
             [
-                'key' => 'catalogos',
-                'label' => 'Catalogos',
-                'url' => baseUrl('configuracion/catalogos'),
+                'title' => 'Catalogos',
+                'items' => [
+                    [
+                        'key' => 'catalogos',
+                        'label' => 'Catalogos base',
+                        'url' => baseUrl('configuracion/catalogos'),
+                    ],
+                ],
             ],
             [
-                'key' => 'institucion',
-                'label' => 'Institucion',
-                'url' => baseUrl('configuracion/institucion'),
+                'title' => 'Institucion',
+                'items' => [
+                    [
+                        'key' => 'institucion',
+                        'label' => 'Datos institucionales',
+                        'url' => baseUrl('configuracion/institucion'),
+                    ],
+                ],
             ],
             [
-                'key' => 'periodos',
-                'label' => 'Periodos lectivos',
-                'url' => baseUrl('configuracion/periodos'),
-            ],
-            [
-                'key' => 'usuarios',
-                'label' => 'Usuarios',
-                'url' => '#',
+                'title' => 'Periodo lectivo',
+                'items' => [
+                    [
+                        'key' => 'periodos',
+                        'label' => 'Periodos lectivos',
+                        'url' => baseUrl('configuracion/periodos'),
+                    ],
+                    [
+                        'key' => 'cursos',
+                        'label' => 'Cursos por periodo',
+                        'url' => baseUrl('cursos'),
+                    ],
+                ],
             ],
         ],
     ],
@@ -158,6 +168,10 @@ $sidebarModules = [
 
 $currentModule = $currentModule ?? ($sectionModuleMap[$currentSection ?? ''] ?? 'inicio');
 $activeSidebar = $sidebarModules[$currentModule] ?? $sidebarModules['inicio'];
+$activeSidebarGroups = $activeSidebar['groups'] ?? [[
+    'title' => $activeSidebar['title'],
+    'items' => $activeSidebar['items'] ?? [],
+]];
 $currentPeriod = currentAcademicPeriod();
 $availablePeriods = availableAcademicPeriods();
 ?>
@@ -234,17 +248,19 @@ $availablePeriods = availableAcademicPeriods();
             </div>
 
             <nav class="sidebar-nav">
-                <div class="sidebar-group">
-                    <span class="sidebar-group-title"><?= htmlspecialchars($activeSidebar['title'], ENT_QUOTES, 'UTF-8'); ?></span>
-                    <?php foreach ($activeSidebar['items'] as $item): ?>
-                        <a
-                            class="<?= ($currentSection ?? '') === $item['key'] ? 'is-active' : ''; ?>"
-                            href="<?= htmlspecialchars($item['url'], ENT_QUOTES, 'UTF-8'); ?>"
-                        >
-                            <?= htmlspecialchars($item['label'], ENT_QUOTES, 'UTF-8'); ?>
-                        </a>
-                    <?php endforeach; ?>
-                </div>
+                <?php foreach ($activeSidebarGroups as $group): ?>
+                    <div class="sidebar-group">
+                        <span class="sidebar-group-title"><?= htmlspecialchars((string) ($group['title'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></span>
+                        <?php foreach (($group['items'] ?? []) as $item): ?>
+                            <a
+                                class="<?= ($currentSection ?? '') === $item['key'] ? 'is-active' : ''; ?>"
+                                href="<?= htmlspecialchars($item['url'], ENT_QUOTES, 'UTF-8'); ?>"
+                            >
+                                <?= htmlspecialchars($item['label'], ENT_QUOTES, 'UTF-8'); ?>
+                            </a>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endforeach; ?>
             </nav>
 
             <div class="sidebar-user">
