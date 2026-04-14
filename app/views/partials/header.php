@@ -29,7 +29,7 @@ $sectionModuleMap = [
     'dashboard' => 'inicio',
     'personas' => 'academico',
     'estudiantes' => 'academico',
-    'grados' => 'academico',
+    'grados' => 'configuracion',
     'institucion' => 'configuracion',
     'periodos' => 'configuracion',
     'cursos' => 'configuracion',
@@ -61,11 +61,6 @@ $sidebarModules = [
                 'key' => 'estudiantes',
                 'label' => 'Estudiantes',
                 'url' => baseUrl('estudiantes'),
-            ],
-            [
-                'key' => 'grados',
-                'label' => 'Grados',
-                'url' => baseUrl('grados'),
             ],
             [
                 'key' => 'docentes',
@@ -114,6 +109,11 @@ $sidebarModules = [
                         'key' => 'periodos',
                         'label' => 'Periodos lectivos',
                         'url' => baseUrl('configuracion/periodos'),
+                    ],
+                    [
+                        'key' => 'grados',
+                        'label' => 'Grados',
+                        'url' => baseUrl('grados'),
                     ],
                     [
                         'key' => 'cursos',

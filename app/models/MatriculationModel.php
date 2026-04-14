@@ -57,6 +57,7 @@ class MatriculationModel extends Model
                     p.percedula, p.perapellidos, p.pernombres,
                     n.nednombre, g.granombre, pr.prlnombre,
                     em.emdnombre,
+                    e.estestado,
                     rp.perapellidos AS rep_apellidos,
                     rp.pernombres AS rep_nombres,
                     pt.ptenombre AS rep_parentesco
@@ -197,15 +198,13 @@ class MatriculationModel extends Model
                 "UPDATE estudiante
                  SET estlugarnacimiento = :origen,
                      estdireccion = :direccion,
-                     estparroquia = :parroquia,
-                     estestado = :estado
+                     estparroquia = :parroquia
                  WHERE estid = :id"
             );
             $statement->bindValue(':id', $existing['estid'], PDO::PARAM_INT);
             $statement->bindValue(':origen', $student['estlugarnacimiento'] !== '' ? $student['estlugarnacimiento'] : null);
             $statement->bindValue(':direccion', $student['estdireccion'] !== '' ? $student['estdireccion'] : null);
             $statement->bindValue(':parroquia', $student['estparroquia'] !== '' ? $student['estparroquia'] : null);
-            $statement->bindValue(':estado', $student['estestado'], PDO::PARAM_BOOL);
             $statement->execute();
 
             return (int) $existing['estid'];
@@ -222,7 +221,7 @@ class MatriculationModel extends Model
         $statement->bindValue(':origen', $student['estlugarnacimiento'] !== '' ? $student['estlugarnacimiento'] : null);
         $statement->bindValue(':direccion', $student['estdireccion'] !== '' ? $student['estdireccion'] : null);
         $statement->bindValue(':parroquia', $student['estparroquia'] !== '' ? $student['estparroquia'] : null);
-        $statement->bindValue(':estado', $student['estestado'], PDO::PARAM_BOOL);
+        $statement->bindValue(':estado', false, PDO::PARAM_BOOL);
         $statement->execute();
 
         return (int) $statement->fetchColumn();
@@ -264,6 +263,36 @@ class MatriculationModel extends Model
         ]);
 
         return (int) $statement->fetchColumn();
+    }
+
+    public function toggleStudentStatusByMatricula(int $matriculaId): bool
+    {
+        $statement = $this->db->prepare(
+            "SELECT e.estid, e.estestado
+             FROM matricula m
+             INNER JOIN estudiante e ON e.estid = m.estid
+             WHERE m.matid = :matid
+             LIMIT 1"
+        );
+        $statement->execute(['matid' => $matriculaId]);
+        $record = $statement->fetch();
+
+        if ($record === false) {
+            throw new RuntimeException('La matricula solicitada no existe.');
+        }
+
+        $nextStatus = !((bool) ($record['estestado'] ?? false));
+
+        $update = $this->db->prepare(
+            "UPDATE estudiante
+             SET estestado = :estado
+             WHERE estid = :estid"
+        );
+        $update->bindValue(':estid', (int) $record['estid'], PDO::PARAM_INT);
+        $update->bindValue(':estado', $nextStatus, PDO::PARAM_BOOL);
+        $update->execute();
+
+        return $nextStatus;
     }
 
     private function persistFamilies(int $studentId, array $families, int $representativeIndex): ?array

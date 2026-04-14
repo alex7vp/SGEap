@@ -47,6 +47,7 @@ return static function (Router $router): void {
     $router->get('/personas', [PersonController::class, 'index']);
     $router->get('/grados', [GradeController::class, 'index']);
     $router->get('/matriculas', [MatriculationController::class, 'index']);
+    $router->get('/matriculas/persona', [MatriculationController::class, 'findPerson']);
     $router->get('/cursos', [CourseController::class, 'index']);
     $router->get('/grados/crear', [GradeController::class, 'create']);
     $router->get('/grados/editar', [GradeController::class, 'edit']);
@@ -57,6 +58,7 @@ return static function (Router $router): void {
     $router->post('/personas', [PersonController::class, 'store']);
     $router->post('/grados', [GradeController::class, 'store']);
     $router->post('/matriculas', [MatriculationController::class, 'store']);
+    $router->post('/matriculas/estado', [MatriculationController::class, 'toggleStatus']);
     $router->post('/cursos', [CourseController::class, 'store']);
     $router->post('/cursos/estado', [CourseController::class, 'toggleStatus']);
     $router->post('/grados/actualizar', [GradeController::class, 'update']);

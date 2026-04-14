@@ -6,6 +6,7 @@ namespace App\Controllers;
 
 use App\Core\Controller;
 use App\Models\MatriculationModel;
+use App\Models\PersonModel;
 
 class MatriculationController extends Controller
 {
@@ -14,12 +15,14 @@ class MatriculationController extends Controller
         $user = $this->requireAuth();
         $period = currentAcademicPeriod();
         $matriculationModel = new MatriculationModel();
+        $activePanel = $this->activePanel();
 
         $this->view('matriculas.index', [
             'appName' => config('app')['name'] ?? 'SGEap',
             'pageTitle' => 'Matriculas',
             'currentSection' => 'matriculas',
             'user' => $user,
+            'activePanel' => $activePanel,
             'currentPeriod' => $period,
             'courses' => $period !== null ? $matriculationModel->allCoursesByPeriod((int) $period['pleid']) : [],
             'relationships' => $matriculationModel->allRelationships(),
@@ -42,7 +45,7 @@ class MatriculationController extends Controller
 
         if ($period === null) {
             $this->flashMatriculaListFeedback('error', 'Debe seleccionar un periodo lectivo antes de registrar una matricula.');
-            $this->redirect('/matriculas#matriculas-registradas');
+            $this->redirect('/matriculas?panel=gestion#matriculas-registradas');
         }
 
         $data = $this->formData($period);
@@ -50,7 +53,7 @@ class MatriculationController extends Controller
         if (!$this->isValid($data)) {
             $this->flashOldFormData($data);
             $this->flashMatriculaFormFeedback('error', 'Complete los datos obligatorios de persona, estudiante, familiares, representante y matricula.');
-            $this->redirect('/matriculas#matricula-form');
+            $this->redirect('/matriculas?panel=nueva#matricula-form');
         }
 
         $matriculationModel = new MatriculationModel();
@@ -60,11 +63,84 @@ class MatriculationController extends Controller
         } catch (\Throwable $exception) {
             $this->flashOldFormData($data);
             $this->flashMatriculaFormFeedback('error', $exception->getMessage());
-            $this->redirect('/matriculas#matricula-form');
+            $this->redirect('/matriculas?panel=nueva#matricula-form');
         }
 
         $this->flashMatriculaListFeedback('success', 'Matricula registrada correctamente para el periodo actual.');
-        $this->redirect('/matriculas#matriculas-registradas');
+        $this->redirect('/matriculas?panel=gestion#matriculas-registradas');
+    }
+
+    public function findPerson(): void
+    {
+        $this->requireAuth();
+
+        header('Content-Type: application/json; charset=UTF-8');
+
+        $cedula = trim((string) ($_GET['cedula'] ?? ''));
+
+        if (!$this->isValidCedula($cedula)) {
+            http_response_code(422);
+            echo json_encode([
+                'found' => false,
+                'message' => 'La cedula debe tener 10 digitos.',
+            ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            return;
+        }
+
+        $personModel = new PersonModel();
+        $person = $personModel->findByCedula($cedula);
+
+        if ($person === false) {
+            echo json_encode([
+                'found' => false,
+                'message' => 'Persona no registrada, favor completar los datos.',
+            ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            return;
+        }
+
+        echo json_encode([
+            'found' => true,
+            'person' => [
+                'perid' => (int) ($person['perid'] ?? 0),
+                'percedula' => (string) ($person['percedula'] ?? ''),
+                'pernombres' => (string) ($person['pernombres'] ?? ''),
+                'perapellidos' => (string) ($person['perapellidos'] ?? ''),
+                'pertelefono1' => (string) ($person['pertelefono1'] ?? ''),
+                'pertelefono2' => (string) ($person['pertelefono2'] ?? ''),
+                'percorreo' => (string) ($person['percorreo'] ?? ''),
+                'persexo' => (string) ($person['persexo'] ?? ''),
+            ],
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    }
+
+    public function toggleStatus(): void
+    {
+        $this->requireAuth();
+
+        $matriculaId = (int) ($_POST['matid'] ?? 0);
+        $redirectTo = trim($_POST['redirect_to'] ?? '/matriculas?panel=gestion#matriculas-registradas');
+
+        if ($matriculaId <= 0) {
+            $this->flashMatriculaListFeedback('error', 'La matricula seleccionada no es valida.');
+            $this->redirect($redirectTo);
+        }
+
+        $matriculationModel = new MatriculationModel();
+
+        try {
+            $isActive = $matriculationModel->toggleStudentStatusByMatricula($matriculaId);
+        } catch (\Throwable $exception) {
+            $this->flashMatriculaListFeedback('error', $exception->getMessage());
+            $this->redirect($redirectTo);
+        }
+
+        $this->flashMatriculaListFeedback(
+            'success',
+            $isActive
+                ? 'Matricula habilitada correctamente. El estudiante queda activo.'
+                : 'Matricula inhabilitada correctamente. El estudiante queda inactivo.'
+        );
+        $this->redirect($redirectTo);
     }
 
     private function formData(array $period): array
@@ -84,7 +160,6 @@ class MatriculationController extends Controller
                 'estlugarnacimiento' => trim($_POST['student']['estlugarnacimiento'] ?? ''),
                 'estdireccion' => trim($_POST['student']['estdireccion'] ?? ''),
                 'estparroquia' => trim($_POST['student']['estparroquia'] ?? ''),
-                'estestado' => ($_POST['student']['estestado'] ?? '1') === '1',
             ],
             'families' => $this->familyRows((array) ($_POST['family'] ?? [])),
             'representative_index' => (int) ($_POST['representative_index'] ?? -1),
@@ -104,6 +179,7 @@ class MatriculationController extends Controller
         foreach ($rows as $row) {
             $normalized[] = [
                 'percedula' => trim((string) ($row['percedula'] ?? '')),
+                'perid' => (int) ($row['perid'] ?? 0),
                 'pernombres' => trim((string) ($row['pernombres'] ?? '')),
                 'perapellidos' => trim((string) ($row['perapellidos'] ?? '')),
                 'pertelefono1' => trim((string) ($row['pertelefono1'] ?? '')),
@@ -128,6 +204,7 @@ class MatriculationController extends Controller
             !$this->isValidCedula($data['person']['percedula'])
             || !$this->isValidEmail($data['person']['percorreo'] ?? '')
             || !$this->areValidFamilyCedulas($data['families'])
+            || !$this->areUniqueFamilyCedulas($data['person']['percedula'], $data['families'])
             || !$this->areValidFamilyEmails($data['families'])
             || $data['person']['pernombres'] === ''
             || $data['person']['perapellidos'] === ''
@@ -201,6 +278,34 @@ class MatriculationController extends Controller
         return true;
     }
 
+    private function areUniqueFamilyCedulas(string $studentCedula, array $families): bool
+    {
+        $usedCedulas = [];
+        $normalizedStudentCedula = trim($studentCedula);
+
+        foreach ($families as $family) {
+            $cedula = trim((string) ($family['percedula'] ?? ''));
+            $nombres = trim((string) ($family['pernombres'] ?? ''));
+            $apellidos = trim((string) ($family['perapellidos'] ?? ''));
+
+            if ($cedula === '' && $nombres === '' && $apellidos === '') {
+                continue;
+            }
+
+            if ($cedula === $normalizedStudentCedula) {
+                return false;
+            }
+
+            if (in_array($cedula, $usedCedulas, true)) {
+                return false;
+            }
+
+            $usedCedulas[] = $cedula;
+        }
+
+        return true;
+    }
+
     private function flashOldFormData(array $data): void
     {
         sessionFlash('old_matricula_form', json_encode([
@@ -235,10 +340,10 @@ class MatriculationController extends Controller
                 'estlugarnacimiento' => '',
                 'estdireccion' => '',
                 'estparroquia' => '',
-                'estestado' => true,
             ],
             'families' => !empty($decoded['families']) && is_array($decoded['families']) ? $decoded['families'] : [[
                 'percedula' => '',
+                'perid' => 0,
                 'pernombres' => '',
                 'perapellidos' => '',
                 'pertelefono1' => '',
@@ -295,5 +400,12 @@ class MatriculationController extends Controller
         }
 
         return ['type' => $type, 'message' => $message];
+    }
+
+    private function activePanel(): string
+    {
+        $panel = trim((string) ($_GET['panel'] ?? ''));
+
+        return in_array($panel, ['nueva', 'gestion'], true) ? $panel : '';
     }
 }

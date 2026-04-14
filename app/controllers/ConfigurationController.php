@@ -60,6 +60,8 @@ class ConfigurationController extends Controller
         $user = $this->requireAuth();
         $institutionModel = new InstitutionModel();
         $institution = $institutionModel->current();
+        $error = sessionFlash('error');
+        $fieldErrors = $this->institutionFieldErrors();
 
         $this->view('configuracion.institucion', [
             'appName' => config('app')['name'] ?? 'SGEap',
@@ -69,7 +71,8 @@ class ConfigurationController extends Controller
             'user' => $user,
             'institution' => $institution,
             'success' => sessionFlash('success'),
-            'error' => sessionFlash('error'),
+            'error' => empty($fieldErrors) ? $error : null,
+            'fieldErrors' => $fieldErrors,
             'old' => [
                 'insid' => sessionFlash('old_institution_id') ?? ($institution !== false ? (string) $institution['insid'] : ''),
                 'insnombre' => sessionFlash('old_institution_name') ?? ($institution !== false ? (string) $institution['insnombre'] : ''),
@@ -94,22 +97,46 @@ class ConfigurationController extends Controller
 
         if ($data['insnombre'] === '') {
             $this->flashInstitutionFormData($data);
-            sessionFlash('error', 'El nombre de la institucion es obligatorio.');
-            $this->redirect('/configuracion/institucion');
+            $this->flashInstitutionFieldError('insnombre', 'El nombre de la institucion es obligatorio.');
+            $this->redirectToInstitutionField('insnombre');
+        }
+
+        if (!$this->isValidInstitutionAmie($data['inscodigoamie'])) {
+            $this->flashInstitutionFormData($data);
+            $this->flashInstitutionFieldError('inscodigoamie', 'El codigo AMIE debe tener el formato 17H02761: 2 digitos, 1 letra mayuscula y 5 digitos.');
+            $this->redirectToInstitutionField('inscodigoamie');
+        }
+
+        if (!$this->isValidInstitutionRuc($data['insruc'])) {
+            $this->flashInstitutionFormData($data);
+            $this->flashInstitutionFieldError('insruc', 'El RUC debe tener 13 digitos numericos.');
+            $this->redirectToInstitutionField('insruc');
+        }
+
+        if (!$this->isValidInstitutionPhone($data['instelefono'])) {
+            $this->flashInstitutionFormData($data);
+            $this->flashInstitutionFieldError('instelefono', 'El telefono institucional debe tener 10 digitos.');
+            $this->redirectToInstitutionField('instelefono');
+        }
+
+        if (!$this->isValidInstitutionEmail($data['inscorreoelectronico'])) {
+            $this->flashInstitutionFormData($data);
+            $this->flashInstitutionFieldError('inscorreoelectronico', 'El correo institucional no tiene un formato valido.');
+            $this->redirectToInstitutionField('inscorreoelectronico');
         }
 
         $currentId = $current !== false ? (int) $current['insid'] : null;
 
         if ($institutionModel->existsByRuc($data['insruc'], $currentId)) {
             $this->flashInstitutionFormData($data);
-            sessionFlash('error', 'El RUC ya esta registrado en otra institucion.');
-            $this->redirect('/configuracion/institucion');
+            $this->flashInstitutionFieldError('insruc', 'El RUC ya esta registrado en otra institucion.');
+            $this->redirectToInstitutionField('insruc');
         }
 
         if ($institutionModel->existsByAmie($data['inscodigoamie'], $currentId)) {
             $this->flashInstitutionFormData($data);
-            sessionFlash('error', 'El codigo AMIE ya esta registrado en otra institucion.');
-            $this->redirect('/configuracion/institucion');
+            $this->flashInstitutionFieldError('inscodigoamie', 'El codigo AMIE ya esta registrado en otra institucion.');
+            $this->redirectToInstitutionField('inscodigoamie');
         }
 
         if ($current === false) {
@@ -370,12 +397,50 @@ class ConfigurationController extends Controller
             'insnombre' => trim($_POST['insnombre'] ?? ''),
             'insrazonsocial' => trim($_POST['insrazonsocial'] ?? ''),
             'insruc' => trim($_POST['insruc'] ?? ''),
-            'inscodigoamie' => trim($_POST['inscodigoamie'] ?? ''),
+            'inscodigoamie' => strtoupper(trim($_POST['inscodigoamie'] ?? '')),
             'insdireccion' => trim($_POST['insdireccion'] ?? ''),
             'instelefono' => trim($_POST['instelefono'] ?? ''),
             'inscorreoelectronico' => trim($_POST['inscorreoelectronico'] ?? ''),
             'insrepresentantelegal' => trim($_POST['insrepresentantelegal'] ?? ''),
         ];
+    }
+
+    private function isValidInstitutionAmie(string $amie): bool
+    {
+        if ($amie === '') {
+            return true;
+        }
+
+        return preg_match('/^\d{2}[A-Z]\d{5}$/', $amie) === 1;
+    }
+
+    private function isValidInstitutionRuc(string $ruc): bool
+    {
+        if ($ruc === '') {
+            return true;
+        }
+
+        return preg_match('/^\d{13}$/', $ruc) === 1;
+    }
+
+    private function isValidInstitutionPhone(string $phone): bool
+    {
+        if ($phone === '') {
+            return true;
+        }
+
+        $digits = preg_replace('/\D+/', '', $phone) ?? '';
+
+        return preg_match('/^\d{10}$/', $digits) === 1;
+    }
+
+    private function isValidInstitutionEmail(string $email): bool
+    {
+        if ($email === '') {
+            return true;
+        }
+
+        return filter_var($email, FILTER_VALIDATE_EMAIL) !== false;
     }
 
     private function flashPeriodFormData(array $data): void
@@ -397,6 +462,38 @@ class ConfigurationController extends Controller
         sessionFlash('old_institution_phone', (string) ($data['instelefono'] ?? ''));
         sessionFlash('old_institution_email', (string) ($data['inscorreoelectronico'] ?? ''));
         sessionFlash('old_institution_legal_rep', (string) ($data['insrepresentantelegal'] ?? ''));
+    }
+
+    private function flashInstitutionFieldError(string $field, string $message): void
+    {
+        sessionFlash('institution_error_' . $field, $message);
+    }
+
+    private function institutionFieldErrors(): array
+    {
+        $fields = [
+            'insnombre',
+            'insruc',
+            'inscodigoamie',
+            'instelefono',
+            'inscorreoelectronico',
+        ];
+        $errors = [];
+
+        foreach ($fields as $field) {
+            $message = sessionFlash('institution_error_' . $field);
+
+            if ($message !== null) {
+                $errors[$field] = $message;
+            }
+        }
+
+        return $errors;
+    }
+
+    private function redirectToInstitutionField(string $field): void
+    {
+        $this->redirect('/configuracion/institucion#institution-field-' . $field);
     }
 
     private function flashPeriodListFeedback(string $type, string $message): void

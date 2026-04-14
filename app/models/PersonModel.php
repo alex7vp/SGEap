@@ -83,6 +83,19 @@ class PersonModel extends Model
         return $statement->fetchColumn() !== false;
     }
 
+    public function findByCedula(string $cedula): array|false
+    {
+        $statement = $this->db->prepare(
+            "SELECT perid, percedula, pernombres, perapellidos, pertelefono1, pertelefono2, percorreo, persexo
+             FROM {$this->table}
+             WHERE percedula = :cedula
+             LIMIT 1"
+        );
+        $statement->execute(['cedula' => $cedula]);
+
+        return $statement->fetch();
+    }
+
     public function search(string $term = ''): array
     {
         $normalizedTerm = trim($term);
