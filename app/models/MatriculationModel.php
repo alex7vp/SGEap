@@ -50,6 +50,31 @@ class MatriculationModel extends Model
         return $this->simpleCatalog('estado_matricula', 'emdid', 'emdnombre');
     }
 
+    public function defaultInactiveEnrollmentStatus(): ?array
+    {
+        $statement = $this->db->query(
+            "SELECT emdid, emdnombre
+             FROM estado_matricula
+             ORDER BY emdid ASC"
+        );
+
+        $statuses = $statement->fetchAll();
+
+        if ($statuses === []) {
+            return null;
+        }
+
+        foreach ($statuses as $status) {
+            $name = mb_strtolower(trim((string) ($status['emdnombre'] ?? '')));
+
+            if (in_array($name, ['inactivo', 'inactiva', 'inhabilitado', 'inhabilitada'], true)) {
+                return $status;
+            }
+        }
+
+        return $statuses[0];
+    }
+
     public function allByPeriod(int $periodId): array
     {
         $statement = $this->db->prepare(
@@ -102,11 +127,8 @@ class MatriculationModel extends Model
             }
 
             $matriculaId = $this->insertMatriculation($studentId, $data['matricula'], $photoPath);
-            $representative = $this->persistFamilies($studentId, $data['families'], (int) $data['representative_index']);
-
-            if ($representative === null) {
-                throw new RuntimeException('Debe definir un representante a partir de uno de los familiares registrados.');
-            }
+            $familyRepresentatives = $this->persistFamilies($studentId, $data['families']);
+            $representative = $this->resolveRepresentative($data['representative'] ?? [], $familyRepresentatives);
 
             $this->insertMatriculationRepresentative($matriculaId, $representative['perid'], $representative['pteid']);
 
@@ -295,9 +317,9 @@ class MatriculationModel extends Model
         return $nextStatus;
     }
 
-    private function persistFamilies(int $studentId, array $families, int $representativeIndex): ?array
+    private function persistFamilies(int $studentId, array $families): array
     {
-        $representative = null;
+        $persisted = [];
 
         foreach ($families as $index => $family) {
             if (
@@ -329,15 +351,54 @@ class MatriculationModel extends Model
 
             $this->upsertFamily($studentId, $personId, $family);
 
-            if ($index === $representativeIndex) {
-                $representative = [
-                    'perid' => $personId,
-                    'pteid' => (int) $family['pteid'],
-                ];
-            }
+            $persisted[$index] = [
+                'perid' => $personId,
+                'pteid' => (int) $family['pteid'],
+            ];
         }
 
-        return $representative;
+        return $persisted;
+    }
+
+    private function resolveRepresentative(array $representative, array $familyRepresentatives): array
+    {
+        $source = (string) ($representative['source'] ?? 'family');
+
+        if ($source === 'external') {
+            $external = $representative['external'] ?? [];
+
+            if (
+                trim((string) ($external['percedula'] ?? '')) === ''
+                || trim((string) ($external['pernombres'] ?? '')) === ''
+                || trim((string) ($external['perapellidos'] ?? '')) === ''
+                || (int) ($external['pteid'] ?? 0) <= 0
+            ) {
+                throw new RuntimeException('Complete los datos obligatorios del representante externo.');
+            }
+
+            $personId = $this->upsertPerson([
+                'percedula' => $external['percedula'],
+                'pernombres' => $external['pernombres'],
+                'perapellidos' => $external['perapellidos'],
+                'pertelefono1' => $external['pertelefono1'] ?? '',
+                'pertelefono2' => $external['pertelefono2'] ?? '',
+                'percorreo' => $external['percorreo'] ?? '',
+                'persexo' => $external['persexo'] ?? '',
+            ]);
+
+            return [
+                'perid' => $personId,
+                'pteid' => (int) $external['pteid'],
+            ];
+        }
+
+        $familyIndex = (int) ($representative['family_index'] ?? -1);
+
+        if (!array_key_exists($familyIndex, $familyRepresentatives)) {
+            throw new RuntimeException('Debe seleccionar un representante valido.');
+        }
+
+        return $familyRepresentatives[$familyIndex];
     }
 
     private function upsertFamily(int $studentId, int $personId, array $family): void

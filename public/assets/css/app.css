@@ -558,6 +558,17 @@ input::placeholder {
     gap: 16px;
 }
 
+.family-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.family-actions .btn-inline {
+    width: auto;
+}
+
 .family-lookup-row {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;

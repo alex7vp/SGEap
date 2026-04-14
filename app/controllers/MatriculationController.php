@@ -145,6 +145,8 @@ class MatriculationController extends Controller
 
     private function formData(array $period): array
     {
+        $defaultMatricula = $this->defaultMatriculaData();
+
         return [
             'period' => $period,
             'person' => [
@@ -162,11 +164,11 @@ class MatriculationController extends Controller
                 'estparroquia' => trim($_POST['student']['estparroquia'] ?? ''),
             ],
             'families' => $this->familyRows((array) ($_POST['family'] ?? [])),
-            'representative_index' => (int) ($_POST['representative_index'] ?? -1),
+            'representative' => $this->representativeData(),
             'matricula' => [
                 'curid' => (int) ($_POST['matricula']['curid'] ?? 0),
-                'matfecha' => trim($_POST['matricula']['matfecha'] ?? ''),
-                'emdid' => (int) ($_POST['matricula']['emdid'] ?? 0),
+                'matfecha' => $defaultMatricula['matfecha'],
+                'emdid' => (int) $defaultMatricula['emdid'],
             ],
             'photo' => $_FILES['matricula_photo'] ?? null,
         ];
@@ -198,6 +200,25 @@ class MatriculationController extends Controller
         return $normalized;
     }
 
+    private function representativeData(): array
+    {
+        return [
+            'source' => trim((string) ($_POST['representative_source'] ?? 'family')),
+            'family_index' => (int) ($_POST['representative_index'] ?? -1),
+            'external' => [
+                'perid' => (int) ($_POST['representative_external']['perid'] ?? 0),
+                'percedula' => trim((string) ($_POST['representative_external']['percedula'] ?? '')),
+                'pernombres' => trim((string) ($_POST['representative_external']['pernombres'] ?? '')),
+                'perapellidos' => trim((string) ($_POST['representative_external']['perapellidos'] ?? '')),
+                'pertelefono1' => trim((string) ($_POST['representative_external']['pertelefono1'] ?? '')),
+                'pertelefono2' => trim((string) ($_POST['representative_external']['pertelefono2'] ?? '')),
+                'percorreo' => trim((string) ($_POST['representative_external']['percorreo'] ?? '')),
+                'persexo' => trim((string) ($_POST['representative_external']['persexo'] ?? '')),
+                'pteid' => (int) ($_POST['representative_external']['pteid'] ?? 0),
+            ],
+        ];
+    }
+
     private function isValid(array $data): bool
     {
         if (
@@ -206,6 +227,7 @@ class MatriculationController extends Controller
             || !$this->areValidFamilyCedulas($data['families'])
             || !$this->areUniqueFamilyCedulas($data['person']['percedula'], $data['families'])
             || !$this->areValidFamilyEmails($data['families'])
+            || !$this->isValidRepresentative($data['person']['percedula'], $data['families'], $data['representative'])
             || $data['person']['pernombres'] === ''
             || $data['person']['perapellidos'] === ''
             || $data['matricula']['curid'] <= 0
@@ -229,7 +251,7 @@ class MatriculationController extends Controller
             $validFamilies++;
         }
 
-        return $validFamilies > 0 && $data['representative_index'] >= 0;
+        return $data['representative']['source'] === 'external' || $validFamilies > 0;
     }
 
     private function isValidCedula(string $cedula): bool
@@ -306,19 +328,84 @@ class MatriculationController extends Controller
         return true;
     }
 
+    private function representativeHasData(array $representative): bool
+    {
+        $external = $representative['external'] ?? [];
+
+        return trim((string) ($external['percedula'] ?? '')) !== ''
+            || trim((string) ($external['pernombres'] ?? '')) !== ''
+            || trim((string) ($external['perapellidos'] ?? '')) !== '';
+    }
+
+    private function isValidRepresentative(string $studentCedula, array $families, array $representative): bool
+    {
+        $source = $representative['source'] ?? 'family';
+
+        if ($source === 'external') {
+            $external = $representative['external'] ?? [];
+
+            if (
+                !$this->representativeHasData($representative)
+                || !$this->isValidCedula((string) ($external['percedula'] ?? ''))
+                || !$this->isValidEmail((string) ($external['percorreo'] ?? ''))
+                || trim((string) ($external['pernombres'] ?? '')) === ''
+                || trim((string) ($external['perapellidos'] ?? '')) === ''
+                || (int) ($external['pteid'] ?? 0) <= 0
+            ) {
+                return false;
+            }
+
+            $externalCedula = trim((string) ($external['percedula'] ?? ''));
+
+            if ($externalCedula === trim($studentCedula)) {
+                return false;
+            }
+
+            foreach ($families as $family) {
+                $familyCedula = trim((string) ($family['percedula'] ?? ''));
+                $familyNames = trim((string) ($family['pernombres'] ?? ''));
+                $familyLastnames = trim((string) ($family['perapellidos'] ?? ''));
+
+                if ($familyCedula === '' && $familyNames === '' && $familyLastnames === '') {
+                    continue;
+                }
+
+                if ($familyCedula === $externalCedula) {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        $familyIndex = (int) ($representative['family_index'] ?? -1);
+
+        if ($familyIndex < 0 || !array_key_exists($familyIndex, $families)) {
+            return false;
+        }
+
+        $family = $families[$familyIndex];
+
+        return trim((string) ($family['percedula'] ?? '')) !== ''
+            && trim((string) ($family['pernombres'] ?? '')) !== ''
+            && trim((string) ($family['perapellidos'] ?? '')) !== ''
+            && (int) ($family['pteid'] ?? 0) > 0;
+    }
+
     private function flashOldFormData(array $data): void
     {
         sessionFlash('old_matricula_form', json_encode([
             'person' => $data['person'],
             'student' => $data['student'],
             'families' => $data['families'],
-            'representative_index' => $data['representative_index'],
+            'representative' => $data['representative'],
             'matricula' => $data['matricula'],
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
     }
 
     private function oldFormData(): array
     {
+        $defaultMatricula = $this->defaultMatriculaData();
         $raw = sessionFlash('old_matricula_form');
         $decoded = is_string($raw) ? json_decode($raw, true) : null;
 
@@ -341,28 +428,39 @@ class MatriculationController extends Controller
                 'estdireccion' => '',
                 'estparroquia' => '',
             ],
-            'families' => !empty($decoded['families']) && is_array($decoded['families']) ? $decoded['families'] : [[
-                'percedula' => '',
-                'perid' => 0,
-                'pernombres' => '',
-                'perapellidos' => '',
-                'pertelefono1' => '',
-                'pertelefono2' => '',
-                'percorreo' => '',
-                'persexo' => '',
-                'pteid' => 0,
-                'eciid' => 0,
-                'istid' => 0,
-                'famprofesion' => '',
-                'famlugardetrabajo' => '',
-                'famfechanacimiento' => '',
-            ]],
-            'representative_index' => (int) ($decoded['representative_index'] ?? 0),
+            'families' => !empty($decoded['families']) && is_array($decoded['families']) ? $decoded['families'] : [],
+            'representative' => $decoded['representative'] ?? [
+                'source' => 'family',
+                'family_index' => 0,
+                'external' => [
+                    'perid' => 0,
+                    'percedula' => '',
+                    'pernombres' => '',
+                    'perapellidos' => '',
+                    'pertelefono1' => '',
+                    'pertelefono2' => '',
+                    'percorreo' => '',
+                    'persexo' => '',
+                    'pteid' => 0,
+                ],
+            ],
             'matricula' => $decoded['matricula'] ?? [
                 'curid' => 0,
-                'matfecha' => date('Y-m-d'),
-                'emdid' => 0,
+                'matfecha' => $defaultMatricula['matfecha'],
+                'emdid' => $defaultMatricula['emdid'],
             ],
+        ];
+    }
+
+    private function defaultMatriculaData(): array
+    {
+        $matriculationModel = new MatriculationModel();
+        $defaultStatus = $matriculationModel->defaultInactiveEnrollmentStatus();
+
+        return [
+            'matfecha' => date('Y-m-d'),
+            'emdid' => (int) ($defaultStatus['emdid'] ?? 0),
+            'emdnombre' => (string) ($defaultStatus['emdnombre'] ?? 'Inactivo'),
         ];
     }
 

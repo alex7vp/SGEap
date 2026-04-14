@@ -517,14 +517,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const wizardPanels = document.querySelectorAll('[data-wizard-panel]');
     const matriculaForm = document.querySelector('[data-matricula-form]');
     const matriculaDraftButtons = document.querySelectorAll('[data-matricula-draft-save]');
+    const matriculaDraftClearButtons = document.querySelectorAll('[data-matricula-draft-clear]');
     const matriculaDraftAlert = document.querySelector('[data-matricula-draft-alert]');
+    const matriculaDraftAlertMessage = document.querySelector('[data-matricula-draft-alert-message]');
 
     if (matriculaForm instanceof HTMLFormElement) {
         const draftKey = 'sgeap_matricula_draft';
 
-        const showDraftAlert = () => {
+        const showDraftAlert = (message) => {
             if (!(matriculaDraftAlert instanceof HTMLElement)) {
                 return;
+            }
+
+            if (matriculaDraftAlertMessage instanceof HTMLElement && typeof message === 'string' && message !== '') {
+                matriculaDraftAlertMessage.textContent = message;
             }
 
             matriculaDraftAlert.hidden = false;
@@ -580,7 +586,30 @@ document.addEventListener('DOMContentLoaded', () => {
 
             button.addEventListener('click', () => {
                 window.localStorage.setItem(draftKey, JSON.stringify(serializeForm()));
-                showDraftAlert();
+                showDraftAlert('Borrador guardado localmente. Puedes continuar con la matricula y finalizarla despues.');
+            });
+        });
+
+        matriculaDraftClearButtons.forEach((button) => {
+            if (!(button instanceof HTMLButtonElement)) {
+                return;
+            }
+
+            button.addEventListener('click', () => {
+                window.localStorage.removeItem(draftKey);
+                matriculaForm.reset();
+                matriculaForm.dispatchEvent(new CustomEvent('matricula:draft-cleared'));
+                matriculaForm.querySelectorAll('input, select, textarea').forEach((field) => {
+                    if (
+                        field instanceof HTMLInputElement
+                        || field instanceof HTMLSelectElement
+                        || field instanceof HTMLTextAreaElement
+                    ) {
+                        field.dispatchEvent(new Event('input', { bubbles: true }));
+                        field.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
+                });
+                showDraftAlert('Los datos temporales se borraron correctamente.');
             });
         });
 
@@ -622,8 +651,17 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const familyContainer = document.querySelector('[data-family-rows]');
+    const familyToggleButtons = document.querySelectorAll('[data-family-toggle]');
     const representativeOptions = document.querySelector('[data-representative-options]');
     const representativeIndexInput = document.querySelector('[data-representative-index-input]');
+    const representativeSourceInput = document.querySelector('[data-representative-source-input]');
+    const representativeExternalForm = document.querySelector('[data-representative-external-form]');
+    const representativeExternalCedula = document.querySelector('[data-representative-external-cedula]');
+    const representativeExternalSearch = document.querySelector('[data-representative-external-search]');
+    const representativeExternalAlert = document.querySelector('[data-representative-external-alert]');
+    const representativeExternalPersonId = document.querySelector('[data-representative-external-person-id]');
+    const familyTemplate = document.querySelector('[data-family-template]');
+    const familyAddButton = document.querySelector('[data-family-add]');
 
     if (
         familyContainer instanceof HTMLElement
@@ -633,6 +671,52 @@ document.addEventListener('DOMContentLoaded', () => {
         const studentCedulaInput = document.querySelector('input[name="person[percedula]"]');
 
         const getNormalizedCedula = (value) => String(value || '').replace(/\D+/g, '').trim();
+
+        const getFamilySlotRow = (slot) => familyContainer.querySelector(`[data-family-slot="${slot}"]`);
+
+        const getFamilyToggleButton = (slot) => document.querySelector(`[data-family-toggle="${slot}"]`);
+
+        const updateFamilyCardTitles = () => {
+            let additionalCounter = 0;
+
+            Array.from(familyContainer.querySelectorAll('[data-family-row]')).forEach((row) => {
+                if (!(row instanceof HTMLElement) || !row.hasAttribute('data-family-removable')) {
+                    return;
+                }
+
+                additionalCounter += 1;
+                const title = row.querySelector('[data-family-card-title]');
+
+                if (title instanceof HTMLElement) {
+                    title.textContent = 'Familiar adicional ' + additionalCounter;
+                }
+            });
+        };
+
+        const getNextFamilyIndex = () => {
+            const rows = Array.from(familyContainer.querySelectorAll('[data-family-row]'));
+
+            return rows.reduce((max, row) => {
+                if (!(row instanceof HTMLElement)) {
+                    return max;
+                }
+
+                const rowIndex = Number.parseInt(row.dataset.familyIndex || '-1', 10);
+                return Number.isNaN(rowIndex) ? max : Math.max(max, rowIndex);
+            }, 1) + 1;
+        };
+
+        const createDynamicFamilyRow = (index) => {
+            if (!(familyTemplate instanceof HTMLTemplateElement)) {
+                return null;
+            }
+
+            const wrapper = document.createElement('div');
+            wrapper.innerHTML = familyTemplate.innerHTML.replace(/__INDEX__/g, String(index)).trim();
+            const row = wrapper.firstElementChild;
+
+            return row instanceof HTMLElement ? row : null;
+        };
 
         const setFamilyAlert = (row, message, type = 'error') => {
             if (!(row instanceof HTMLElement)) {
@@ -663,7 +747,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            row.querySelectorAll('[data-family-dependent]').forEach((field) => {
+            row.querySelectorAll('[data-family-person-field]').forEach((field) => {
+                if (field instanceof HTMLInputElement || field instanceof HTMLSelectElement || field instanceof HTMLTextAreaElement) {
+                    field.disabled = disabled;
+                }
+            });
+        };
+
+        const setFamilyDetailFieldsDisabled = (row, disabled) => {
+            if (!(row instanceof HTMLElement)) {
+                return;
+            }
+
+            row.querySelectorAll('[data-family-dependent]:not([data-family-person-field])').forEach((field) => {
                 if (field instanceof HTMLInputElement || field instanceof HTMLSelectElement || field instanceof HTMLTextAreaElement) {
                     field.disabled = disabled;
                 }
@@ -737,22 +833,136 @@ document.addEventListener('DOMContentLoaded', () => {
                 : fullName;
         };
 
-        const syncRepresentativeOptions = () => {
-            representativeOptions.innerHTML = '';
-            const rows = Array.from(familyContainer.querySelectorAll('[data-family-row]'));
+        const setFamilyRowVisible = (slot, visible) => {
+            const row = getFamilySlotRow(slot);
+            const button = getFamilyToggleButton(slot);
 
-            if (rows.length === 0) {
-                representativeOptions.innerHTML = '<div class="empty-state">Agrega al menos un familiar para definir el representante.</div>';
-                representativeIndexInput.value = '-1';
+            if (row instanceof HTMLElement) {
+                row.hidden = !visible;
+            }
+
+            if (button instanceof HTMLButtonElement) {
+                button.hidden = visible;
+            }
+        };
+
+        const enableFamilyRowForManualEntry = (row) => {
+            setFamilyFieldsDisabled(row, false);
+            setFamilyDetailFieldsDisabled(row, false);
+            setFamilyAlert(row, '');
+        };
+
+        const syncFixedFamilyVisibility = () => {
+            ['mother', 'father'].forEach((slot) => {
+                const row = getFamilySlotRow(slot);
+
+                if (!(row instanceof HTMLElement)) {
+                    return;
+                }
+
+                const shouldBeVisible = rowHasFamilyData(row);
+                setFamilyRowVisible(slot, shouldBeVisible);
+
+                if (shouldBeVisible) {
+                    if (row.querySelector('[data-family-person-id]') instanceof HTMLInputElement
+                        && Number.parseInt(row.querySelector('[data-family-person-id]').value || '0', 10) > 0) {
+                        setFamilyFieldsDisabled(row, true);
+                        setFamilyDetailFieldsDisabled(row, false);
+                    } else {
+                        enableFamilyRowForManualEntry(row);
+                    }
+                } else {
+                    setFamilyFieldsDisabled(row, true);
+                    setFamilyDetailFieldsDisabled(row, true);
+                    setFamilyAlert(row, '');
+                }
+            });
+        };
+
+        const rowHasFamilyData = (row) => {
+            if (!(row instanceof HTMLElement)) {
+                return false;
+            }
+
+            const cedulaInput = row.querySelector('[data-family-cedula]');
+            const nombresInput = row.querySelector('[data-family-field="nombres"]');
+            const apellidosInput = row.querySelector('[data-family-field="apellidos"]');
+
+            const cedula = cedulaInput instanceof HTMLInputElement ? cedulaInput.value.trim() : '';
+            const nombres = nombresInput instanceof HTMLInputElement ? nombresInput.value.trim() : '';
+            const apellidos = apellidosInput instanceof HTMLInputElement ? apellidosInput.value.trim() : '';
+
+            return cedula !== '' || nombres !== '' || apellidos !== '';
+        };
+
+        const setRepresentativeExternalAlert = (message) => {
+            if (!(representativeExternalAlert instanceof HTMLElement)) {
                 return;
             }
+
+            if (message === '') {
+                representativeExternalAlert.innerHTML = '';
+                representativeExternalAlert.hidden = true;
+                return;
+            }
+
+            representativeExternalAlert.innerHTML = '<div class="alert alert-error form-field-alert"><span>' + message + '</span></div>';
+            representativeExternalAlert.hidden = false;
+        };
+
+        const setRepresentativeExternalPersonFieldsDisabled = (disabled) => {
+            if (!(representativeExternalForm instanceof HTMLElement)) {
+                return;
+            }
+
+            representativeExternalForm.querySelectorAll('[data-representative-external-person-field]').forEach((field) => {
+                if (field instanceof HTMLInputElement || field instanceof HTMLSelectElement || field instanceof HTMLTextAreaElement) {
+                    field.disabled = disabled;
+                }
+            });
+        };
+
+        const setRepresentativeExternalVisible = (visible) => {
+            if (!(representativeExternalForm instanceof HTMLElement)) {
+                return;
+            }
+
+            representativeExternalForm.hidden = !visible;
+        };
+
+        const clearRepresentativeExternalForm = () => {
+            if (!(representativeExternalForm instanceof HTMLElement)) {
+                return;
+            }
+
+            representativeExternalForm.querySelectorAll('input, select').forEach((field) => {
+                if (field instanceof HTMLInputElement && field.type !== 'hidden') {
+                    field.value = '';
+                }
+
+                if (field instanceof HTMLSelectElement) {
+                    field.selectedIndex = 0;
+                }
+            });
+
+            if (representativeExternalPersonId instanceof HTMLInputElement) {
+                representativeExternalPersonId.value = '0';
+            }
+
+            setRepresentativeExternalPersonFieldsDisabled(false);
+            setRepresentativeExternalAlert('');
+        };
+
+        const syncRepresentativeOptions = () => {
+            representativeOptions.innerHTML = '';
+            const rows = Array.from(familyContainer.querySelectorAll('[data-family-row]')).filter((row) => rowHasFamilyData(row));
 
             rows.forEach((row, index) => {
                 if (!(row instanceof HTMLElement)) {
                     return;
                 }
 
-                row.dataset.familyIndex = String(index);
+                const formIndex = row.dataset.familyIndex || String(index);
                 const option = document.createElement('label');
                 const radio = document.createElement('input');
                 const content = document.createElement('span');
@@ -760,10 +970,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 option.className = 'representative-card';
                 radio.type = 'radio';
                 radio.name = 'representative_option_visual';
-                radio.value = String(index);
-                radio.checked = representativeIndexInput.value === String(index);
+                radio.value = formIndex;
+                radio.checked = representativeIndexInput.value === formIndex;
                 radio.addEventListener('change', () => {
                     representativeIndexInput.value = radio.value;
+                    if (representativeSourceInput instanceof HTMLInputElement) {
+                        representativeSourceInput.value = 'family';
+                    }
+                    setRepresentativeExternalVisible(false);
                 });
                 content.textContent = buildRepresentativeLabel(row);
                 option.appendChild(radio);
@@ -771,28 +985,81 @@ document.addEventListener('DOMContentLoaded', () => {
                 representativeOptions.appendChild(option);
             });
 
+            const externalOption = document.createElement('label');
+            const externalRadio = document.createElement('input');
+            const externalContent = document.createElement('span');
+
+            externalOption.className = 'representative-card';
+            externalRadio.type = 'radio';
+            externalRadio.name = 'representative_option_visual';
+            externalRadio.value = 'external';
+            externalRadio.checked = representativeSourceInput instanceof HTMLInputElement && representativeSourceInput.value === 'external';
+            externalRadio.addEventListener('change', () => {
+                if (representativeSourceInput instanceof HTMLInputElement) {
+                    representativeSourceInput.value = 'external';
+                }
+
+                setRepresentativeExternalVisible(true);
+            });
+            externalContent.textContent = 'Otro...';
+            externalOption.appendChild(externalRadio);
+            externalOption.appendChild(externalContent);
+            representativeOptions.appendChild(externalOption);
+
+            if (representativeSourceInput instanceof HTMLInputElement && representativeSourceInput.value === 'external') {
+                setRepresentativeExternalVisible(true);
+                if (representativeExternalPersonId instanceof HTMLInputElement && Number.parseInt(representativeExternalPersonId.value || '0', 10) > 0) {
+                    setRepresentativeExternalPersonFieldsDisabled(true);
+                } else {
+                    setRepresentativeExternalPersonFieldsDisabled(false);
+                }
+                externalRadio.checked = true;
+                return;
+            }
+
+            setRepresentativeExternalVisible(false);
+
+            if (rows.length === 0) {
+                if (representativeSourceInput instanceof HTMLInputElement) {
+                    representativeSourceInput.value = 'external';
+                }
+
+                externalRadio.checked = true;
+                setRepresentativeExternalVisible(true);
+                representativeIndexInput.value = '-1';
+                return;
+            }
+
             if (
                 representativeIndexInput.value === ''
-                || Number.parseInt(representativeIndexInput.value, 10) >= rows.length
                 || Number.parseInt(representativeIndexInput.value, 10) < 0
+                || !rows.some((row) => row instanceof HTMLElement && (row.dataset.familyIndex || '') === representativeIndexInput.value)
             ) {
-                representativeIndexInput.value = '0';
-                const firstRadio = representativeOptions.querySelector('input[type="radio"]');
+                representativeIndexInput.value = rows[0] instanceof HTMLElement ? (rows[0].dataset.familyIndex || '0') : '0';
+            }
 
-                if (firstRadio instanceof HTMLInputElement) {
-                    firstRadio.checked = true;
-                }
+            if (representativeSourceInput instanceof HTMLInputElement) {
+                representativeSourceInput.value = 'family';
+            }
+
+            const checkedRadio = representativeOptions.querySelector(`input[type="radio"][value="${CSS.escape(representativeIndexInput.value)}"]`);
+
+            if (checkedRadio instanceof HTMLInputElement) {
+                checkedRadio.checked = true;
             }
         };
 
         const wireFamilyRow = (row) => {
-            if (!(row instanceof HTMLElement)) {
+            if (!(row instanceof HTMLElement) || row.dataset.familyBound === 'true') {
                 return;
             }
+
+            row.dataset.familyBound = 'true';
 
             const cedulaInput = row.querySelector('[data-family-cedula]');
             const searchButton = row.querySelector('[data-family-search]');
             const personIdInput = row.querySelector('[data-family-person-id]');
+            const removeButton = row.querySelector('[data-family-remove]');
             const inputs = row.querySelectorAll('input, select');
 
             const runLookup = async () => {
@@ -806,6 +1073,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!/^\d{10}$/.test(cedula)) {
                     clearFamilyFields(row);
                     setFamilyFieldsDisabled(row, true);
+                    setFamilyDetailFieldsDisabled(row, true);
                     setFamilyAlert(row, 'La cedula debe tener 10 digitos.');
                     syncRepresentativeOptions();
                     return;
@@ -814,6 +1082,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (hasDuplicateFamilyCedula(row, cedula)) {
                     clearFamilyFields(row);
                     setFamilyFieldsDisabled(row, true);
+                    setFamilyDetailFieldsDisabled(row, true);
                     setFamilyAlert(row, 'Esta persona ya fue agregada en otra seccion o coincide con el estudiante.');
                     syncRepresentativeOptions();
                     return;
@@ -843,6 +1112,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             cedulaInput.value = cedula;
                         }
                         setFamilyFieldsDisabled(row, false);
+                        setFamilyDetailFieldsDisabled(row, false);
                         setFamilyAlert(row, payload.message || 'Persona no registrada, favor completar los datos.');
                         syncRepresentativeOptions();
                         return;
@@ -869,6 +1139,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     });
 
                     setFamilyFieldsDisabled(row, true);
+                    setFamilyDetailFieldsDisabled(row, false);
                     setFamilyAlert(row, '');
                     syncRepresentativeOptions();
                 } catch (error) {
@@ -882,6 +1153,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 searchButton.addEventListener('click', runLookup);
             }
 
+            if (removeButton instanceof HTMLButtonElement) {
+                removeButton.addEventListener('click', () => {
+                    row.remove();
+                    updateFamilyCardTitles();
+                    syncRepresentativeOptions();
+                });
+            }
+
             if (cedulaInput instanceof HTMLInputElement) {
                 cedulaInput.addEventListener('input', () => {
                     if (personIdInput instanceof HTMLInputElement) {
@@ -890,6 +1169,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     clearFamilyFields(row);
                     setFamilyFieldsDisabled(row, true);
+                    setFamilyDetailFieldsDisabled(row, true);
                     setFamilyAlert(row, '');
                     syncRepresentativeOptions();
                 });
@@ -904,8 +1184,233 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         };
 
-        Array.from(familyContainer.querySelectorAll('[data-family-row]')).forEach(wireFamilyRow);
+        if (familyAddButton instanceof HTMLButtonElement) {
+            familyAddButton.addEventListener('click', () => {
+                const row = createDynamicFamilyRow(getNextFamilyIndex());
 
+                if (!(row instanceof HTMLElement)) {
+                    return;
+                }
+
+                familyContainer.appendChild(row);
+                wireFamilyRow(row);
+                updateFamilyCardTitles();
+                syncRepresentativeOptions();
+            });
+        }
+
+        familyToggleButtons.forEach((button) => {
+            if (!(button instanceof HTMLButtonElement)) {
+                return;
+            }
+
+            button.addEventListener('click', () => {
+                const slot = button.dataset.familyToggle || '';
+                const row = getFamilySlotRow(slot);
+
+                if (!(row instanceof HTMLElement)) {
+                    return;
+                }
+
+                setFamilyRowVisible(slot, true);
+                clearFamilyFields(row);
+                enableFamilyRowForManualEntry(row);
+                syncRepresentativeOptions();
+            });
+        });
+
+        familyContainer.querySelectorAll('[data-family-hide]').forEach((button) => {
+            if (!(button instanceof HTMLButtonElement)) {
+                return;
+            }
+
+            button.addEventListener('click', () => {
+                const slot = button.dataset.familyHide || '';
+                const row = getFamilySlotRow(slot);
+
+                if (!(row instanceof HTMLElement)) {
+                    return;
+                }
+
+                clearFamilyFields(row);
+                setFamilyFieldsDisabled(row, true);
+                setFamilyDetailFieldsDisabled(row, true);
+                setFamilyAlert(row, '');
+                setFamilyRowVisible(slot, false);
+                syncRepresentativeOptions();
+            });
+        });
+
+        if (
+            representativeExternalForm instanceof HTMLElement
+            && representativeExternalCedula instanceof HTMLInputElement
+            && representativeExternalSearch instanceof HTMLButtonElement
+        ) {
+            const runRepresentativeExternalLookup = async () => {
+                const cedula = getNormalizedCedula(representativeExternalCedula.value);
+                const lookupUrl = representativeExternalSearch.dataset.representativeSearchUrl || '';
+
+                if (!/^\d{10}$/.test(cedula)) {
+                    clearRepresentativeExternalForm();
+                    representativeExternalCedula.value = cedula;
+                    setRepresentativeExternalAlert('La cedula debe tener 10 digitos.');
+                    return;
+                }
+
+                if (studentCedulaInput instanceof HTMLInputElement && getNormalizedCedula(studentCedulaInput.value) === cedula) {
+                    clearRepresentativeExternalForm();
+                    representativeExternalCedula.value = cedula;
+                    setRepresentativeExternalAlert('El representante no puede coincidir con el estudiante.');
+                    return;
+                }
+
+                if (lookupUrl === '') {
+                    return;
+                }
+
+                representativeExternalSearch.disabled = true;
+
+                try {
+                    const url = new URL(lookupUrl, window.location.origin);
+                    url.searchParams.set('cedula', cedula);
+
+                    const response = await fetch(url.toString(), {
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                    });
+
+                    const payload = await response.json();
+
+                    if (!response.ok || !payload.found) {
+                        clearRepresentativeExternalForm();
+                        representativeExternalCedula.value = cedula;
+                        setRepresentativeExternalAlert(payload.message || 'Persona no registrada, favor completar los datos.');
+                        return;
+                    }
+
+                    if (representativeExternalPersonId instanceof HTMLInputElement) {
+                        representativeExternalPersonId.value = String(payload.person?.perid || 0);
+                    }
+
+                    representativeExternalForm.querySelectorAll('[data-representative-external-person-field]').forEach((field) => {
+                        if (!(field instanceof HTMLInputElement) && !(field instanceof HTMLSelectElement)) {
+                            return;
+                        }
+
+                        const match = field.name.match(/\[(persexo|pernombres|perapellidos|pertelefono1|percorreo)\]$/);
+
+                        if (!match) {
+                            return;
+                        }
+
+                        const key = match[1];
+                        field.value = String(payload.person?.[key] ?? '');
+                    });
+
+                    setRepresentativeExternalPersonFieldsDisabled(true);
+                    setRepresentativeExternalAlert('');
+                } catch (error) {
+                    setRepresentativeExternalAlert('No se pudo consultar la persona.');
+                } finally {
+                    representativeExternalSearch.disabled = false;
+                }
+            };
+
+            representativeExternalSearch.addEventListener('click', runRepresentativeExternalLookup);
+            representativeExternalCedula.addEventListener('input', () => {
+                if (representativeExternalPersonId instanceof HTMLInputElement) {
+                    representativeExternalPersonId.value = '0';
+                }
+
+                representativeExternalForm.querySelectorAll('[data-representative-external-person-field]').forEach((field) => {
+                    if (field instanceof HTMLInputElement || field instanceof HTMLSelectElement) {
+                        if (field instanceof HTMLInputElement) {
+                            field.value = '';
+                        } else {
+                            field.selectedIndex = 0;
+                        }
+                    }
+                });
+                setRepresentativeExternalPersonFieldsDisabled(false);
+                setRepresentativeExternalAlert('');
+            });
+
+            representativeExternalForm.querySelectorAll('input, select').forEach((field) => {
+                if (field instanceof HTMLInputElement && field.hasAttribute('data-phone-mask')) {
+                    wirePhoneMask(field);
+                }
+            });
+        }
+
+        if (matriculaForm instanceof HTMLFormElement) {
+            matriculaForm.addEventListener('matricula:draft-cleared', () => {
+                familyContainer.querySelectorAll('[data-family-removable]').forEach((row) => {
+                    if (row instanceof HTMLElement) {
+                        row.remove();
+                    }
+                });
+
+                updateFamilyCardTitles();
+                clearRepresentativeExternalForm();
+                if (representativeSourceInput instanceof HTMLInputElement) {
+                    representativeSourceInput.value = 'family';
+                }
+                syncFixedFamilyVisibility();
+                syncRepresentativeOptions();
+            });
+
+            const rawDraft = window.localStorage.getItem('sgeap_matricula_draft');
+
+            if (rawDraft !== null) {
+                try {
+                    const draftPayload = JSON.parse(rawDraft);
+                    const requiredIndexes = Object.keys(draftPayload)
+                        .map((name) => {
+                            const match = name.match(/^family\[(\d+)\]\[/);
+                            return match ? Number.parseInt(match[1], 10) : -1;
+                        })
+                        .filter((index) => index >= 2)
+                        .sort((left, right) => left - right);
+
+                    requiredIndexes.forEach((index) => {
+                        const existing = familyContainer.querySelector(`[data-family-row][data-family-index="${index}"]`);
+
+                        if (existing instanceof HTMLElement) {
+                            return;
+                        }
+
+                        const row = createDynamicFamilyRow(index);
+
+                        if (!(row instanceof HTMLElement)) {
+                            return;
+                        }
+
+                        familyContainer.appendChild(row);
+                        wireFamilyRow(row);
+                    });
+
+                    Object.entries(draftPayload).forEach(([name, value]) => {
+                        const field = matriculaForm.querySelector(`[name="${CSS.escape(name)}"]`);
+
+                        if (field instanceof HTMLInputElement || field instanceof HTMLSelectElement || field instanceof HTMLTextAreaElement) {
+                            field.value = String(value);
+
+                            if (field instanceof HTMLInputElement && field.hasAttribute('data-phone-mask')) {
+                                field.dispatchEvent(new Event('input', { bubbles: true }));
+                            }
+                        }
+                    });
+                    syncFixedFamilyVisibility();
+                } catch (error) {
+                    window.localStorage.removeItem('sgeap_matricula_draft');
+                }
+            }
+        }
+
+        Array.from(familyContainer.querySelectorAll('[data-family-row]')).forEach(wireFamilyRow);
+        updateFamilyCardTitles();
+        syncFixedFamilyVisibility();
         syncRepresentativeOptions();
     }
 
