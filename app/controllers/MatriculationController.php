@@ -170,6 +170,21 @@ class MatriculationController extends Controller
                 'matfecha' => $defaultMatricula['matfecha'],
                 'emdid' => (int) $defaultMatricula['emdid'],
             ],
+            'resources' => [
+                'mrtinternet' => isset($_POST['resources']['mrtinternet']),
+                'mrtcomputador' => isset($_POST['resources']['mrtcomputador']),
+                'mrtlaptop' => isset($_POST['resources']['mrtlaptop']),
+                'mrttablet' => isset($_POST['resources']['mrttablet']),
+                'mrtcelular' => isset($_POST['resources']['mrtcelular']),
+            ],
+            'billing' => [
+                'mfcnombre' => trim((string) ($_POST['billing']['mfcnombre'] ?? '')),
+                'mfctipoidentificacion' => mb_strtoupper(trim((string) ($_POST['billing']['mfctipoidentificacion'] ?? ''))),
+                'mfcidentificacion' => preg_replace('/\D+/', '', (string) ($_POST['billing']['mfcidentificacion'] ?? '')) ?? '',
+                'mfcdireccion' => trim((string) ($_POST['billing']['mfcdireccion'] ?? '')),
+                'mfccorreo' => trim((string) ($_POST['billing']['mfccorreo'] ?? '')),
+                'mfctelefono' => trim((string) ($_POST['billing']['mfctelefono'] ?? '')),
+            ],
             'photo' => $_FILES['matricula_photo'] ?? null,
         ];
     }
@@ -228,6 +243,7 @@ class MatriculationController extends Controller
             || !$this->areUniqueFamilyCedulas($data['person']['percedula'], $data['families'])
             || !$this->areValidFamilyEmails($data['families'])
             || !$this->isValidRepresentative($data['person']['percedula'], $data['families'], $data['representative'])
+            || !$this->isValidBilling($data['billing'])
             || $data['person']['pernombres'] === ''
             || $data['person']['perapellidos'] === ''
             || $data['matricula']['curid'] <= 0
@@ -268,6 +284,40 @@ class MatriculationController extends Controller
         }
 
         return filter_var($normalized, FILTER_VALIDATE_EMAIL) !== false;
+    }
+
+    private function isValidPhone(string $phone): bool
+    {
+        $normalized = preg_replace('/\D+/', '', trim($phone)) ?? '';
+
+        if ($normalized === '') {
+            return true;
+        }
+
+        return preg_match('/^\d{10}$/', $normalized) === 1;
+    }
+
+    private function isValidBilling(array $billing): bool
+    {
+        $name = trim((string) ($billing['mfcnombre'] ?? ''));
+        $type = mb_strtoupper(trim((string) ($billing['mfctipoidentificacion'] ?? '')));
+        $identification = preg_replace('/\D+/', '', (string) ($billing['mfcidentificacion'] ?? '')) ?? '';
+        $email = trim((string) ($billing['mfccorreo'] ?? ''));
+        $phone = trim((string) ($billing['mfctelefono'] ?? ''));
+
+        if ($name === '' || !in_array($type, ['CEDULA', 'RUC'], true)) {
+            return false;
+        }
+
+        if ($type === 'CEDULA' && preg_match('/^\d{10}$/', $identification) !== 1) {
+            return false;
+        }
+
+        if ($type === 'RUC' && preg_match('/^\d{13}$/', $identification) !== 1) {
+            return false;
+        }
+
+        return $this->isValidEmail($email) && $this->isValidPhone($phone);
     }
 
     private function areValidFamilyCedulas(array $families): bool
@@ -400,6 +450,8 @@ class MatriculationController extends Controller
             'families' => $data['families'],
             'representative' => $data['representative'],
             'matricula' => $data['matricula'],
+            'resources' => $data['resources'],
+            'billing' => $data['billing'],
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
     }
 
@@ -448,6 +500,21 @@ class MatriculationController extends Controller
                 'curid' => 0,
                 'matfecha' => $defaultMatricula['matfecha'],
                 'emdid' => $defaultMatricula['emdid'],
+            ],
+            'resources' => $decoded['resources'] ?? [
+                'mrtinternet' => false,
+                'mrtcomputador' => false,
+                'mrtlaptop' => false,
+                'mrttablet' => false,
+                'mrtcelular' => false,
+            ],
+            'billing' => $decoded['billing'] ?? [
+                'mfcnombre' => '',
+                'mfctipoidentificacion' => 'CEDULA',
+                'mfcidentificacion' => '',
+                'mfcdireccion' => '',
+                'mfccorreo' => '',
+                'mfctelefono' => '',
             ],
         ];
     }

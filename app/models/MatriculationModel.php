@@ -131,6 +131,8 @@ class MatriculationModel extends Model
             $representative = $this->resolveRepresentative($data['representative'] ?? [], $familyRepresentatives);
 
             $this->insertMatriculationRepresentative($matriculaId, $representative['perid'], $representative['pteid']);
+            $this->insertMatriculationResources($matriculaId, $data['resources'] ?? []);
+            $this->insertMatriculationBilling($matriculaId, $data['billing'] ?? []);
 
             $this->db->commit();
 
@@ -456,6 +458,44 @@ class MatriculationModel extends Model
             'matid' => $matriculaId,
             'perid' => $personId,
             'pteid' => $relationshipId,
+        ]);
+    }
+
+    private function insertMatriculationResources(int $matriculaId, array $resources): void
+    {
+        $statement = $this->db->prepare(
+            "INSERT INTO matricula_recurso_tecnologico (
+                matid, mrtinternet, mrtcomputador, mrtlaptop, mrttablet, mrtcelular
+             ) VALUES (
+                :matid, :internet, :computador, :laptop, :tablet, :celular
+             )"
+        );
+        $statement->bindValue(':matid', $matriculaId, PDO::PARAM_INT);
+        $statement->bindValue(':internet', (bool) ($resources['mrtinternet'] ?? false), PDO::PARAM_BOOL);
+        $statement->bindValue(':computador', (bool) ($resources['mrtcomputador'] ?? false), PDO::PARAM_BOOL);
+        $statement->bindValue(':laptop', (bool) ($resources['mrtlaptop'] ?? false), PDO::PARAM_BOOL);
+        $statement->bindValue(':tablet', (bool) ($resources['mrttablet'] ?? false), PDO::PARAM_BOOL);
+        $statement->bindValue(':celular', (bool) ($resources['mrtcelular'] ?? false), PDO::PARAM_BOOL);
+        $statement->execute();
+    }
+
+    private function insertMatriculationBilling(int $matriculaId, array $billing): void
+    {
+        $statement = $this->db->prepare(
+            "INSERT INTO matricula_facturacion (
+                matid, mfcnombre, mfctipoidentificacion, mfcidentificacion, mfcdireccion, mfccorreo, mfctelefono
+             ) VALUES (
+                :matid, :nombre, :tipo_identificacion, :identificacion, :direccion, :correo, :telefono
+             )"
+        );
+        $statement->execute([
+            'matid' => $matriculaId,
+            'nombre' => $billing['mfcnombre'],
+            'tipo_identificacion' => $billing['mfctipoidentificacion'],
+            'identificacion' => $billing['mfcidentificacion'],
+            'direccion' => ($billing['mfcdireccion'] ?? '') !== '' ? $billing['mfcdireccion'] : null,
+            'correo' => ($billing['mfccorreo'] ?? '') !== '' ? $billing['mfccorreo'] : null,
+            'telefono' => ($billing['mfctelefono'] ?? '') !== '' ? $billing['mfctelefono'] : null,
         ]);
     }
 

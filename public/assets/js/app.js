@@ -548,6 +548,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 payload[key] = String(value);
             });
 
+            matriculaForm.querySelectorAll('input[type="checkbox"]').forEach((field) => {
+                if (!(field instanceof HTMLInputElement) || field.name === '') {
+                    return;
+                }
+
+                payload[field.name] = field.checked;
+            });
+
             return payload;
         };
 
@@ -565,11 +573,17 @@ document.addEventListener('DOMContentLoaded', () => {
                     const field = matriculaForm.querySelector(`[name="${CSS.escape(name)}"]`);
 
                     if (field instanceof HTMLInputElement || field instanceof HTMLSelectElement || field instanceof HTMLTextAreaElement) {
-                        field.value = String(value);
+                        if (field instanceof HTMLInputElement && field.type === 'checkbox') {
+                            field.checked = Boolean(value);
+                        } else {
+                            field.value = String(value);
+                        }
 
                         if (field instanceof HTMLInputElement && field.hasAttribute('data-phone-mask')) {
                             field.dispatchEvent(new Event('input', { bubbles: true }));
                         }
+
+                        field.dispatchEvent(new Event('change', { bubbles: true }));
                     }
                 });
             } catch (error) {
@@ -578,6 +592,26 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         restoreDraft();
+
+        const billingIdType = matriculaForm.querySelector('[data-billing-id-type]');
+        const billingIdNumber = matriculaForm.querySelector('[data-billing-id-number]');
+
+        const syncBillingIdentificationField = () => {
+            if (!(billingIdType instanceof HTMLSelectElement) || !(billingIdNumber instanceof HTMLInputElement)) {
+                return;
+            }
+
+            const selectedType = String(billingIdType.value || 'CEDULA').toUpperCase();
+            const isRuc = selectedType === 'RUC';
+
+            billingIdNumber.maxLength = isRuc ? 13 : 10;
+            billingIdNumber.placeholder = isRuc ? 'Ej: 1790012345001' : 'Ej: 1711894939';
+        };
+
+        if (billingIdType instanceof HTMLSelectElement) {
+            billingIdType.addEventListener('change', syncBillingIdentificationField);
+            syncBillingIdentificationField();
+        }
 
         matriculaDraftButtons.forEach((button) => {
             if (!(button instanceof HTMLButtonElement)) {
@@ -965,9 +999,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 const formIndex = row.dataset.familyIndex || String(index);
                 const option = document.createElement('label');
                 const radio = document.createElement('input');
-                const content = document.createElement('span');
+                const content = document.createElement('div');
 
                 option.className = 'representative-card';
+                content.className = 'representative-card-label';
                 radio.type = 'radio';
                 radio.name = 'representative_option_visual';
                 radio.value = formIndex;
@@ -980,16 +1015,17 @@ document.addEventListener('DOMContentLoaded', () => {
                     setRepresentativeExternalVisible(false);
                 });
                 content.textContent = buildRepresentativeLabel(row);
-                option.appendChild(radio);
                 option.appendChild(content);
+                option.appendChild(radio);
                 representativeOptions.appendChild(option);
             });
 
             const externalOption = document.createElement('label');
             const externalRadio = document.createElement('input');
-            const externalContent = document.createElement('span');
+            const externalContent = document.createElement('div');
 
             externalOption.className = 'representative-card';
+            externalContent.className = 'representative-card-label';
             externalRadio.type = 'radio';
             externalRadio.name = 'representative_option_visual';
             externalRadio.value = 'external';
@@ -1001,9 +1037,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 setRepresentativeExternalVisible(true);
             });
-            externalContent.textContent = 'Otro...';
-            externalOption.appendChild(externalRadio);
+            externalContent.textContent = 'Otro representante';
             externalOption.appendChild(externalContent);
+            externalOption.appendChild(externalRadio);
             representativeOptions.appendChild(externalOption);
 
             if (representativeSourceInput instanceof HTMLInputElement && representativeSourceInput.value === 'external') {

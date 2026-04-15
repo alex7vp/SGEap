@@ -9,6 +9,21 @@ $representativeOld = is_array($old['representative'] ?? null) ? $old['representa
 $oldRepresentativeIndex = (int) ($representativeOld['family_index'] ?? 0);
 $representativeSource = (string) ($representativeOld['source'] ?? 'family');
 $externalRepresentative = is_array($representativeOld['external'] ?? null) ? $representativeOld['external'] : [];
+$resourcesOld = array_merge([
+    'mrtinternet' => false,
+    'mrtcomputador' => false,
+    'mrtlaptop' => false,
+    'mrttablet' => false,
+    'mrtcelular' => false,
+], is_array($old['resources'] ?? null) ? $old['resources'] : []);
+$billingOld = array_merge([
+    'mfcnombre' => '',
+    'mfctipoidentificacion' => 'CEDULA',
+    'mfcidentificacion' => '',
+    'mfcdireccion' => '',
+    'mfccorreo' => '',
+    'mfctelefono' => '',
+], is_array($old['billing'] ?? null) ? $old['billing'] : []);
 $motherRelationship = null;
 $fatherRelationship = null;
 
@@ -217,33 +232,17 @@ $dynamicFamilyTemplate = ob_get_clean();
             </div>
         </header>
 
-        <?php if (!empty($matriculaFormFeedback)): ?>
-            <div class="catalog-feedback security-feedback-global">
-                <div class="alert <?= ($matriculaFormFeedback['type'] ?? '') === 'error' ? 'alert-error' : 'alert-success'; ?> alert-dismissible" data-alert>
-                    <span><?= htmlspecialchars((string) ($matriculaFormFeedback['message'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></span>
-                    <button class="alert-close" type="button" aria-label="Cerrar notificacion" data-alert-close>
-                        <i class="fa fa-times" aria-hidden="true"></i>
-                    </button>
-                </div>
-            </div>
-        <?php endif; ?>
-
         <?php if (empty($courses) || empty($enrollmentStatuses) || empty($relationships)): ?>
             <div class="empty-state">Para matricular necesitas cursos activos del periodo, estados de matricula y parentescos registrados.</div>
         <?php else: ?>
             <form class="data-form matricula-form" method="POST" action="<?= htmlspecialchars(baseUrl('matriculas'), ENT_QUOTES, 'UTF-8'); ?>" enctype="multipart/form-data" data-matricula-form>
-                <div class="alert alert-success alert-dismissible matricula-draft-alert" data-matricula-draft-alert hidden>
-                    <span data-matricula-draft-alert-message>Borrador guardado localmente. Puedes continuar con la matricula y finalizarla despues.</span>
-                    <button class="alert-close" type="button" aria-label="Cerrar notificacion" data-alert-close>
-                        <i class="fa fa-times" aria-hidden="true"></i>
-                    </button>
-                </div>
-
                 <div class="wizard-tabs" role="tablist" aria-label="Secciones de matricula">
                     <button type="button" class="wizard-tab is-active" data-wizard-tab="persona">Estudiante</button>
                     <button type="button" class="wizard-tab" data-wizard-tab="estudiante">Datos Personales</button>
                     <button type="button" class="wizard-tab" data-wizard-tab="familiares">Datos Familiares</button>
                     <button type="button" class="wizard-tab" data-wizard-tab="representante">Representante</button>
+                    <button type="button" class="wizard-tab" data-wizard-tab="recursos">Recursos tecnologicos</button>
+                    <button type="button" class="wizard-tab" data-wizard-tab="facturacion">Facturacion</button>
                     <button type="button" class="wizard-tab" data-wizard-tab="matricula">Matricula</button>
                 </div>
 
@@ -374,6 +373,52 @@ $dynamicFamilyTemplate = ob_get_clean();
                     </div>
                 </section>
 
+                <section class="wizard-panel" data-wizard-panel="recursos" hidden>
+                    <p class="module-note">Marca los recursos tecnologicos disponibles para el estudiante al momento de la matricula.</p>
+                    <div class="resource-grid">
+                        <label class="resource-option">
+                            <span>Internet</span>
+                            <input type="checkbox" name="resources[mrtinternet]" value="1" <?= !empty($resourcesOld['mrtinternet']) ? 'checked' : ''; ?>>
+                        </label>
+                        <label class="resource-option">
+                            <span>Computador</span>
+                            <input type="checkbox" name="resources[mrtcomputador]" value="1" <?= !empty($resourcesOld['mrtcomputador']) ? 'checked' : ''; ?>>
+                        </label>
+                        <label class="resource-option">
+                            <span>Laptop</span>
+                            <input type="checkbox" name="resources[mrtlaptop]" value="1" <?= !empty($resourcesOld['mrtlaptop']) ? 'checked' : ''; ?>>
+                        </label>
+                        <label class="resource-option">
+                            <span>Tablet</span>
+                            <input type="checkbox" name="resources[mrttablet]" value="1" <?= !empty($resourcesOld['mrttablet']) ? 'checked' : ''; ?>>
+                        </label>
+                        <label class="resource-option">
+                            <span>Telefono inteligente</span>
+                            <input type="checkbox" name="resources[mrtcelular]" value="1" <?= !empty($resourcesOld['mrtcelular']) ? 'checked' : ''; ?>>
+                        </label>
+                    </div>
+                    <div class="actions-row">
+                        <button class="btn-secondary btn-inline" type="button" data-matricula-draft-save>Guardar</button>
+                        <button class="btn-secondary btn-inline" type="button" data-matricula-draft-clear>Borrar temporal</button>
+                    </div>
+                </section>
+
+                <section class="wizard-panel" data-wizard-panel="facturacion" hidden>
+                    <p class="module-note">Registra los datos que se utilizaran para la facturacion de la matricula.</p>
+                    <div class="form-grid">
+                        <div class="form-group form-group-full"><div class="input-group"><span class="input-addon">Nombre / Razon social</span><input name="billing[mfcnombre]" required value="<?= htmlspecialchars((string) ($billingOld['mfcnombre'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>"></div></div>
+                        <div class="form-group"><div class="input-group"><span class="input-addon">Tipo ID</span><select name="billing[mfctipoidentificacion]" required data-billing-id-type><option value="CEDULA" <?= ($billingOld['mfctipoidentificacion'] ?? 'CEDULA') === 'CEDULA' ? 'selected' : ''; ?>>Cedula</option><option value="RUC" <?= ($billingOld['mfctipoidentificacion'] ?? '') === 'RUC' ? 'selected' : ''; ?>>RUC</option></select></div></div>
+                        <div class="form-group"><div class="input-group"><span class="input-addon">Identificacion</span><input name="billing[mfcidentificacion]" required inputmode="numeric" maxlength="<?= ($billingOld['mfctipoidentificacion'] ?? 'CEDULA') === 'RUC' ? '13' : '10'; ?>" placeholder="<?= ($billingOld['mfctipoidentificacion'] ?? 'CEDULA') === 'RUC' ? 'Ej: 1790012345001' : 'Ej: 1711894939'; ?>" value="<?= htmlspecialchars((string) ($billingOld['mfcidentificacion'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" data-billing-id-number></div></div>
+                        <div class="form-group"><div class="input-group"><span class="input-addon">Celular</span><input name="billing[mfctelefono]" placeholder="(09) 9894 5698" maxlength="14" inputmode="numeric" value="<?= htmlspecialchars((string) ($billingOld['mfctelefono'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" data-phone-mask></div></div>
+                        <div class="form-group"><div class="input-group"><span class="input-addon">Correo</span><input name="billing[mfccorreo]" type="email" placeholder="correo@dominio.com" value="<?= htmlspecialchars((string) ($billingOld['mfccorreo'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>"></div></div>
+                        <div class="form-group form-group-full"><div class="input-group"><span class="input-addon">Direccion</span><input name="billing[mfcdireccion]" value="<?= htmlspecialchars((string) ($billingOld['mfcdireccion'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>"></div></div>
+                    </div>
+                    <div class="actions-row">
+                        <button class="btn-secondary btn-inline" type="button" data-matricula-draft-save>Guardar</button>
+                        <button class="btn-secondary btn-inline" type="button" data-matricula-draft-clear>Borrar temporal</button>
+                    </div>
+                </section>
+
                 <section class="wizard-panel" data-wizard-panel="matricula" hidden>
                     <div class="form-grid">
                         <div class="form-group"><div class="input-group"><span class="input-addon">Periodo</span><input type="text" value="<?= htmlspecialchars((string) $currentPeriod['pledescripcion'], ENT_QUOTES, 'UTF-8'); ?>" readonly></div></div>
@@ -384,6 +429,24 @@ $dynamicFamilyTemplate = ob_get_clean();
                         <button class="btn-primary btn-inline" type="submit">Guardar matricula</button>
                     </div>
                 </section>
+
+                <div class="alert alert-success alert-dismissible matricula-draft-alert wizard-feedback-bottom" data-matricula-draft-alert hidden>
+                    <span data-matricula-draft-alert-message>Borrador guardado localmente. Puedes continuar con la matricula y finalizarla despues.</span>
+                    <button class="alert-close" type="button" aria-label="Cerrar notificacion" data-alert-close>
+                        <i class="fa fa-times" aria-hidden="true"></i>
+                    </button>
+                </div>
+
+                <?php if (!empty($matriculaFormFeedback)): ?>
+                    <div class="catalog-feedback security-feedback-global wizard-feedback-bottom">
+                        <div class="alert <?= ($matriculaFormFeedback['type'] ?? '') === 'error' ? 'alert-error' : 'alert-success'; ?> alert-dismissible" data-alert>
+                            <span><?= htmlspecialchars((string) ($matriculaFormFeedback['message'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></span>
+                            <button class="alert-close" type="button" aria-label="Cerrar notificacion" data-alert-close>
+                                <i class="fa fa-times" aria-hidden="true"></i>
+                            </button>
+                        </div>
+                    </div>
+                <?php endif; ?>
             </form>
         <?php endif; ?>
     </section>

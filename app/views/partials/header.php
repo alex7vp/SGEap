@@ -211,7 +211,6 @@ $availablePeriods = availableAcademicPeriods();
             <div class="topbar-end">
                 <details class="topbar-period-picker">
                     <summary class="topbar-chip">
-                        <span class="topbar-chip-label">Periodo</span>
                         <strong><?= htmlspecialchars((string) ($currentPeriod['pledescripcion'] ?? 'Sin periodo'), ENT_QUOTES, 'UTF-8'); ?></strong>
                     </summary>
                     <div class="topbar-period-menu">
