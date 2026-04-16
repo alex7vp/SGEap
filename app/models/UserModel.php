@@ -15,8 +15,9 @@ class UserModel extends Model
     public function findActiveByUsername(string $username): array|false
     {
         $statement = $this->db->prepare(
-            "SELECT usuid, perid, usunombre, usuclave, usuestado
-             FROM {$this->table}
+            "SELECT u.usuid, u.perid, u.usunombre, u.usuclave, u.usuestado, p.pernombres, p.perapellidos
+             FROM {$this->table} u
+             INNER JOIN persona p ON p.perid = u.perid
              WHERE usunombre = :username
                AND usuestado = true
              LIMIT 1"

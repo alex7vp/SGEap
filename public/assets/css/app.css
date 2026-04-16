@@ -254,10 +254,10 @@ input::placeholder {
     gap: 18px;
     padding: 16px 20px;
     min-height: var(--topbar-height);
-    border: 1px solid var(--border);
+    border: 1px solid rgba(12, 53, 88, 0.28);
     border-radius: 18px;
-    background: #ffffff;
-    box-shadow: var(--shadow-soft);
+    background: linear-gradient(135deg, var(--primary) 0%, #1f6aa5 100%);
+    box-shadow: 0 18px 34px rgba(15, 76, 129, 0.22);
 }
 
 .topbar-start,
@@ -282,18 +282,44 @@ input::placeholder {
 
 .topbar-brand {
     display: grid;
-    gap: 2px;
+    grid-template-columns: 64px auto;
+    gap: 2px 12px;
+    align-items: center;
+}
+
+.topbar-brand-mark {
+    grid-row: 1 / span 2;
+    width: 64px;
+    height: 64px;
+    border-radius: 0;
+    overflow: hidden;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 0;
+    color: #ffffff;
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+}
+
+.topbar-brand-mark img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
 }
 
 .topbar-brand strong {
     font-size: 1rem;
-    color: var(--text);
+    color: #ffffff;
 }
 
 .topbar-brand span,
 .topbar-chip-label {
     font-size: 0.78rem;
-    color: var(--muted);
+    color: rgba(255, 255, 255, 0.78);
     text-transform: uppercase;
     letter-spacing: 0.08em;
 }
@@ -310,7 +336,7 @@ input::placeholder {
 .topbar-nav a {
     padding: 10px 14px;
     border-radius: 999px;
-    color: var(--muted);
+    color: rgba(255, 255, 255, 0.86);
     text-decoration: none;
     font-size: 0.9rem;
     font-weight: 600;
@@ -319,24 +345,24 @@ input::placeholder {
 
 .topbar-nav a.is-active,
 .topbar-nav a:hover {
-    background: var(--primary-soft);
-    color: var(--primary);
-    border-color: rgba(15, 76, 129, 0.16);
+    background: rgba(255, 255, 255, 0.16);
+    color: #ffffff;
+    border-color: rgba(255, 255, 255, 0.22);
 }
 
-.topbar-chip,
-.topbar-user {
+.topbar-chip {
     display: grid;
     gap: 2px;
     padding: 8px 12px;
-    border: 1px solid var(--border);
+    border: 1px solid rgba(255, 255, 255, 0.2);
     border-radius: 12px;
-    background: #f8fbfe;
+    background: rgba(255, 255, 255, 0.12);
+    color: #ffffff;
 }
 
 .topbar-period-picker[open] .topbar-chip {
-    border-color: rgba(15, 76, 129, 0.16);
-    background: #ffffff;
+    border-color: rgba(255, 255, 255, 0.26);
+    background: rgba(255, 255, 255, 0.18);
 }
 
 .topbar-period-menu {
@@ -367,16 +393,22 @@ input::placeholder {
     display: inline-flex;
     align-items: center;
     font-weight: 600;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    color: #ffffff;
+    box-shadow: none;
 }
 
 .topbar-toggle {
     display: none;
     width: 42px;
     height: 42px;
-    border: 1px solid var(--border);
+    border: 1px solid rgba(255, 255, 255, 0.2);
     border-radius: 12px;
-    background: #ffffff;
-    color: var(--primary);
+    background: rgba(255, 255, 255, 0.12);
+    color: #ffffff;
     cursor: pointer;
 }
 

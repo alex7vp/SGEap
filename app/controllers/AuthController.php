@@ -48,6 +48,8 @@ class AuthController extends Controller
             'usuid' => (int) $user['usuid'],
             'perid' => (int) $user['perid'],
             'username' => (string) $user['usunombre'],
+            'first_name' => trim((string) ($user['pernombres'] ?? '')),
+            'last_name' => trim((string) ($user['perapellidos'] ?? '')),
         ];
 
         $periodModel = new PeriodModel();

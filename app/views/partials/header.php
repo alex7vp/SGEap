@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use App\Models\InstitutionModel;
+
 $topModules = [
     'inicio' => [
         'label' => 'Inicio',
@@ -174,6 +176,42 @@ $activeSidebarGroups = $activeSidebar['groups'] ?? [[
 ]];
 $currentPeriod = currentAcademicPeriod();
 $availablePeriods = availableAcademicPeriods();
+$displayUserName = trim((string) (($user['first_name'] ?? '') . ' ' . ($user['last_name'] ?? '')));
+
+if ($displayUserName === '') {
+    $displayUserName = (string) ($user['username'] ?? '');
+}
+
+$institutionName = (string) ($appName ?? 'SGEap');
+
+try {
+    $institutionModel = new InstitutionModel();
+    $currentInstitution = $institutionModel->current();
+
+    if ($currentInstitution !== false && trim((string) ($currentInstitution['insnombre'] ?? '')) !== '') {
+        $institutionName = trim((string) $currentInstitution['insnombre']);
+    }
+} catch (\Throwable) {
+}
+
+$institutionInitials = strtoupper((string) preg_replace('/[^A-Z0-9]/', '', implode('', array_slice(preg_split('/\s+/', $institutionName) ?: [], 0, 2)))) ?: 'SG';
+$institutionLogo = null;
+$logoDirectory = BASE_PATH . '/public/assets/images';
+$logoPatterns = [
+    'institution-logo*',
+    'logo-institucion*',
+    'institucion-logo*',
+];
+
+foreach ($logoPatterns as $logoPattern) {
+    $matches = glob($logoDirectory . '/' . $logoPattern);
+
+    if (!empty($matches)) {
+        $logoFile = basename((string) $matches[0]);
+        $institutionLogo = 'images/' . $logoFile;
+        break;
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -192,6 +230,13 @@ $availablePeriods = availableAcademicPeriods();
                     <i class="fa fa-bars" aria-hidden="true"></i>
                 </button>
                 <div class="topbar-brand">
+                    <div class="topbar-brand-mark" aria-hidden="true">
+                        <?php if ($institutionLogo !== null): ?>
+                            <img src="<?= htmlspecialchars(asset($institutionLogo), ENT_QUOTES, 'UTF-8'); ?>" alt="">
+                        <?php else: ?>
+                            <span><?= htmlspecialchars($institutionInitials, ENT_QUOTES, 'UTF-8'); ?></span>
+                        <?php endif; ?>
+                    </div>
                     <strong><?= htmlspecialchars($appName ?? 'SGEap', ENT_QUOTES, 'UTF-8'); ?></strong>
                     <span>Sistema institucional</span>
                 </div>
@@ -233,7 +278,7 @@ $availablePeriods = availableAcademicPeriods();
                     </div>
                 </details>
                 <div class="topbar-user">
-                    <span><?= htmlspecialchars((string) ($user['username'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></span>
+                    <span><?= htmlspecialchars($displayUserName, ENT_QUOTES, 'UTF-8'); ?></span>
                 </div>
             </div>
         </div>
@@ -242,7 +287,6 @@ $availablePeriods = availableAcademicPeriods();
     <main class="shell">
         <aside class="sidebar-card">
             <div class="sidebar-brand">
-                <h1><?= htmlspecialchars($appName ?? 'SGEap', ENT_QUOTES, 'UTF-8'); ?></h1>
                 <p><?= htmlspecialchars($activeSidebar['title'], ENT_QUOTES, 'UTF-8'); ?></p>
             </div>
 
@@ -261,12 +305,6 @@ $availablePeriods = availableAcademicPeriods();
                     </div>
                 <?php endforeach; ?>
             </nav>
-
-            <div class="sidebar-user">
-                <strong><?= htmlspecialchars((string) ($user['username'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></strong>
-                <span>ID persona <?= htmlspecialchars((string) ($user['perid'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></span>
-            </div>
-
             <form method="POST" action="<?= htmlspecialchars(baseUrl('logout'), ENT_QUOTES, 'UTF-8'); ?>">
                 <button class="btn-secondary" type="submit">Cerrar sesion</button>
             </form>
