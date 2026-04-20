@@ -8,22 +8,27 @@ $topModules = [
     'inicio' => [
         'label' => 'Inicio',
         'url' => baseUrl('dashboard'),
+        'icon' => 'fa-home',
     ],
     'academico' => [
         'label' => 'Gestion academica',
         'url' => baseUrl('personas'),
+        'icon' => 'fa-graduation-cap',
     ],
     'configuracion' => [
         'label' => 'Configuracion',
         'url' => baseUrl('configuracion/catalogos'),
+        'icon' => 'fa-cogs',
     ],
     'reportes' => [
         'label' => 'Reportes',
         'url' => '#',
+        'icon' => 'fa-bar-chart',
     ],
     'seguridad' => [
         'label' => 'Seguridad',
         'url' => baseUrl('seguridad/catalogos'),
+        'icon' => 'fa-shield',
     ],
 ];
 
@@ -48,6 +53,7 @@ $sidebarModules = [
                 'key' => 'dashboard',
                 'label' => 'Dashboard',
                 'url' => baseUrl('dashboard'),
+                'icon' => 'fa-home',
             ],
         ],
     ],
@@ -58,26 +64,31 @@ $sidebarModules = [
                 'key' => 'personas',
                 'label' => 'Personas',
                 'url' => baseUrl('personas'),
+                'icon' => 'fa-users',
             ],
             [
                 'key' => 'estudiantes',
                 'label' => 'Estudiantes',
                 'url' => baseUrl('estudiantes'),
+                'icon' => 'fa-graduation-cap',
             ],
             [
                 'key' => 'docentes',
                 'label' => 'Docentes',
                 'url' => '#',
+                'icon' => 'fa-user-circle',
             ],
             [
                 'key' => 'administrativos',
                 'label' => 'Administrativos',
                 'url' => '#',
+                'icon' => 'fa-briefcase',
             ],
             [
                 'key' => 'matriculas',
                 'label' => 'Matriculas',
                 'url' => baseUrl('matriculas'),
+                'icon' => 'fa-address-card',
             ],
         ],
     ],
@@ -91,6 +102,7 @@ $sidebarModules = [
                         'key' => 'catalogos',
                         'label' => 'Catalogos base',
                         'url' => baseUrl('configuracion/catalogos'),
+                        'icon' => 'fa-list-alt',
                     ],
                 ],
             ],
@@ -101,6 +113,7 @@ $sidebarModules = [
                         'key' => 'institucion',
                         'label' => 'Datos institucionales',
                         'url' => baseUrl('configuracion/institucion'),
+                        'icon' => 'fa-university',
                     ],
                 ],
             ],
@@ -111,16 +124,19 @@ $sidebarModules = [
                         'key' => 'periodos',
                         'label' => 'Periodos lectivos',
                         'url' => baseUrl('configuracion/periodos'),
+                        'icon' => 'fa-calendar',
                     ],
                     [
                         'key' => 'grados',
                         'label' => 'Grados',
                         'url' => baseUrl('grados'),
+                        'icon' => 'fa-sitemap',
                     ],
                     [
                         'key' => 'cursos',
                         'label' => 'Cursos por periodo',
                         'url' => baseUrl('cursos'),
+                        'icon' => 'fa-book',
                     ],
                 ],
             ],
@@ -133,11 +149,13 @@ $sidebarModules = [
                 'key' => 'reportes_estudiantes',
                 'label' => 'Reporte de estudiantes',
                 'url' => '#',
+                'icon' => 'fa-file-text-o',
             ],
             [
                 'key' => 'reportes_personal',
                 'label' => 'Reporte de personal',
                 'url' => '#',
+                'icon' => 'fa-file-text',
             ],
         ],
     ],
@@ -148,21 +166,25 @@ $sidebarModules = [
                 'key' => 'seguridad_catalogos',
                 'label' => 'Catalogos',
                 'url' => baseUrl('seguridad/catalogos'),
+                'icon' => 'fa-tags',
             ],
             [
                 'key' => 'seguridad_usuarios',
                 'label' => 'Usuarios',
                 'url' => baseUrl('seguridad/usuarios'),
+                'icon' => 'fa-user',
             ],
             [
                 'key' => 'seguridad_roles_permisos',
                 'label' => 'Roles y permisos',
                 'url' => baseUrl('seguridad/roles-permisos'),
+                'icon' => 'fa-key',
             ],
             [
                 'key' => 'auditoria',
                 'label' => 'Auditoria',
                 'url' => '#',
+                'icon' => 'fa-search',
             ],
         ],
     ],
@@ -248,6 +270,7 @@ foreach ($logoPatterns as $logoPattern) {
                         class="<?= $currentModule === $moduleKey ? 'is-active' : ''; ?>"
                         href="<?= htmlspecialchars($module['url'], ENT_QUOTES, 'UTF-8'); ?>"
                     >
+                        <i class="fa <?= htmlspecialchars((string) ($module['icon'] ?? 'fa-circle'), ENT_QUOTES, 'UTF-8'); ?>" aria-hidden="true"></i>
                         <?= htmlspecialchars($module['label'], ENT_QUOTES, 'UTF-8'); ?>
                     </a>
                 <?php endforeach; ?>
@@ -299,6 +322,7 @@ foreach ($logoPatterns as $logoPattern) {
                                 class="<?= ($currentSection ?? '') === $item['key'] ? 'is-active' : ''; ?>"
                                 href="<?= htmlspecialchars($item['url'], ENT_QUOTES, 'UTF-8'); ?>"
                             >
+                                <i class="fa <?= htmlspecialchars((string) ($item['icon'] ?? 'fa-circle'), ENT_QUOTES, 'UTF-8'); ?>" aria-hidden="true"></i>
                                 <?= htmlspecialchars($item['label'], ENT_QUOTES, 'UTF-8'); ?>
                             </a>
                         <?php endforeach; ?>
@@ -313,7 +337,6 @@ foreach ($logoPatterns as $logoPattern) {
         <section class="content-card">
             <header class="content-header">
                 <div>
-                    <p class="eyebrow">Modulo actual</p>
                     <h2><?= htmlspecialchars($pageTitle ?? 'Panel', ENT_QUOTES, 'UTF-8'); ?></h2>
                 </div>
             </header>

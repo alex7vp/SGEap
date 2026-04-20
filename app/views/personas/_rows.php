@@ -18,7 +18,9 @@
                     href="<?= htmlspecialchars(baseUrl('personas/editar?id=' . $person['perid']), ENT_QUOTES, 'UTF-8'); ?>"
                     title="Editar persona"
                     aria-label="Editar persona"
-                >&#9998;</a>
+                >
+                    <i class="fa fa-pencil" aria-hidden="true"></i>
+                </a>
 
                 <form method="POST" action="<?= htmlspecialchars(baseUrl('personas/eliminar'), ENT_QUOTES, 'UTF-8'); ?>" onsubmit="return confirm('Confirma que desea eliminar esta persona?');">
                     <input type="hidden" name="perid" value="<?= htmlspecialchars((string) $person['perid'], ENT_QUOTES, 'UTF-8'); ?>">
@@ -27,7 +29,9 @@
                         type="submit"
                         title="Eliminar persona"
                         aria-label="Eliminar persona"
-                    >&#128465;</button>
+                    >
+                        <i class="fa fa-trash" aria-hidden="true"></i>
+                    </button>
                 </form>
             </div>
         </td>

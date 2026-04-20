@@ -72,6 +72,9 @@ require BASE_PATH . '/app/views/partials/header.php';
     </div>
 
     <div class="actions-row">
+        <button class="btn-secondary btn-auto btn-icon-only btn-icon-small" type="reset" title="Limpiar formulario" aria-label="Limpiar formulario" hidden>
+            <i class="fa fa-eraser" aria-hidden="true"></i>
+        </button>
         <button class="btn-primary btn-auto" type="submit"><?= htmlspecialchars((string) ($submitLabel ?? 'Guardar persona'), ENT_QUOTES, 'UTF-8'); ?></button>
     </div>
 </form>

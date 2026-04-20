@@ -67,6 +67,9 @@ require BASE_PATH . '/app/views/partials/header.php';
                     </div>
                 </div>
                 <div class="actions-row">
+                    <button class="btn-secondary btn-auto btn-icon-only btn-icon-small" type="reset" title="Limpiar formulario" aria-label="Limpiar formulario" hidden>
+                        <i class="fa fa-eraser" aria-hidden="true"></i>
+                    </button>
                     <button class="btn-primary btn-inline" type="submit">Guardar curso</button>
                 </div>
             </form>

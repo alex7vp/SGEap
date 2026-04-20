@@ -9,7 +9,9 @@
                     href="<?= htmlspecialchars(baseUrl('grados/editar?id=' . $grade['graid']), ENT_QUOTES, 'UTF-8'); ?>"
                     title="Editar grado"
                     aria-label="Editar grado"
-                >&#9998;</a>
+                >
+                    <i class="fa fa-pencil" aria-hidden="true"></i>
+                </a>
 
                 <form method="POST" action="<?= htmlspecialchars(baseUrl('grados/eliminar'), ENT_QUOTES, 'UTF-8'); ?>" onsubmit="return confirm('Confirma que desea eliminar este grado?');">
                     <input type="hidden" name="graid" value="<?= htmlspecialchars((string) $grade['graid'], ENT_QUOTES, 'UTF-8'); ?>">
@@ -18,7 +20,9 @@
                         type="submit"
                         title="Eliminar grado"
                         aria-label="Eliminar grado"
-                    >&#128465;</button>
+                    >
+                        <i class="fa fa-trash" aria-hidden="true"></i>
+                    </button>
                 </form>
             </div>
         </td>

@@ -228,11 +228,75 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         institutionCancelButton.addEventListener('click', () => {
+            institutionForm.reset();
             institutionForm.hidden = true;
             institutionEditButton.hidden = false;
             institutionCancelButton.hidden = true;
         });
     }
+
+    const trackResettableForms = document.querySelectorAll('form');
+
+    const readFieldState = (field) => {
+        if (
+            !(field instanceof HTMLInputElement)
+            && !(field instanceof HTMLSelectElement)
+            && !(field instanceof HTMLTextAreaElement)
+        ) {
+            return null;
+        }
+
+        if (field instanceof HTMLInputElement) {
+            if (field.type === 'file') {
+                return 'files:' + field.files.length;
+            }
+
+            if (field.type === 'checkbox' || field.type === 'radio') {
+                return field.checked ? '1' : '0';
+            }
+        }
+
+        if (field instanceof HTMLSelectElement && field.multiple) {
+            return Array.from(field.selectedOptions).map((option) => option.value).join('|');
+        }
+
+        return field.value;
+    };
+
+    const snapshotFormState = (form) => {
+        return Array.from(form.elements)
+            .map((field) => readFieldState(field))
+            .filter((value) => value !== null)
+            .join('||');
+    };
+
+    trackResettableForms.forEach((form) => {
+        if (!(form instanceof HTMLFormElement)) {
+            return;
+        }
+
+        const resetButton = form.querySelector('button[type="reset"]');
+
+        if (!(resetButton instanceof HTMLButtonElement)) {
+            return;
+        }
+
+        const initialState = snapshotFormState(form);
+
+        const syncResetButtonVisibility = () => {
+            resetButton.hidden = snapshotFormState(form) === initialState;
+        };
+
+        resetButton.hidden = true;
+
+        form.addEventListener('input', syncResetButtonVisibility);
+        form.addEventListener('change', syncResetButtonVisibility);
+        form.addEventListener('reset', () => {
+            window.setTimeout(() => {
+                syncResetButtonVisibility();
+            }, 0);
+        });
+    });
 
     const securityUserRoleSearchInput = document.querySelector('[data-security-user-role-search]');
     const securityUserRoleTableBody = document.querySelector('[data-security-user-role-table-body]');

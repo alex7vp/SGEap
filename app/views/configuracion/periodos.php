@@ -55,7 +55,17 @@ $editingPeriodId = (int) ($old['pleid'] ?? 0);
             </div>
         </div>
         <div class="actions-row">
-            <button class="btn-primary btn-inline" type="submit"><?= $editingPeriodId > 0 ? 'Actualizar periodo' : 'Guardar periodo'; ?></button>
+            <button class="btn-secondary btn-auto btn-icon-only btn-icon-small" type="reset" title="Limpiar formulario" aria-label="Limpiar formulario" hidden>
+                <i class="fa fa-eraser" aria-hidden="true"></i>
+            </button>
+            <button
+                class="btn-primary btn-auto btn-icon-only btn-icon-small"
+                type="submit"
+                title="<?= htmlspecialchars($editingPeriodId > 0 ? 'Actualizar periodo' : 'Guardar periodo', ENT_QUOTES, 'UTF-8'); ?>"
+                aria-label="<?= htmlspecialchars($editingPeriodId > 0 ? 'Actualizar periodo' : 'Guardar periodo', ENT_QUOTES, 'UTF-8'); ?>"
+            >
+                <i class="fa fa-save" aria-hidden="true"></i>
+            </button>
         </div>
     </form>
 </section>

@@ -12,7 +12,6 @@ $showInstitutionForm = $institution === false || !empty($error) || !empty($field
 <p class="module-note">Este modulo concentra la informacion institucional principal usada por el sistema, reportes y configuraciones generales.</p>
 
 <section class="summary-card">
-    <span class="summary-label">Institucion actual</span>
     <strong><?= htmlspecialchars($displayName, ENT_QUOTES, 'UTF-8'); ?></strong>
     <p><?= htmlspecialchars($displayBusinessName, ENT_QUOTES, 'UTF-8'); ?></p>
 
@@ -173,6 +172,9 @@ $showInstitutionForm = $institution === false || !empty($error) || !empty($field
             </div>
         </div>
         <div class="actions-row">
+            <button class="btn-secondary btn-auto btn-icon-only btn-icon-small" type="reset" title="Limpiar formulario" aria-label="Limpiar formulario" hidden>
+                <i class="fa fa-eraser" aria-hidden="true"></i>
+            </button>
             <button class="btn-primary btn-inline" type="submit"><?= $institution !== false ? 'Actualizar institucion' : 'Guardar institucion'; ?></button>
         </div>
     </form>
