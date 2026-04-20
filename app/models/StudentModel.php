@@ -75,4 +75,23 @@ class StudentModel extends Model
 
         return $statement->fetchColumn() !== false;
     }
+
+    public function countAll(): int
+    {
+        $statement = $this->db->query(
+            "SELECT COUNT(*) FROM {$this->table}"
+        );
+
+        return (int) $statement->fetchColumn();
+    }
+
+    public function countActive(): int
+    {
+        $statement = $this->db->query(
+            "SELECT COUNT(*) FROM {$this->table}
+             WHERE estestado = true"
+        );
+
+        return (int) $statement->fetchColumn();
+    }
 }

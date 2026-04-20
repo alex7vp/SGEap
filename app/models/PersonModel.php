@@ -179,4 +179,13 @@ class PersonModel extends Model
 
         return $statement->fetchAll();
     }
+
+    public function countAll(): int
+    {
+        $statement = $this->db->query(
+            "SELECT COUNT(*) FROM {$this->table}"
+        );
+
+        return (int) $statement->fetchColumn();
+    }
 }

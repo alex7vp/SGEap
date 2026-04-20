@@ -120,4 +120,29 @@ class CourseModel extends Model
 
         return $statement->fetch();
     }
+
+    public function countByPeriod(int $periodId): int
+    {
+        $statement = $this->db->prepare(
+            "SELECT COUNT(*)
+             FROM {$this->table}
+             WHERE pleid = :period_id"
+        );
+        $statement->execute(['period_id' => $periodId]);
+
+        return (int) $statement->fetchColumn();
+    }
+
+    public function countActiveByPeriod(int $periodId): int
+    {
+        $statement = $this->db->prepare(
+            "SELECT COUNT(*)
+             FROM {$this->table}
+             WHERE pleid = :period_id
+               AND curestado = true"
+        );
+        $statement->execute(['period_id' => $periodId]);
+
+        return (int) $statement->fetchColumn();
+    }
 }

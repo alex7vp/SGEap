@@ -29,6 +29,7 @@ return static function (Router $router): void {
     $router->post('/configuracion/periodos', [ConfigurationController::class, 'storePeriod']);
     $router->post('/configuracion/periodos/actualizar', [ConfigurationController::class, 'updatePeriod']);
     $router->post('/configuracion/periodo-actual', [ConfigurationController::class, 'selectCurrentPeriod']);
+    $router->post('/configuracion/periodo-visualizado', [ConfigurationController::class, 'selectViewedPeriod']);
 
     $router->get('/seguridad/catalogos', [SecurityController::class, 'catalogs']);
     $router->get('/seguridad/usuarios', [SecurityController::class, 'users']);

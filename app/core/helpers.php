@@ -101,6 +101,8 @@ function setCurrentAcademicPeriod(?array $period): void
     $_SESSION['current_period'] = [
         'pleid' => (int) ($period['pleid'] ?? 0),
         'pledescripcion' => (string) ($period['pledescripcion'] ?? ''),
+        'plefechainicio' => (string) ($period['plefechainicio'] ?? ''),
+        'plefechafin' => (string) ($period['plefechafin'] ?? ''),
         'pleactivo' => !empty($period['pleactivo']),
     ];
 }

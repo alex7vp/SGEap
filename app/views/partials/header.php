@@ -269,9 +269,10 @@ foreach ($logoPatterns as $logoPattern) {
                     <a
                         class="<?= $currentModule === $moduleKey ? 'is-active' : ''; ?>"
                         href="<?= htmlspecialchars($module['url'], ENT_QUOTES, 'UTF-8'); ?>"
+                        title="<?= htmlspecialchars($module['label'], ENT_QUOTES, 'UTF-8'); ?>"
                     >
                         <i class="fa <?= htmlspecialchars((string) ($module['icon'] ?? 'fa-circle'), ENT_QUOTES, 'UTF-8'); ?>" aria-hidden="true"></i>
-                        <?= htmlspecialchars($module['label'], ENT_QUOTES, 'UTF-8'); ?>
+                        <span class="topbar-nav-label"><?= htmlspecialchars($module['label'], ENT_QUOTES, 'UTF-8'); ?></span>
                     </a>
                 <?php endforeach; ?>
             </nav>
@@ -285,7 +286,7 @@ foreach ($logoPatterns as $logoPattern) {
                         <?php if (empty($availablePeriods)): ?>
                             <div class="empty-state">No existen periodos lectivos registrados.</div>
                         <?php else: ?>
-                            <form method="POST" action="<?= htmlspecialchars(baseUrl('configuracion/periodo-actual'), ENT_QUOTES, 'UTF-8'); ?>" class="topbar-period-form">
+                            <form method="POST" action="<?= htmlspecialchars(baseUrl('configuracion/periodo-visualizado'), ENT_QUOTES, 'UTF-8'); ?>" class="topbar-period-form">
                                 <input type="hidden" name="redirect_to" value="<?= htmlspecialchars(currentPath(), ENT_QUOTES, 'UTF-8'); ?>">
                                 <label for="topbar-period-select">Periodo lectivo</label>
                                 <select id="topbar-period-select" name="pleid">
@@ -309,10 +310,6 @@ foreach ($logoPatterns as $logoPattern) {
 
     <main class="shell">
         <aside class="sidebar-card">
-            <div class="sidebar-brand">
-                <p><?= htmlspecialchars($activeSidebar['title'], ENT_QUOTES, 'UTF-8'); ?></p>
-            </div>
-
             <nav class="sidebar-nav">
                 <?php foreach ($activeSidebarGroups as $group): ?>
                     <div class="sidebar-group">
@@ -330,7 +327,7 @@ foreach ($logoPatterns as $logoPattern) {
                 <?php endforeach; ?>
             </nav>
             <form method="POST" action="<?= htmlspecialchars(baseUrl('logout'), ENT_QUOTES, 'UTF-8'); ?>">
-                <button class="btn-secondary" type="submit">Cerrar sesion</button>
+                <button class="btn-secondary sidebar-logout-button" type="submit">Cerrar sesion</button>
             </form>
         </aside>
 

@@ -105,6 +105,19 @@ class MatriculationModel extends Model
         return $statement->fetchAll();
     }
 
+    public function countByPeriod(int $periodId): int
+    {
+        $statement = $this->db->prepare(
+            "SELECT COUNT(*)
+             FROM {$this->table} m
+             INNER JOIN curso c ON c.curid = m.curid
+             WHERE c.pleid = :period_id"
+        );
+        $statement->execute(['period_id' => $periodId]);
+
+        return (int) $statement->fetchColumn();
+    }
+
     public function createEnrollment(array $data): int
     {
         $this->db->beginTransaction();

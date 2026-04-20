@@ -5,7 +5,11 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Core\Controller;
+use App\Models\CourseModel;
+use App\Models\MatriculationModel;
 use App\Models\PeriodModel;
+use App\Models\PersonModel;
+use App\Models\StudentModel;
 use App\Models\UserModel;
 
 class AuthController extends Controller
@@ -63,12 +67,30 @@ class AuthController extends Controller
     public function dashboard(): void
     {
         $user = $this->requireAuth();
+        $periodModel = new PeriodModel();
+        $personModel = new PersonModel();
+        $studentModel = new StudentModel();
+        $courseModel = new CourseModel();
+        $matriculationModel = new MatriculationModel();
+        $currentPeriod = $periodModel->active();
+
+        $stats = [
+            'personas' => $personModel->countAll(),
+            'estudiantes' => $studentModel->countAll(),
+            'estudiantes_activos' => $studentModel->countActive(),
+            'cursos_periodo' => $currentPeriod !== false ? $courseModel->countByPeriod((int) $currentPeriod['pleid']) : 0,
+            'cursos_activos' => $currentPeriod !== false ? $courseModel->countActiveByPeriod((int) $currentPeriod['pleid']) : 0,
+            'matriculas_periodo' => $currentPeriod !== false ? $matriculationModel->countByPeriod((int) $currentPeriod['pleid']) : 0,
+            'periodo_actual' => $currentPeriod !== false ? (string) $currentPeriod['pledescripcion'] : 'Sin periodo activo',
+        ];
 
         $this->view('auth.dashboard', [
             'appName' => config('app')['name'] ?? 'SGEap',
             'pageTitle' => 'Dashboard',
             'currentSection' => 'dashboard',
             'user' => $user,
+            'stats' => $stats,
+            'currentPeriod' => $currentPeriod !== false ? $currentPeriod : null,
             'success' => sessionFlash('success'),
             'error' => sessionFlash('error'),
         ]);

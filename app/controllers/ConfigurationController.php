@@ -250,6 +250,24 @@ class ConfigurationController extends Controller
         $this->redirect($redirectTo . '#periodos-registrados');
     }
 
+    public function selectViewedPeriod(): void
+    {
+        $this->requireAuth();
+
+        $periodId = (int) ($_POST['pleid'] ?? 0);
+        $redirectTo = trim($_POST['redirect_to'] ?? '/dashboard');
+        $periodModel = new PeriodModel();
+        $period = $periodModel->find($periodId);
+
+        if ($period === false) {
+            sessionFlash('error', 'El periodo seleccionado no existe.');
+            $this->redirect($redirectTo);
+        }
+
+        setCurrentAcademicPeriod($period);
+        $this->redirect($redirectTo);
+    }
+
     public function storeCatalogItem(): void
     {
         $this->requireAuth();
