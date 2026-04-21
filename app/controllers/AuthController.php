@@ -6,6 +6,7 @@ namespace App\Controllers;
 
 use App\Core\Controller;
 use App\Models\CourseModel;
+use App\Models\MatriculationConfigurationModel;
 use App\Models\MatriculationModel;
 use App\Models\PeriodModel;
 use App\Models\PersonModel;
@@ -72,7 +73,15 @@ class AuthController extends Controller
         $studentModel = new StudentModel();
         $courseModel = new CourseModel();
         $matriculationModel = new MatriculationModel();
+        $matriculationConfigurationModel = new MatriculationConfigurationModel();
         $currentPeriod = $periodModel->active();
+        $enabledMatriculationPeriod = $matriculationConfigurationModel->findEnabledPeriod();
+        $canCreateMatricula = $enabledMatriculationPeriod !== false;
+        $newMatriculaLabel = 'Nueva matricula';
+
+        if ($canCreateMatricula) {
+            $newMatriculaLabel .= ' | ' . (string) $enabledMatriculationPeriod['pledescripcion'];
+        }
 
         $stats = [
             'personas' => $personModel->countAll(),
@@ -91,6 +100,8 @@ class AuthController extends Controller
             'user' => $user,
             'stats' => $stats,
             'currentPeriod' => $currentPeriod !== false ? $currentPeriod : null,
+            'canCreateMatricula' => $canCreateMatricula,
+            'newMatriculaLabel' => $newMatriculaLabel,
             'success' => sessionFlash('success'),
             'error' => sessionFlash('error'),
         ]);

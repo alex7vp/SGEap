@@ -205,30 +205,37 @@ $dynamicFamilyTemplate = ob_get_clean();
 <p class="module-note">La matriculacion consolida persona, estudiante, familiares, representante y curso en un solo flujo operativo.</p>
 
 <nav class="module-subnav" aria-label="Submodulos de matriculas">
-    <a class="<?= $activePanel === 'nueva' ? 'is-active' : ''; ?>" href="<?= htmlspecialchars(baseUrl('matriculas?panel=nueva'), ENT_QUOTES, 'UTF-8'); ?>">Nueva matricula</a>
+    <?php if (!empty($canCreateMatricula)): ?>
+        <a class="<?= $activePanel === 'nueva' ? 'is-active' : ''; ?>" href="<?= htmlspecialchars(baseUrl('matriculas?panel=nueva'), ENT_QUOTES, 'UTF-8'); ?>"><?= htmlspecialchars((string) ($newMatriculaLabel ?? 'Nueva matricula'), ENT_QUOTES, 'UTF-8'); ?></a>
+    <?php endif; ?>
     <a class="<?= $activePanel === 'gestion' ? 'is-active' : ''; ?>" href="<?= htmlspecialchars(baseUrl('matriculas?panel=gestion'), ENT_QUOTES, 'UTF-8'); ?>">Gestion de matriculas</a>
 </nav>
 
-<?php if ($currentPeriod === null): ?>
+<?php if ($currentPeriod === null && empty($newMatriculaPeriod)): ?>
     <div class="empty-state">No hay un periodo lectivo seleccionado. Elige uno desde el chip de periodo en el navbar para continuar.</div>
 <?php else: ?>
     <?php if ($activePanel === ''): ?>
     <section class="security-assignment-block">
         <div class="empty-state">
             Selecciona una opcion para continuar con el modulo de matriculas:
-            <a class="text-link" href="<?= htmlspecialchars(baseUrl('matriculas?panel=nueva'), ENT_QUOTES, 'UTF-8'); ?>">Nueva matricula</a>
-            o
+            <?php if (!empty($canCreateMatricula)): ?>
+                <a class="text-link" href="<?= htmlspecialchars(baseUrl('matriculas?panel=nueva'), ENT_QUOTES, 'UTF-8'); ?>"><?= htmlspecialchars((string) ($newMatriculaLabel ?? 'Nueva matricula'), ENT_QUOTES, 'UTF-8'); ?></a>
+                o
+            <?php endif; ?>
             <a class="text-link" href="<?= htmlspecialchars(baseUrl('matriculas?panel=gestion'), ENT_QUOTES, 'UTF-8'); ?>">Gestion de matriculas</a>.
         </div>
+        <?php if (empty($canCreateMatricula)): ?>
+            <div class="empty-state">No existe un periodo lectivo con matricula habilitada. Configuralo desde <a class="text-link" href="<?= htmlspecialchars(baseUrl('configuracion/matricula'), ENT_QUOTES, 'UTF-8'); ?>">Configuracion de matricula</a>.</div>
+        <?php endif; ?>
     </section>
     <?php endif; ?>
 
-    <?php if ($activePanel === 'nueva'): ?>
+    <?php if ($activePanel === 'nueva' && !empty($canCreateMatricula)): ?>
     <section class="security-assignment-block" id="matricula-form">
         <header class="security-assignment-header">
             <div>
-                <h3>Nueva matricula</h3>
-                <p>El registro se guardara en el periodo actual: <strong><?= htmlspecialchars((string) $currentPeriod['pledescripcion'], ENT_QUOTES, 'UTF-8'); ?></strong>.</p>
+                <h3><?= htmlspecialchars((string) ($newMatriculaLabel ?? 'Nueva matricula'), ENT_QUOTES, 'UTF-8'); ?></h3>
+                <p>El registro se guardara en el periodo habilitado: <strong><?= htmlspecialchars((string) (($newMatriculaPeriod['pledescripcion'] ?? $currentPeriod['pledescripcion'] ?? 'Sin periodo')), ENT_QUOTES, 'UTF-8'); ?></strong>.</p>
             </div>
         </header>
 

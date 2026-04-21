@@ -7,6 +7,7 @@ namespace App\Controllers;
 use App\Core\Controller;
 use App\Models\CatalogModel;
 use App\Models\InstitutionModel;
+use App\Models\MatriculationConfigurationModel;
 use App\Models\PeriodModel;
 
 class ConfigurationController extends Controller
@@ -51,6 +52,37 @@ class ConfigurationController extends Controller
                 'plefechainicio' => sessionFlash('old_period_start') ?? ($editPeriod !== false ? (string) $editPeriod['plefechainicio'] : ''),
                 'plefechafin' => sessionFlash('old_period_end') ?? ($editPeriod !== false ? (string) $editPeriod['plefechafin'] : ''),
                 'pleactivo' => sessionFlash('old_period_active') ?? ($editPeriod !== false && !empty($editPeriod['pleactivo']) ? '1' : '0'),
+            ],
+        ]);
+    }
+
+    public function matriculationSettings(): void
+    {
+        $user = $this->requireAuth();
+        $configurationModel = new MatriculationConfigurationModel();
+        $periodModel = new PeriodModel();
+        $editPeriodId = (int) ($_GET['edit'] ?? 0);
+        $editConfiguration = $editPeriodId > 0 ? $configurationModel->findByPeriodId($editPeriodId) : false;
+
+        $this->view('configuracion.matricula', [
+            'appName' => config('app')['name'] ?? 'SGEap',
+            'pageTitle' => 'Configuracion de matricula',
+            'currentModule' => 'configuracion',
+            'currentSection' => 'configuracion_matricula',
+            'user' => $user,
+            'periods' => $periodModel->allOrdered(),
+            'settings' => $configurationModel->allByPeriod(),
+            'matriculationConfigFeedback' => $this->matriculationConfigFeedback(),
+            'old' => [
+                'cmid' => sessionFlash('old_matriculation_config_id') ?? ($editConfiguration !== false ? (string) $editConfiguration['cmid'] : ''),
+                'pleid' => sessionFlash('old_matriculation_config_period') ?? ($editPeriodId > 0 ? (string) $editPeriodId : ''),
+                'cmhabilitada' => sessionFlash('old_matriculation_config_enabled') ?? ($editConfiguration !== false && !empty($editConfiguration['cmhabilitada']) ? '1' : '0'),
+                'cmfechainicio' => sessionFlash('old_matriculation_config_start') ?? ($editConfiguration !== false ? (string) ($editConfiguration['cmfechainicio'] ?? '') : ''),
+                'cmfechafin' => sessionFlash('old_matriculation_config_end') ?? ($editConfiguration !== false ? (string) ($editConfiguration['cmfechafin'] ?? '') : ''),
+                'cmhabilitadaextraordinaria' => sessionFlash('old_matriculation_config_extra_enabled') ?? ($editConfiguration !== false && !empty($editConfiguration['cmhabilitadaextraordinaria']) ? '1' : '0'),
+                'cmfechainicioextraordinaria' => sessionFlash('old_matriculation_config_extra_start') ?? ($editConfiguration !== false ? (string) ($editConfiguration['cmfechainicioextraordinaria'] ?? '') : ''),
+                'cmfechafinextraordinaria' => sessionFlash('old_matriculation_config_extra_end') ?? ($editConfiguration !== false ? (string) ($editConfiguration['cmfechafinextraordinaria'] ?? '') : ''),
+                'cmobservacion' => sessionFlash('old_matriculation_config_note') ?? ($editConfiguration !== false ? (string) ($editConfiguration['cmobservacion'] ?? '') : ''),
             ],
         ]);
     }
@@ -268,6 +300,116 @@ class ConfigurationController extends Controller
         $this->redirect($redirectTo);
     }
 
+    public function storeMatriculationSetting(): void
+    {
+        $this->requireAuth();
+
+        $data = $this->matriculationConfigurationFormData();
+        $configurationModel = new MatriculationConfigurationModel();
+        $periodModel = new PeriodModel();
+
+        if ((int) $data['pleid'] <= 0 || $periodModel->find((int) $data['pleid']) === false) {
+            $this->flashMatriculationConfigurationFormData($data);
+            $this->flashMatriculationConfigFeedback('error', 'Debe seleccionar un periodo lectivo valido.');
+            $this->redirect('/configuracion/matricula');
+        }
+
+        if (!$this->hasValidMatriculationRanges($data)) {
+            $this->flashMatriculationConfigurationFormData($data);
+            $this->flashMatriculationConfigFeedback('error', 'Las fechas de matricula ordinaria o extraordinaria no son validas.');
+            $this->redirect('/configuracion/matricula');
+        }
+
+        if ($configurationModel->existsByPeriodId((int) $data['pleid'])) {
+            $this->flashMatriculationConfigurationFormData($data);
+            $this->flashMatriculationConfigFeedback('error', 'Ese periodo ya tiene una configuracion de matricula registrada.');
+            $this->redirect('/configuracion/matricula');
+        }
+
+        $configurationModel->create($data);
+        $this->flashMatriculationConfigFeedback('success', 'Configuracion de matricula registrada correctamente.');
+        $this->redirect('/configuracion/matricula');
+    }
+
+    public function updateMatriculationSetting(): void
+    {
+        $this->requireAuth();
+
+        $configurationId = (int) ($_POST['cmid'] ?? 0);
+        $data = $this->matriculationConfigurationFormData();
+        $configurationModel = new MatriculationConfigurationModel();
+        $periodModel = new PeriodModel();
+
+        if ($configurationId <= 0) {
+            $this->flashMatriculationConfigFeedback('error', 'La configuracion a actualizar no es valida.');
+            $this->redirect('/configuracion/matricula');
+        }
+
+        if ((int) $data['pleid'] <= 0 || $periodModel->find((int) $data['pleid']) === false) {
+            $this->flashMatriculationConfigurationFormData($data + ['cmid' => (string) $configurationId]);
+            $this->flashMatriculationConfigFeedback('error', 'Debe seleccionar un periodo lectivo valido.');
+            $this->redirect('/configuracion/matricula');
+        }
+
+        if (!$this->hasValidMatriculationRanges($data)) {
+            $this->flashMatriculationConfigurationFormData($data + ['cmid' => (string) $configurationId]);
+            $this->flashMatriculationConfigFeedback('error', 'Las fechas de matricula ordinaria o extraordinaria no son validas.');
+            $this->redirect('/configuracion/matricula');
+        }
+
+        if ($configurationModel->existsByPeriodId((int) $data['pleid'], $configurationId)) {
+            $this->flashMatriculationConfigurationFormData($data + ['cmid' => (string) $configurationId]);
+            $this->flashMatriculationConfigFeedback('error', 'Ese periodo ya tiene otra configuracion de matricula registrada.');
+            $this->redirect('/configuracion/matricula');
+        }
+
+        $configurationModel->update($configurationId, $data);
+        $this->flashMatriculationConfigFeedback('success', 'Configuracion de matricula actualizada correctamente.');
+        $this->redirect('/configuracion/matricula');
+    }
+
+    public function toggleOrdinaryMatriculationSetting(): void
+    {
+        $this->requireAuth();
+
+        $configurationId = (int) ($_POST['cmid'] ?? 0);
+        $enabled = ($_POST['enabled'] ?? '0') === '1';
+        $configurationModel = new MatriculationConfigurationModel();
+
+        if ($configurationId <= 0) {
+            $this->flashMatriculationConfigFeedback('error', 'La configuracion a actualizar no es valida.');
+            $this->redirect('/configuracion/matricula');
+        }
+
+        $configurationModel->toggleOrdinary($configurationId, $enabled);
+        $this->flashMatriculationConfigFeedback(
+            'success',
+            'La matricula ordinaria fue ' . ($enabled ? 'habilitada' : 'cerrada') . ' correctamente.'
+        );
+        $this->redirect('/configuracion/matricula#configuracion-matricula-registrada');
+    }
+
+    public function toggleExtraordinaryMatriculationSetting(): void
+    {
+        $this->requireAuth();
+
+        $configurationId = (int) ($_POST['cmid'] ?? 0);
+        $enabled = ($_POST['enabled'] ?? '0') === '1';
+        $configurationModel = new MatriculationConfigurationModel();
+
+        if ($configurationId <= 0) {
+            $this->flashMatriculationConfigFeedback('error', 'La configuracion a actualizar no es valida.');
+            $this->redirect('/configuracion/matricula');
+        }
+
+        $configurationModel->toggleExtraordinary($configurationId, $enabled);
+        $this->flashMatriculationConfigFeedback(
+            'success',
+            'La matricula extraordinaria fue ' . ($enabled ? 'habilitada' : 'cerrada') . ' correctamente.'
+        );
+        $this->redirect('/configuracion/matricula#configuracion-matricula-registrada');
+    }
+
     public function storeCatalogItem(): void
     {
         $this->requireAuth();
@@ -409,6 +551,21 @@ class ConfigurationController extends Controller
         ];
     }
 
+    private function matriculationConfigurationFormData(): array
+    {
+        return [
+            'cmid' => trim((string) ($_POST['cmid'] ?? '')),
+            'pleid' => (int) ($_POST['pleid'] ?? 0),
+            'cmhabilitada' => ($_POST['cmhabilitada'] ?? '0') === '1',
+            'cmfechainicio' => trim((string) ($_POST['cmfechainicio'] ?? '')),
+            'cmfechafin' => trim((string) ($_POST['cmfechafin'] ?? '')),
+            'cmhabilitadaextraordinaria' => ($_POST['cmhabilitadaextraordinaria'] ?? '0') === '1',
+            'cmfechainicioextraordinaria' => trim((string) ($_POST['cmfechainicioextraordinaria'] ?? '')),
+            'cmfechafinextraordinaria' => trim((string) ($_POST['cmfechafinextraordinaria'] ?? '')),
+            'cmobservacion' => trim((string) ($_POST['cmobservacion'] ?? '')),
+        ];
+    }
+
     private function institutionFormData(): array
     {
         return [
@@ -470,6 +627,45 @@ class ConfigurationController extends Controller
         sessionFlash('old_period_active', !empty($data['pleactivo']) ? '1' : '0');
     }
 
+    private function hasValidMatriculationRanges(array $data): bool
+    {
+        $ordinaryStart = trim((string) ($data['cmfechainicio'] ?? ''));
+        $ordinaryEnd = trim((string) ($data['cmfechafin'] ?? ''));
+        $extraStart = trim((string) ($data['cmfechainicioextraordinaria'] ?? ''));
+        $extraEnd = trim((string) ($data['cmfechafinextraordinaria'] ?? ''));
+
+        if (($ordinaryStart === '') !== ($ordinaryEnd === '')) {
+            return false;
+        }
+
+        if (($extraStart === '') !== ($extraEnd === '')) {
+            return false;
+        }
+
+        if ($ordinaryStart !== '' && $ordinaryEnd !== '' && $ordinaryStart > $ordinaryEnd) {
+            return false;
+        }
+
+        if ($extraStart !== '' && $extraEnd !== '' && $extraStart > $extraEnd) {
+            return false;
+        }
+
+        return true;
+    }
+
+    private function flashMatriculationConfigurationFormData(array $data): void
+    {
+        sessionFlash('old_matriculation_config_id', (string) ($data['cmid'] ?? ''));
+        sessionFlash('old_matriculation_config_period', (string) ($data['pleid'] ?? ''));
+        sessionFlash('old_matriculation_config_enabled', !empty($data['cmhabilitada']) ? '1' : '0');
+        sessionFlash('old_matriculation_config_start', (string) ($data['cmfechainicio'] ?? ''));
+        sessionFlash('old_matriculation_config_end', (string) ($data['cmfechafin'] ?? ''));
+        sessionFlash('old_matriculation_config_extra_enabled', !empty($data['cmhabilitadaextraordinaria']) ? '1' : '0');
+        sessionFlash('old_matriculation_config_extra_start', (string) ($data['cmfechainicioextraordinaria'] ?? ''));
+        sessionFlash('old_matriculation_config_extra_end', (string) ($data['cmfechafinextraordinaria'] ?? ''));
+        sessionFlash('old_matriculation_config_note', (string) ($data['cmobservacion'] ?? ''));
+    }
+
     private function flashInstitutionFormData(array $data): void
     {
         sessionFlash('old_institution_name', (string) ($data['insnombre'] ?? ''));
@@ -520,10 +716,31 @@ class ConfigurationController extends Controller
         sessionFlash('period_list_feedback_message', $message);
     }
 
+    private function flashMatriculationConfigFeedback(string $type, string $message): void
+    {
+        sessionFlash('matriculation_config_feedback_type', $type);
+        sessionFlash('matriculation_config_feedback_message', $message);
+    }
+
     private function periodListFeedback(): ?array
     {
         $type = sessionFlash('period_list_feedback_type');
         $message = sessionFlash('period_list_feedback_message');
+
+        if ($type === null || $message === null) {
+            return null;
+        }
+
+        return [
+            'type' => $type,
+            'message' => $message,
+        ];
+    }
+
+    private function matriculationConfigFeedback(): ?array
+    {
+        $type = sessionFlash('matriculation_config_feedback_type');
+        $message = sessionFlash('matriculation_config_feedback_message');
 
         if ($type === null || $message === null) {
             return null;

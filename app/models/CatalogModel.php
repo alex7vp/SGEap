@@ -53,6 +53,12 @@ class CatalogModel extends Model
             'label' => 'Tipos de personal',
             'description' => 'Catalogo para clasificar al personal institucional.',
         ],
+        'tipo_matricula' => [
+            'id' => 'tmaid',
+            'name' => 'tmanombre',
+            'label' => 'Tipos de matricula',
+            'description' => 'Catalogo para clasificar matriculas ordinarias y extraordinarias.',
+        ],
     ];
 
     public function allCatalogs(): array

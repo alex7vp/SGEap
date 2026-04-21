@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Core\Controller;
+use App\Models\MatriculationConfigurationModel;
 use App\Models\MatriculationModel;
 use App\Models\PersonModel;
 
@@ -13,9 +14,25 @@ class MatriculationController extends Controller
     public function index(): void
     {
         $user = $this->requireAuth();
-        $period = currentAcademicPeriod();
         $matriculationModel = new MatriculationModel();
+        $matriculationConfigurationModel = new MatriculationConfigurationModel();
         $activePanel = $this->activePanel();
+        $viewedPeriod = currentAcademicPeriod();
+        $enabledMatriculationPeriod = $matriculationConfigurationModel->findEnabledPeriod();
+        $newMatriculaPeriod = $enabledMatriculationPeriod !== false ? $enabledMatriculationPeriod : $viewedPeriod;
+        $matriculationConfiguration = is_array($newMatriculaPeriod)
+            ? $matriculationConfigurationModel->findByPeriodId((int) $newMatriculaPeriod['pleid'])
+            : false;
+        $canCreateMatricula = $enabledMatriculationPeriod !== false;
+        $newMatriculaLabel = 'Nueva matricula';
+
+        if ($canCreateMatricula && is_array($newMatriculaPeriod)) {
+            $newMatriculaLabel .= ' | ' . (string) $newMatriculaPeriod['pledescripcion'];
+        }
+
+        if (!$canCreateMatricula && $activePanel === 'nueva') {
+            $activePanel = '';
+        }
 
         $this->view('matriculas.index', [
             'appName' => config('app')['name'] ?? 'SGEap',
@@ -23,13 +40,17 @@ class MatriculationController extends Controller
             'currentSection' => 'matriculas',
             'user' => $user,
             'activePanel' => $activePanel,
-            'currentPeriod' => $period,
-            'courses' => $period !== null ? $matriculationModel->allCoursesByPeriod((int) $period['pleid']) : [],
+            'currentPeriod' => $viewedPeriod,
+            'newMatriculaPeriod' => $newMatriculaPeriod,
+            'matriculationConfiguration' => $matriculationConfiguration,
+            'canCreateMatricula' => $canCreateMatricula,
+            'newMatriculaLabel' => $newMatriculaLabel,
+            'courses' => is_array($newMatriculaPeriod) ? $matriculationModel->allCoursesByPeriod((int) $newMatriculaPeriod['pleid']) : [],
             'relationships' => $matriculationModel->allRelationships(),
             'civilStatuses' => $matriculationModel->allCivilStatuses(),
             'instructionLevels' => $matriculationModel->allInstructionLevels(),
             'enrollmentStatuses' => $matriculationModel->allEnrollmentStatuses(),
-            'matriculas' => $period !== null ? $matriculationModel->allByPeriod((int) $period['pleid']) : [],
+            'matriculas' => $viewedPeriod !== null ? $matriculationModel->allByPeriod((int) $viewedPeriod['pleid']) : [],
             'success' => null,
             'error' => null,
             'matriculaFormFeedback' => $this->matriculaFormFeedback(),
@@ -41,10 +62,11 @@ class MatriculationController extends Controller
     public function store(): void
     {
         $this->requireAuth();
-        $period = currentAcademicPeriod();
+        $configurationModel = new MatriculationConfigurationModel();
+        $period = $configurationModel->findEnabledPeriod();
 
-        if ($period === null) {
-            $this->flashMatriculaListFeedback('error', 'Debe seleccionar un periodo lectivo antes de registrar una matricula.');
+        if ($period === false) {
+            $this->flashMatriculaListFeedback('error', 'No existe un periodo lectivo con matricula habilitada.');
             $this->redirect('/matriculas?panel=gestion#matriculas-registradas');
         }
 

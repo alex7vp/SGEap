@@ -12,34 +12,39 @@ $topModules = [
     ],
     'academico' => [
         'label' => 'Gestion academica',
-        'url' => baseUrl('personas'),
+        'url' => baseUrl('academico'),
         'icon' => 'fa-graduation-cap',
     ],
     'configuracion' => [
         'label' => 'Configuracion',
-        'url' => baseUrl('configuracion/catalogos'),
+        'url' => baseUrl('configuracion'),
         'icon' => 'fa-cogs',
     ],
     'reportes' => [
         'label' => 'Reportes',
-        'url' => '#',
+        'url' => baseUrl('reportes'),
         'icon' => 'fa-bar-chart',
     ],
     'seguridad' => [
         'label' => 'Seguridad',
-        'url' => baseUrl('seguridad/catalogos'),
+        'url' => baseUrl('seguridad'),
         'icon' => 'fa-shield',
     ],
 ];
 
 $sectionModuleMap = [
     'dashboard' => 'inicio',
+    'academico_home' => 'academico',
     'personas' => 'academico',
     'estudiantes' => 'academico',
+    'configuracion_home' => 'configuracion',
     'grados' => 'configuracion',
     'institucion' => 'configuracion',
     'periodos' => 'configuracion',
+    'configuracion_matricula' => 'configuracion',
     'cursos' => 'configuracion',
+    'reportes_home' => 'reportes',
+    'seguridad_home' => 'seguridad',
     'seguridad_catalogos' => 'seguridad',
     'seguridad_usuarios' => 'seguridad',
     'seguridad_roles_permisos' => 'seguridad',
@@ -125,6 +130,12 @@ $sidebarModules = [
                         'label' => 'Periodos lectivos',
                         'url' => baseUrl('configuracion/periodos'),
                         'icon' => 'fa-calendar',
+                    ],
+                    [
+                        'key' => 'configuracion_matricula',
+                        'label' => 'Configuracion de matricula',
+                        'url' => baseUrl('configuracion/matricula'),
+                        'icon' => 'fa-wpforms',
                     ],
                     [
                         'key' => 'grados',

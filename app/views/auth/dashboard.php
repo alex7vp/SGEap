@@ -6,6 +6,8 @@ require BASE_PATH . '/app/views/partials/header.php';
 
 $stats = is_array($stats ?? null) ? $stats : [];
 $currentPeriod = is_array($currentPeriod ?? null) ? $currentPeriod : null;
+$canCreateMatricula = !empty($canCreateMatricula);
+$newMatriculaLabel = (string) ($newMatriculaLabel ?? 'Nueva matricula');
 ?>
 <section class="dashboard-hero">
     <div>
@@ -21,8 +23,10 @@ $currentPeriod = is_array($currentPeriod ?? null) ? $currentPeriod : null;
         </p>
     </div>
     <div class="dashboard-hero-actions">
-        <a class="btn-primary btn-auto" href="<?= htmlspecialchars(baseUrl('matriculas'), ENT_QUOTES, 'UTF-8'); ?>">Nueva matricula</a>
-        <a class="btn-secondary btn-auto" href="<?= htmlspecialchars(baseUrl('configuracion/periodos'), ENT_QUOTES, 'UTF-8'); ?>">Gestionar periodos</a>
+        <?php if ($canCreateMatricula): ?>
+            <a class="btn-primary btn-auto" href="<?= htmlspecialchars(baseUrl('matriculas'), ENT_QUOTES, 'UTF-8'); ?>"><?= htmlspecialchars($newMatriculaLabel, ENT_QUOTES, 'UTF-8'); ?></a>
+        <?php endif; ?>
+        <a class="btn-secondary btn-auto dashboard-periods-button" href="<?= htmlspecialchars(baseUrl('configuracion/periodos'), ENT_QUOTES, 'UTF-8'); ?>">Gestionar periodos</a>
     </div>
 </section>
 
@@ -69,7 +73,9 @@ $currentPeriod = is_array($currentPeriod ?? null) ? $currentPeriod : null;
         <div class="dashboard-link-list">
             <a class="text-link" href="<?= htmlspecialchars(baseUrl('personas/crear'), ENT_QUOTES, 'UTF-8'); ?>">Registrar persona</a>
             <a class="text-link" href="<?= htmlspecialchars(baseUrl('estudiantes/crear'), ENT_QUOTES, 'UTF-8'); ?>">Registrar estudiante</a>
-            <a class="text-link" href="<?= htmlspecialchars(baseUrl('matriculas?panel=nueva'), ENT_QUOTES, 'UTF-8'); ?>">Iniciar matricula</a>
+            <?php if ($canCreateMatricula): ?>
+                <a class="text-link" href="<?= htmlspecialchars(baseUrl('matriculas?panel=nueva'), ENT_QUOTES, 'UTF-8'); ?>"><?= htmlspecialchars($newMatriculaLabel, ENT_QUOTES, 'UTF-8'); ?></a>
+            <?php endif; ?>
             <a class="text-link" href="<?= htmlspecialchars(baseUrl('configuracion/catalogos'), ENT_QUOTES, 'UTF-8'); ?>">Configurar catalogos</a>
         </div>
     </article>

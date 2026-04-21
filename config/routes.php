@@ -7,6 +7,7 @@ use App\Controllers\ConfigurationController;
 use App\Controllers\CourseController;
 use App\Controllers\GradeController;
 use App\Controllers\MatriculationController;
+use App\Controllers\ModuleController;
 use App\Controllers\PersonController;
 use App\Controllers\SecurityController;
 use App\Controllers\StudentController;
@@ -17,11 +18,16 @@ return static function (Router $router): void {
     $router->get('/login', [AuthController::class, 'index']);
     $router->post('/login', [AuthController::class, 'authenticate']);
     $router->get('/dashboard', [AuthController::class, 'dashboard']);
+    $router->get('/academico', [ModuleController::class, 'academic']);
+    $router->get('/configuracion', [ModuleController::class, 'configuration']);
+    $router->get('/reportes', [ModuleController::class, 'reports']);
+    $router->get('/seguridad', [ModuleController::class, 'security']);
     $router->post('/logout', [AuthController::class, 'logout']);
 
     $router->get('/configuracion/catalogos', [ConfigurationController::class, 'catalogs']);
     $router->get('/configuracion/institucion', [ConfigurationController::class, 'institution']);
     $router->get('/configuracion/periodos', [ConfigurationController::class, 'periods']);
+    $router->get('/configuracion/matricula', [ConfigurationController::class, 'matriculationSettings']);
     $router->post('/configuracion/catalogos', [ConfigurationController::class, 'storeCatalogItem']);
     $router->post('/configuracion/institucion', [ConfigurationController::class, 'storeInstitution']);
     $router->post('/configuracion/catalogos/actualizar', [ConfigurationController::class, 'updateCatalogItem']);
@@ -30,6 +36,10 @@ return static function (Router $router): void {
     $router->post('/configuracion/periodos/actualizar', [ConfigurationController::class, 'updatePeriod']);
     $router->post('/configuracion/periodo-actual', [ConfigurationController::class, 'selectCurrentPeriod']);
     $router->post('/configuracion/periodo-visualizado', [ConfigurationController::class, 'selectViewedPeriod']);
+    $router->post('/configuracion/matricula', [ConfigurationController::class, 'storeMatriculationSetting']);
+    $router->post('/configuracion/matricula/actualizar', [ConfigurationController::class, 'updateMatriculationSetting']);
+    $router->post('/configuracion/matricula/ordinaria', [ConfigurationController::class, 'toggleOrdinaryMatriculationSetting']);
+    $router->post('/configuracion/matricula/extraordinaria', [ConfigurationController::class, 'toggleExtraordinaryMatriculationSetting']);
 
     $router->get('/seguridad/catalogos', [SecurityController::class, 'catalogs']);
     $router->get('/seguridad/usuarios', [SecurityController::class, 'users']);
