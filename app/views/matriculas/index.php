@@ -24,8 +24,35 @@ $billingOld = array_merge([
     'mfccorreo' => '',
     'mfctelefono' => '',
 ], is_array($old['billing'] ?? null) ? $old['billing'] : []);
+$documentAcceptancesOld = array_map('intval', is_array($old['documents'] ?? null) ? $old['documents'] : []);
 $motherRelationship = null;
 $fatherRelationship = null;
+$resolveDocumentUrl = static function (string $origin, string $url): string {
+    $normalizedOrigin = mb_strtoupper(trim($origin));
+    $normalizedUrl = trim($url);
+
+    if ($normalizedUrl === '') {
+        return '#';
+    }
+
+    if ($normalizedOrigin === 'ARCHIVO') {
+        return asset(ltrim($normalizedUrl, '/'));
+    }
+
+    if (
+        str_starts_with($normalizedUrl, 'http://')
+        || str_starts_with($normalizedUrl, 'https://')
+        || str_starts_with($normalizedUrl, '/')
+    ) {
+        return $normalizedUrl;
+    }
+
+    if (str_starts_with($normalizedUrl, 'assets/')) {
+        return asset(substr($normalizedUrl, 7));
+    }
+
+    return baseUrl($normalizedUrl);
+};
 
 foreach ($relationships as $relationship) {
     $relationshipName = mb_strtolower(trim((string) ($relationship['ptenombre'] ?? '')));
@@ -250,6 +277,7 @@ $dynamicFamilyTemplate = ob_get_clean();
                     <button type="button" class="wizard-tab" data-wizard-tab="representante">Representante</button>
                     <button type="button" class="wizard-tab" data-wizard-tab="recursos">Recursos tecnologicos</button>
                     <button type="button" class="wizard-tab" data-wizard-tab="facturacion">Facturacion</button>
+                    <button type="button" class="wizard-tab" data-wizard-tab="documentos">Documentos</button>
                     <button type="button" class="wizard-tab" data-wizard-tab="matricula">Matricula</button>
                 </div>
 
@@ -426,14 +454,60 @@ $dynamicFamilyTemplate = ob_get_clean();
                     </div>
                 </section>
 
+                <section class="wizard-panel" data-wizard-panel="documentos" hidden>
+                    <p class="module-note">Revise cada documento y marque su aceptacion. Los documentos obligatorios habilitan el boton de matricula.</p>
+                    <?php if (empty($documents)): ?>
+                        <div class="empty-state">No existen documentos activos configurados para la matricula.</div>
+                    <?php else: ?>
+                        <div class="documents-stack" data-document-acceptance-list>
+                            <?php foreach ($documents as $document): ?>
+                                <?php
+                                $documentId = (int) ($document['domid'] ?? 0);
+                                $isRequired = !empty($document['domobligatorio']);
+                                $documentUrl = $resolveDocumentUrl((string) ($document['domorigen'] ?? 'URL'), (string) ($document['domurl'] ?? ''));
+                                ?>
+                                <label class="document-card">
+                                    <div class="document-card-main">
+                                        <div class="document-card-title-row">
+                                            <strong><?= htmlspecialchars((string) ($document['domnombre'] ?? 'Documento'), ENT_QUOTES, 'UTF-8'); ?></strong>
+                                            <span class="document-card-badge <?= $isRequired ? 'is-required' : 'is-optional'; ?>">
+                                                <?= $isRequired ? 'Obligatorio' : 'Opcional'; ?>
+                                            </span>
+                                        </div>
+                                        <?php if (trim((string) ($document['domdescripcion'] ?? '')) !== ''): ?>
+                                            <p class="document-card-description"><?= htmlspecialchars((string) $document['domdescripcion'], ENT_QUOTES, 'UTF-8'); ?></p>
+                                        <?php endif; ?>
+                                        <a class="text-link" href="<?= htmlspecialchars($documentUrl, ENT_QUOTES, 'UTF-8'); ?>" target="_blank" rel="noopener noreferrer">Abrir documento</a>
+                                    </div>
+                                    <span class="document-card-check">
+                                        <input
+                                            type="checkbox"
+                                            name="documents[<?= htmlspecialchars((string) $documentId, ENT_QUOTES, 'UTF-8'); ?>]"
+                                            value="1"
+                                            data-document-checkbox
+                                            <?= $isRequired ? 'data-document-required' : ''; ?>
+                                            <?= in_array($documentId, $documentAcceptancesOld, true) ? 'checked' : ''; ?>
+                                        >
+                                        <span>Acepto</span>
+                                    </span>
+                                </label>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php endif; ?>
+                    <div class="actions-row">
+                        <button class="btn-secondary btn-inline" type="button" data-matricula-draft-save>Guardar</button>
+                        <button class="btn-secondary btn-inline" type="button" data-matricula-draft-clear>Borrar temporal</button>
+                    </div>
+                </section>
+
                 <section class="wizard-panel" data-wizard-panel="matricula" hidden>
                     <div class="form-grid">
-                        <div class="form-group"><div class="input-group"><span class="input-addon">Periodo</span><input type="text" value="<?= htmlspecialchars((string) $currentPeriod['pledescripcion'], ENT_QUOTES, 'UTF-8'); ?>" readonly></div></div>
+                        <div class="form-group"><div class="input-group"><span class="input-addon">Periodo</span><input type="text" value="<?= htmlspecialchars((string) (($newMatriculaPeriod['pledescripcion'] ?? $currentPeriod['pledescripcion'] ?? '')), ENT_QUOTES, 'UTF-8'); ?>" readonly></div></div>
                         <div class="form-group form-group-full"><div class="input-group"><span class="input-addon">Curso</span><select name="matricula[curid]" required><option value="">Seleccione</option><?php foreach ($courses as $course): ?><option value="<?= htmlspecialchars((string) $course['curid'], ENT_QUOTES, 'UTF-8'); ?>" <?= (int) ($old['matricula']['curid'] ?? 0) === (int) $course['curid'] ? 'selected' : ''; ?>><?= htmlspecialchars((string) ($course['nednombre'] . ' | ' . $course['granombre'] . ' | ' . $course['prlnombre']), ENT_QUOTES, 'UTF-8'); ?></option><?php endforeach; ?></select></div></div>
                         <div class="form-group"><div class="input-group"><span class="input-addon">Foto</span><input type="file" name="matricula_photo" accept=".jpg,.jpeg,.png,.webp"></div></div>
                     </div>
                     <div class="actions-row">
-                        <button class="btn-primary btn-inline" type="submit">Guardar matricula</button>
+                        <button class="btn-primary btn-inline" type="submit" data-matricula-submit disabled>Guardar matricula</button>
                     </div>
                 </section>
 

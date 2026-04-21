@@ -28,6 +28,7 @@ return static function (Router $router): void {
     $router->get('/configuracion/institucion', [ConfigurationController::class, 'institution']);
     $router->get('/configuracion/periodos', [ConfigurationController::class, 'periods']);
     $router->get('/configuracion/matricula', [ConfigurationController::class, 'matriculationSettings']);
+    $router->get('/configuracion/matricula/documentos', [ConfigurationController::class, 'matriculationDocuments']);
     $router->post('/configuracion/catalogos', [ConfigurationController::class, 'storeCatalogItem']);
     $router->post('/configuracion/institucion', [ConfigurationController::class, 'storeInstitution']);
     $router->post('/configuracion/catalogos/actualizar', [ConfigurationController::class, 'updateCatalogItem']);
@@ -40,6 +41,9 @@ return static function (Router $router): void {
     $router->post('/configuracion/matricula/actualizar', [ConfigurationController::class, 'updateMatriculationSetting']);
     $router->post('/configuracion/matricula/ordinaria', [ConfigurationController::class, 'toggleOrdinaryMatriculationSetting']);
     $router->post('/configuracion/matricula/extraordinaria', [ConfigurationController::class, 'toggleExtraordinaryMatriculationSetting']);
+    $router->post('/configuracion/matricula/documentos', [ConfigurationController::class, 'storeMatriculationDocument']);
+    $router->post('/configuracion/matricula/documentos/actualizar', [ConfigurationController::class, 'updateMatriculationDocument']);
+    $router->post('/configuracion/matricula/documentos/eliminar', [ConfigurationController::class, 'deleteMatriculationDocument']);
 
     $router->get('/seguridad/catalogos', [SecurityController::class, 'catalogs']);
     $router->get('/seguridad/usuarios', [SecurityController::class, 'users']);

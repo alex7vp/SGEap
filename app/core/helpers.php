@@ -197,3 +197,69 @@ function storeMatriculationPhoto(array $file, string $cedula, string $periodDesc
 
     return 'photos/' . $fileName;
 }
+
+function isManagedMatriculationDocumentPath(string $path): bool
+{
+    return str_starts_with(ltrim(trim($path), '/'), 'docs/matricula/');
+}
+
+function storeMatriculationDocumentFile(array $file, string $documentName): ?string
+{
+    $errorCode = (int) ($file['error'] ?? UPLOAD_ERR_NO_FILE);
+
+    if ($errorCode === UPLOAD_ERR_NO_FILE) {
+        return null;
+    }
+
+    if ($errorCode !== UPLOAD_ERR_OK) {
+        throw new \RuntimeException('No se pudo cargar el documento de matricula.');
+    }
+
+    $tmpName = (string) ($file['tmp_name'] ?? '');
+
+    if ($tmpName === '' || !is_uploaded_file($tmpName)) {
+        throw new \RuntimeException('El archivo del documento no es valido.');
+    }
+
+    $originalName = (string) ($file['name'] ?? '');
+    $extension = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
+
+    if ($extension !== 'pdf') {
+        throw new \RuntimeException('El documento de matricula debe estar en formato PDF.');
+    }
+
+    $baseName = preg_replace('/[^a-z0-9]+/i', '-', strtolower(trim($documentName))) ?? '';
+    $baseName = trim($baseName, '-');
+
+    if ($baseName === '') {
+        $baseName = 'documento-matricula';
+    }
+
+    $targetDirectory = BASE_PATH . '/public/assets/docs/matricula';
+
+    if (!is_dir($targetDirectory) && !mkdir($targetDirectory, 0775, true) && !is_dir($targetDirectory)) {
+        throw new \RuntimeException('No se pudo preparar el directorio de documentos de matricula.');
+    }
+
+    $fileName = $baseName . '-' . date('YmdHis') . '.pdf';
+    $targetPath = $targetDirectory . '/' . $fileName;
+
+    if (!move_uploaded_file($tmpName, $targetPath)) {
+        throw new \RuntimeException('No se pudo guardar el documento de matricula.');
+    }
+
+    return 'docs/matricula/' . $fileName;
+}
+
+function deleteManagedMatriculationDocumentFile(string $path): void
+{
+    if (!isManagedMatriculationDocumentPath($path)) {
+        return;
+    }
+
+    $absolutePath = BASE_PATH . '/public/assets/' . ltrim($path, '/');
+
+    if (is_file($absolutePath)) {
+        @unlink($absolutePath);
+    }
+}

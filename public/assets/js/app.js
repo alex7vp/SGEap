@@ -114,6 +114,75 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.querySelectorAll('[data-phone-mask]').forEach(wirePhoneMask);
 
+    const documentSourceSelector = document.querySelector('[data-document-source-selector]');
+    const customFileInput = document.querySelector('[data-file-input]');
+    const customFileInputName = document.querySelector('[data-file-input-name]');
+
+    if (customFileInput instanceof HTMLInputElement && customFileInputName instanceof HTMLElement) {
+        const syncCustomFileInputName = () => {
+            const fileName = customFileInput.files && customFileInput.files.length > 0
+                ? customFileInput.files[0].name
+                : 'No se eligió ningún archivo';
+
+            customFileInputName.textContent = fileName;
+        };
+
+        customFileInput.addEventListener('change', syncCustomFileInputName);
+        syncCustomFileInputName();
+    }
+
+    if (documentSourceSelector instanceof HTMLElement) {
+        const sourceOptions = Array.from(
+            documentSourceSelector.querySelectorAll('[data-document-source-option]')
+        ).filter((field) => field instanceof HTMLInputElement);
+        const sourceCards = Array.from(
+            documentSourceSelector.querySelectorAll('[data-document-source-card]')
+        ).filter((card) => card instanceof HTMLElement);
+        const sourcePanels = document.querySelectorAll('[data-document-source-panel]');
+        const urlInput = document.querySelector('[data-document-url-input]');
+
+        const syncDocumentSourcePanels = () => {
+            const activeSource = sourceOptions.find((field) => field.checked)?.value || 'upload';
+
+            sourceCards.forEach((card) => {
+                const option = card.querySelector('[data-document-source-option]');
+
+                if (!(option instanceof HTMLInputElement)) {
+                    return;
+                }
+
+                card.classList.toggle('is-active', option.value === activeSource);
+            });
+
+            sourcePanels.forEach((panel) => {
+                if (!(panel instanceof HTMLElement)) {
+                    return;
+                }
+
+                panel.hidden = panel.dataset.documentSourcePanel !== activeSource;
+            });
+
+            if (urlInput instanceof HTMLInputElement) {
+                if (activeSource === 'url') {
+                    urlInput.disabled = false;
+                } else {
+                    urlInput.disabled = true;
+                    urlInput.value = '';
+                }
+            }
+
+            if (customFileInput instanceof HTMLInputElement) {
+                customFileInput.disabled = activeSource !== 'upload';
+            }
+        };
+
+        sourceOptions.forEach((field) => {
+            field.addEventListener('change', syncDocumentSourcePanels);
+        });
+
+        syncDocumentSourcePanels();
+    }
+
     const securityRows = document.querySelectorAll('[data-security-row]');
 
     securityRows.forEach((row) => {
@@ -584,9 +653,26 @@ document.addEventListener('DOMContentLoaded', () => {
     const matriculaDraftClearButtons = document.querySelectorAll('[data-matricula-draft-clear]');
     const matriculaDraftAlert = document.querySelector('[data-matricula-draft-alert]');
     const matriculaDraftAlertMessage = document.querySelector('[data-matricula-draft-alert-message]');
+    const matriculaSubmitButton = document.querySelector('[data-matricula-submit]');
 
     if (matriculaForm instanceof HTMLFormElement) {
         const draftKey = 'sgeap_matricula_draft';
+        const requiredDocumentCheckboxes = Array.from(
+            matriculaForm.querySelectorAll('[data-document-required]')
+        ).filter((field) => field instanceof HTMLInputElement);
+
+        const syncMatriculaSubmitState = () => {
+            if (!(matriculaSubmitButton instanceof HTMLButtonElement)) {
+                return;
+            }
+
+            if (requiredDocumentCheckboxes.length === 0) {
+                matriculaSubmitButton.disabled = false;
+                return;
+            }
+
+            matriculaSubmitButton.disabled = !requiredDocumentCheckboxes.every((field) => field.checked);
+        };
 
         const showDraftAlert = (message) => {
             if (!(matriculaDraftAlert instanceof HTMLElement)) {
@@ -656,6 +742,11 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         restoreDraft();
+        syncMatriculaSubmitState();
+
+        requiredDocumentCheckboxes.forEach((field) => {
+            field.addEventListener('change', syncMatriculaSubmitState);
+        });
 
         const billingIdType = matriculaForm.querySelector('[data-billing-id-type]');
         const billingIdNumber = matriculaForm.querySelector('[data-billing-id-number]');
@@ -707,11 +798,13 @@ document.addEventListener('DOMContentLoaded', () => {
                         field.dispatchEvent(new Event('change', { bubbles: true }));
                     }
                 });
+                syncMatriculaSubmitState();
                 showDraftAlert('Los datos temporales se borraron correctamente.');
             });
         });
 
         matriculaForm.addEventListener('submit', () => {
+            syncMatriculaSubmitState();
             window.localStorage.removeItem(draftKey);
         });
     }

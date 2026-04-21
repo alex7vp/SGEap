@@ -50,6 +50,18 @@ class MatriculationModel extends Model
         return $this->simpleCatalog('estado_matricula', 'emdid', 'emdnombre');
     }
 
+    public function allActiveDocuments(): array
+    {
+        $statement = $this->db->query(
+            "SELECT domid, domnombre, domdescripcion, domorigen, domurl, domobligatorio, domactivo
+             FROM documento_matricula
+             WHERE domactivo = true
+             ORDER BY domobligatorio DESC, domnombre ASC"
+        );
+
+        return $statement->fetchAll();
+    }
+
     public function defaultInactiveEnrollmentStatus(): ?array
     {
         $statement = $this->db->query(
@@ -146,6 +158,11 @@ class MatriculationModel extends Model
             $this->insertMatriculationRepresentative($matriculaId, $representative['perid'], $representative['pteid']);
             $this->insertMatriculationResources($matriculaId, $data['resources'] ?? []);
             $this->insertMatriculationBilling($matriculaId, $data['billing'] ?? []);
+            $this->insertDocumentAcceptances(
+                $matriculaId,
+                $data['documents_catalog'] ?? [],
+                $data['document_acceptances'] ?? []
+            );
 
             $this->db->commit();
 
@@ -510,6 +527,47 @@ class MatriculationModel extends Model
             'correo' => ($billing['mfccorreo'] ?? '') !== '' ? $billing['mfccorreo'] : null,
             'telefono' => ($billing['mfctelefono'] ?? '') !== '' ? $billing['mfctelefono'] : null,
         ]);
+    }
+
+    private function insertDocumentAcceptances(int $matriculaId, array $documents, array $acceptedDocumentIds): void
+    {
+        if ($documents === []) {
+            return;
+        }
+
+        $acceptedIndex = [];
+
+        foreach ($acceptedDocumentIds as $documentId) {
+            $normalizedId = (int) $documentId;
+
+            if ($normalizedId > 0) {
+                $acceptedIndex[$normalizedId] = true;
+            }
+        }
+
+        $statement = $this->db->prepare(
+            "INSERT INTO matricula_aceptacion_documentos (
+                matid, domid, madaceptado, madfecha_aceptacion
+             ) VALUES (
+                :matid, :domid, :aceptado, :fecha_aceptacion
+             )"
+        );
+
+        foreach ($documents as $document) {
+            $documentId = (int) ($document['domid'] ?? 0);
+
+            if ($documentId <= 0) {
+                continue;
+            }
+
+            $isAccepted = isset($acceptedIndex[$documentId]);
+
+            $statement->bindValue(':matid', $matriculaId, PDO::PARAM_INT);
+            $statement->bindValue(':domid', $documentId, PDO::PARAM_INT);
+            $statement->bindValue(':aceptado', $isAccepted, PDO::PARAM_BOOL);
+            $statement->bindValue(':fecha_aceptacion', $isAccepted ? date('Y-m-d H:i:s') : null);
+            $statement->execute();
+        }
     }
 
     private function findPersonByCedula(string $cedula): array|false

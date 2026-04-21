@@ -42,6 +42,7 @@ $sectionModuleMap = [
     'institucion' => 'configuracion',
     'periodos' => 'configuracion',
     'configuracion_matricula' => 'configuracion',
+    'configuracion_matricula_documentos' => 'configuracion',
     'cursos' => 'configuracion',
     'reportes_home' => 'reportes',
     'seguridad_home' => 'seguridad',
@@ -136,6 +137,12 @@ $sidebarModules = [
                         'label' => 'Configuracion de matricula',
                         'url' => baseUrl('configuracion/matricula'),
                         'icon' => 'fa-wpforms',
+                    ],
+                    [
+                        'key' => 'configuracion_matricula_documentos',
+                        'label' => 'Documentos de matricula',
+                        'url' => baseUrl('configuracion/matricula/documentos'),
+                        'icon' => 'fa-file-pdf-o',
                     ],
                     [
                         'key' => 'grados',

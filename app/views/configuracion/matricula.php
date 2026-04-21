@@ -6,6 +6,10 @@ require BASE_PATH . '/app/views/partials/header.php';
 
 $editingConfigurationId = (int) ($old['cmid'] ?? 0);
 ?>
+<nav class="module-subnav" aria-label="Submodulos de configuracion de matricula">
+    <a class="is-active" href="<?= htmlspecialchars(baseUrl('configuracion/matricula'), ENT_QUOTES, 'UTF-8'); ?>">Configuracion de matricula</a>
+    <a href="<?= htmlspecialchars(baseUrl('configuracion/matricula/documentos'), ENT_QUOTES, 'UTF-8'); ?>">Documentos</a>
+</nav>
 <p class="module-note">Administra la ventana ordinaria y extraordinaria de matricula para cada periodo lectivo sin alterar el estado activo del periodo.</p>
 
 <section class="security-assignment-block">

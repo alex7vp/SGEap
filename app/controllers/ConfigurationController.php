@@ -8,6 +8,7 @@ use App\Core\Controller;
 use App\Models\CatalogModel;
 use App\Models\InstitutionModel;
 use App\Models\MatriculationConfigurationModel;
+use App\Models\MatriculationDocumentModel;
 use App\Models\PeriodModel;
 
 class ConfigurationController extends Controller
@@ -83,6 +84,37 @@ class ConfigurationController extends Controller
                 'cmfechainicioextraordinaria' => sessionFlash('old_matriculation_config_extra_start') ?? ($editConfiguration !== false ? (string) ($editConfiguration['cmfechainicioextraordinaria'] ?? '') : ''),
                 'cmfechafinextraordinaria' => sessionFlash('old_matriculation_config_extra_end') ?? ($editConfiguration !== false ? (string) ($editConfiguration['cmfechafinextraordinaria'] ?? '') : ''),
                 'cmobservacion' => sessionFlash('old_matriculation_config_note') ?? ($editConfiguration !== false ? (string) ($editConfiguration['cmobservacion'] ?? '') : ''),
+            ],
+        ]);
+    }
+
+    public function matriculationDocuments(): void
+    {
+        $user = $this->requireAuth();
+        $documentModel = new MatriculationDocumentModel();
+        $editId = (int) ($_GET['edit'] ?? 0);
+        $editDocument = $editId > 0 ? $documentModel->find($editId) : false;
+
+        $this->view('configuracion.matricula_documentos', [
+            'appName' => config('app')['name'] ?? 'SGEap',
+            'pageTitle' => 'Documentos de matricula',
+            'currentModule' => 'configuracion',
+            'currentSection' => 'configuracion_matricula_documentos',
+            'user' => $user,
+            'documents' => $documentModel->allOrdered(),
+            'documentsFeedback' => $this->matriculationDocumentsFeedback(),
+            'old' => [
+                'domid' => sessionFlash('old_matriculation_document_id') ?? ($editDocument !== false ? (string) $editDocument['domid'] : ''),
+                'domnombre' => sessionFlash('old_matriculation_document_name') ?? ($editDocument !== false ? (string) $editDocument['domnombre'] : ''),
+                'domdescripcion' => sessionFlash('old_matriculation_document_description') ?? ($editDocument !== false ? (string) ($editDocument['domdescripcion'] ?? '') : ''),
+                'domurl' => sessionFlash('old_matriculation_document_url') ?? ($editDocument !== false ? (string) $editDocument['domurl'] : ''),
+                'domsource' => sessionFlash('old_matriculation_document_source') ?? (
+                    $editDocument !== false
+                    ? (mb_strtoupper(trim((string) ($editDocument['domorigen'] ?? 'URL'))) === 'ARCHIVO' ? 'upload' : 'url')
+                    : 'upload'
+                ),
+                'domobligatorio' => sessionFlash('old_matriculation_document_required') ?? ($editDocument !== false && !empty($editDocument['domobligatorio']) ? '1' : '0'),
+                'domactivo' => sessionFlash('old_matriculation_document_active') ?? ($editDocument !== false && !empty($editDocument['domactivo']) ? '1' : '0'),
             ],
         ]);
     }
@@ -410,6 +442,176 @@ class ConfigurationController extends Controller
         $this->redirect('/configuracion/matricula#configuracion-matricula-registrada');
     }
 
+    public function storeMatriculationDocument(): void
+    {
+        $this->requireAuth();
+
+        $data = $this->matriculationDocumentFormData();
+        $documentModel = new MatriculationDocumentModel();
+        $uploadedPath = null;
+        $data['domorigen'] = $data['domsource'] === 'upload' ? 'ARCHIVO' : 'URL';
+
+        if ($data['domnombre'] === '') {
+            $this->flashMatriculationDocumentFormData($data);
+            $this->flashMatriculationDocumentsFeedback('error', 'El nombre del documento es obligatorio.');
+            $this->redirect('/configuracion/matricula/documentos');
+        }
+
+        if ($documentModel->existsByName($data['domnombre'])) {
+            $this->flashMatriculationDocumentFormData($data);
+            $this->flashMatriculationDocumentsFeedback('error', 'Ya existe un documento registrado con ese nombre.');
+            $this->redirect('/configuracion/matricula/documentos');
+        }
+
+        if ($data['domsource'] === 'upload') {
+            try {
+                $uploadedPath = storeMatriculationDocumentFile($_FILES['document_file'] ?? [], $data['domnombre']);
+                $data['domurl'] = $uploadedPath ?? '';
+            } catch (\Throwable $exception) {
+                $this->flashMatriculationDocumentFormData($data);
+                $this->flashMatriculationDocumentsFeedback('error', $exception->getMessage());
+                $this->redirect('/configuracion/matricula/documentos');
+            }
+        }
+
+        if (
+            ($data['domsource'] === 'upload' && $data['domurl'] === '')
+            || ($data['domsource'] === 'url' && $data['domurl'] === '')
+        ) {
+            $this->flashMatriculationDocumentFormData($data);
+            $this->flashMatriculationDocumentsFeedback(
+                'error',
+                $data['domsource'] === 'upload'
+                    ? 'Debe cargar un archivo PDF para el documento.'
+                    : 'Debe registrar una URL para el documento.'
+            );
+            $this->redirect('/configuracion/matricula/documentos');
+        }
+
+        try {
+            $documentModel->create($data);
+        } catch (\Throwable $exception) {
+            if ($uploadedPath !== null) {
+                deleteManagedMatriculationDocumentFile($uploadedPath);
+            }
+
+            $this->flashMatriculationDocumentFormData($data);
+            $this->flashMatriculationDocumentsFeedback('error', 'No se pudo guardar el documento de matricula.');
+            $this->redirect('/configuracion/matricula/documentos');
+        }
+
+        $this->flashMatriculationDocumentsFeedback('success', 'Documento de matricula registrado correctamente.');
+        $this->redirect('/configuracion/matricula/documentos#documentos-matricula-registrados');
+    }
+
+    public function updateMatriculationDocument(): void
+    {
+        $this->requireAuth();
+
+        $documentId = (int) ($_POST['domid'] ?? 0);
+        $data = $this->matriculationDocumentFormData();
+        $documentModel = new MatriculationDocumentModel();
+        $current = $documentId > 0 ? $documentModel->find($documentId) : false;
+        $data['domorigen'] = $data['domsource'] === 'upload' ? 'ARCHIVO' : 'URL';
+
+        if ($documentId <= 0 || $current === false) {
+            $this->flashMatriculationDocumentsFeedback('error', 'El documento seleccionado no es valido.');
+            $this->redirect('/configuracion/matricula/documentos');
+        }
+
+        if ($data['domnombre'] === '') {
+            $this->flashMatriculationDocumentFormData($data + ['domid' => (string) $documentId]);
+            $this->flashMatriculationDocumentsFeedback('error', 'El nombre del documento es obligatorio.');
+            $this->redirect('/configuracion/matricula/documentos?edit=' . $documentId);
+        }
+
+        if ($documentModel->existsByName($data['domnombre'], $documentId)) {
+            $this->flashMatriculationDocumentFormData($data + ['domid' => (string) $documentId]);
+            $this->flashMatriculationDocumentsFeedback('error', 'Ya existe otro documento registrado con ese nombre.');
+            $this->redirect('/configuracion/matricula/documentos?edit=' . $documentId);
+        }
+
+        $oldUrl = (string) ($current['domurl'] ?? '');
+        $oldOrigin = mb_strtoupper(trim((string) ($current['domorigen'] ?? 'URL')));
+        $uploadedPath = null;
+
+        if ($data['domsource'] === 'upload') {
+            try {
+                $uploadedPath = storeMatriculationDocumentFile($_FILES['document_file'] ?? [], $data['domnombre']);
+
+                if ($uploadedPath !== null) {
+                    $data['domurl'] = $uploadedPath;
+                } elseif ($oldOrigin === 'ARCHIVO' && isManagedMatriculationDocumentPath($oldUrl)) {
+                    $data['domurl'] = $oldUrl;
+                } else {
+                    $data['domurl'] = '';
+                }
+            } catch (\Throwable $exception) {
+                $this->flashMatriculationDocumentFormData($data + ['domid' => (string) $documentId]);
+                $this->flashMatriculationDocumentsFeedback('error', $exception->getMessage());
+                $this->redirect('/configuracion/matricula/documentos?edit=' . $documentId);
+            }
+        }
+
+        if (
+            ($data['domsource'] === 'upload' && $data['domurl'] === '')
+            || ($data['domsource'] === 'url' && $data['domurl'] === '')
+        ) {
+            $this->flashMatriculationDocumentFormData($data + ['domid' => (string) $documentId]);
+            $this->flashMatriculationDocumentsFeedback(
+                'error',
+                $data['domsource'] === 'upload'
+                    ? 'Debe mantener un archivo PDF vigente o cargar uno nuevo.'
+                    : 'Debe registrar una URL valida para el documento.'
+            );
+            $this->redirect('/configuracion/matricula/documentos?edit=' . $documentId);
+        }
+
+        try {
+            $documentModel->updateDocument($documentId, $data);
+        } catch (\Throwable $exception) {
+            if ($uploadedPath !== null) {
+                deleteManagedMatriculationDocumentFile($uploadedPath);
+            }
+
+            $this->flashMatriculationDocumentFormData($data + ['domid' => (string) $documentId]);
+            $this->flashMatriculationDocumentsFeedback('error', 'No se pudo actualizar el documento de matricula.');
+            $this->redirect('/configuracion/matricula/documentos?edit=' . $documentId);
+        }
+
+        if ($oldOrigin === 'ARCHIVO' && $data['domurl'] !== $oldUrl) {
+            deleteManagedMatriculationDocumentFile($oldUrl);
+        }
+
+        $this->flashMatriculationDocumentsFeedback('success', 'Documento de matricula actualizado correctamente.');
+        $this->redirect('/configuracion/matricula/documentos#documentos-matricula-registrados');
+    }
+
+    public function deleteMatriculationDocument(): void
+    {
+        $this->requireAuth();
+
+        $documentId = (int) ($_POST['domid'] ?? 0);
+        $documentModel = new MatriculationDocumentModel();
+        $current = $documentId > 0 ? $documentModel->find($documentId) : false;
+
+        if ($documentId <= 0 || $current === false) {
+            $this->flashMatriculationDocumentsFeedback('error', 'El documento seleccionado no es valido.');
+            $this->redirect('/configuracion/matricula/documentos');
+        }
+
+        if (!$documentModel->deleteDocument($documentId)) {
+            $this->flashMatriculationDocumentsFeedback('error', 'No se pudo eliminar el documento. Revise si ya esta siendo usado por matriculas registradas.');
+            $this->redirect('/configuracion/matricula/documentos#documentos-matricula-registrados');
+        }
+
+        if (mb_strtoupper(trim((string) ($current['domorigen'] ?? 'URL'))) === 'ARCHIVO') {
+            deleteManagedMatriculationDocumentFile((string) ($current['domurl'] ?? ''));
+        }
+        $this->flashMatriculationDocumentsFeedback('success', 'Documento de matricula eliminado correctamente.');
+        $this->redirect('/configuracion/matricula/documentos#documentos-matricula-registrados');
+    }
+
     public function storeCatalogItem(): void
     {
         $this->requireAuth();
@@ -580,6 +782,20 @@ class ConfigurationController extends Controller
         ];
     }
 
+    private function matriculationDocumentFormData(): array
+    {
+        return [
+            'domid' => trim((string) ($_POST['domid'] ?? '')),
+            'domnombre' => trim((string) ($_POST['domnombre'] ?? '')),
+            'domdescripcion' => trim((string) ($_POST['domdescripcion'] ?? '')),
+            'domorigen' => '',
+            'domurl' => trim((string) ($_POST['domurl'] ?? '')),
+            'domsource' => ($_POST['domsource'] ?? 'upload') === 'url' ? 'url' : 'upload',
+            'domobligatorio' => ($_POST['domobligatorio'] ?? '0') === '1',
+            'domactivo' => ($_POST['domactivo'] ?? '0') === '1',
+        ];
+    }
+
     private function isValidInstitutionAmie(string $amie): bool
     {
         if ($amie === '') {
@@ -678,6 +894,17 @@ class ConfigurationController extends Controller
         sessionFlash('old_institution_legal_rep', (string) ($data['insrepresentantelegal'] ?? ''));
     }
 
+    private function flashMatriculationDocumentFormData(array $data): void
+    {
+        sessionFlash('old_matriculation_document_id', (string) ($data['domid'] ?? ''));
+        sessionFlash('old_matriculation_document_name', (string) ($data['domnombre'] ?? ''));
+        sessionFlash('old_matriculation_document_description', (string) ($data['domdescripcion'] ?? ''));
+        sessionFlash('old_matriculation_document_url', (string) ($data['domurl'] ?? ''));
+        sessionFlash('old_matriculation_document_source', (string) ($data['domsource'] ?? 'upload'));
+        sessionFlash('old_matriculation_document_required', !empty($data['domobligatorio']) ? '1' : '0');
+        sessionFlash('old_matriculation_document_active', !empty($data['domactivo']) ? '1' : '0');
+    }
+
     private function flashInstitutionFieldError(string $field, string $message): void
     {
         sessionFlash('institution_error_' . $field, $message);
@@ -741,6 +968,27 @@ class ConfigurationController extends Controller
     {
         $type = sessionFlash('matriculation_config_feedback_type');
         $message = sessionFlash('matriculation_config_feedback_message');
+
+        if ($type === null || $message === null) {
+            return null;
+        }
+
+        return [
+            'type' => $type,
+            'message' => $message,
+        ];
+    }
+
+    private function flashMatriculationDocumentsFeedback(string $type, string $message): void
+    {
+        sessionFlash('matriculation_documents_feedback_type', $type);
+        sessionFlash('matriculation_documents_feedback_message', $message);
+    }
+
+    private function matriculationDocumentsFeedback(): ?array
+    {
+        $type = sessionFlash('matriculation_documents_feedback_type');
+        $message = sessionFlash('matriculation_documents_feedback_message');
 
         if ($type === null || $message === null) {
             return null;

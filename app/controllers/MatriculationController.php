@@ -25,6 +25,7 @@ class MatriculationController extends Controller
             : false;
         $canCreateMatricula = $enabledMatriculationPeriod !== false;
         $newMatriculaLabel = 'Nueva matricula';
+        $documents = $matriculationModel->allActiveDocuments();
 
         if ($canCreateMatricula && is_array($newMatriculaPeriod)) {
             $newMatriculaLabel .= ' | ' . (string) $newMatriculaPeriod['pledescripcion'];
@@ -50,6 +51,7 @@ class MatriculationController extends Controller
             'civilStatuses' => $matriculationModel->allCivilStatuses(),
             'instructionLevels' => $matriculationModel->allInstructionLevels(),
             'enrollmentStatuses' => $matriculationModel->allEnrollmentStatuses(),
+            'documents' => $documents,
             'matriculas' => $viewedPeriod !== null ? $matriculationModel->allByPeriod((int) $viewedPeriod['pleid']) : [],
             'success' => null,
             'error' => null,
@@ -70,15 +72,15 @@ class MatriculationController extends Controller
             $this->redirect('/matriculas?panel=gestion#matriculas-registradas');
         }
 
-        $data = $this->formData($period);
+        $matriculationModel = new MatriculationModel();
+        $documents = $matriculationModel->allActiveDocuments();
+        $data = $this->formData($period, $documents);
 
-        if (!$this->isValid($data)) {
+        if (!$this->isValid($data, $documents)) {
             $this->flashOldFormData($data);
-            $this->flashMatriculaFormFeedback('error', 'Complete los datos obligatorios de persona, estudiante, familiares, representante y matricula.');
+            $this->flashMatriculaFormFeedback('error', 'Complete los datos obligatorios de persona, estudiante, familiares, representante, facturacion, documentos y matricula.');
             $this->redirect('/matriculas?panel=nueva#matricula-form');
         }
-
-        $matriculationModel = new MatriculationModel();
 
         try {
             $matriculationModel->createEnrollment($data);
@@ -165,9 +167,10 @@ class MatriculationController extends Controller
         $this->redirect($redirectTo);
     }
 
-    private function formData(array $period): array
+    private function formData(array $period, array $documents = []): array
     {
         $defaultMatricula = $this->defaultMatriculaData();
+        $acceptedDocumentIds = array_map('intval', array_keys((array) ($_POST['documents'] ?? [])));
 
         return [
             'period' => $period,
@@ -207,6 +210,8 @@ class MatriculationController extends Controller
                 'mfccorreo' => trim((string) ($_POST['billing']['mfccorreo'] ?? '')),
                 'mfctelefono' => trim((string) ($_POST['billing']['mfctelefono'] ?? '')),
             ],
+            'documents_catalog' => $documents,
+            'document_acceptances' => $acceptedDocumentIds,
             'photo' => $_FILES['matricula_photo'] ?? null,
         ];
     }
@@ -256,7 +261,7 @@ class MatriculationController extends Controller
         ];
     }
 
-    private function isValid(array $data): bool
+    private function isValid(array $data, array $documents = []): bool
     {
         if (
             !$this->isValidCedula($data['person']['percedula'])
@@ -266,6 +271,7 @@ class MatriculationController extends Controller
             || !$this->areValidFamilyEmails($data['families'])
             || !$this->isValidRepresentative($data['person']['percedula'], $data['families'], $data['representative'])
             || !$this->isValidBilling($data['billing'])
+            || !$this->areRequiredDocumentsAccepted($documents, $data['document_acceptances'] ?? [])
             || $data['person']['pernombres'] === ''
             || $data['person']['perapellidos'] === ''
             || $data['matricula']['curid'] <= 0
@@ -290,6 +296,37 @@ class MatriculationController extends Controller
         }
 
         return $data['representative']['source'] === 'external' || $validFamilies > 0;
+    }
+
+    private function areRequiredDocumentsAccepted(array $documents, array $acceptedDocumentIds): bool
+    {
+        if ($documents === []) {
+            return true;
+        }
+
+        $acceptedIndex = [];
+
+        foreach ($acceptedDocumentIds as $documentId) {
+            $normalizedId = (int) $documentId;
+
+            if ($normalizedId > 0) {
+                $acceptedIndex[$normalizedId] = true;
+            }
+        }
+
+        foreach ($documents as $document) {
+            if (empty($document['domobligatorio'])) {
+                continue;
+            }
+
+            $documentId = (int) ($document['domid'] ?? 0);
+
+            if ($documentId <= 0 || !isset($acceptedIndex[$documentId])) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private function isValidCedula(string $cedula): bool
@@ -474,6 +511,7 @@ class MatriculationController extends Controller
             'matricula' => $data['matricula'],
             'resources' => $data['resources'],
             'billing' => $data['billing'],
+            'documents' => $data['document_acceptances'] ?? [],
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
     }
 
@@ -538,6 +576,7 @@ class MatriculationController extends Controller
                 'mfccorreo' => '',
                 'mfctelefono' => '',
             ],
+            'documents' => !empty($decoded['documents']) && is_array($decoded['documents']) ? array_map('intval', $decoded['documents']) : [],
         ];
     }
 
