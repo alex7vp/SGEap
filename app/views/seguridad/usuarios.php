@@ -90,7 +90,7 @@ if (!empty($old['perid'])) {
                 <div>
                     <div class="input-group">
                         <span class="input-addon">Clave</span>
-                        <input type="text" name="usuclave" value="<?= htmlspecialchars((string) ($old['usuclave'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" required data-user-password-input>
+                        <input type="password" name="usuclave" value="" required data-user-password-input>
                     </div>
                 </div>
                 <div>

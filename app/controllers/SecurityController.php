@@ -47,7 +47,7 @@ class SecurityController extends Controller
             'old' => [
                 'perid' => sessionFlash('old_user_perid') ?? '',
                 'usunombre' => sessionFlash('old_user_usunombre') ?? '',
-                'usuclave' => sessionFlash('old_user_usuclave') ?? '',
+                'usuclave' => '',
                 'usuestado' => sessionFlash('old_user_usuestado') ?? '1',
             ],
         ]);
@@ -454,7 +454,6 @@ class SecurityController extends Controller
     {
         sessionFlash('old_user_perid', (string) $data['perid']);
         sessionFlash('old_user_usunombre', (string) $data['usunombre']);
-        sessionFlash('old_user_usuclave', (string) $data['usuclave']);
         sessionFlash('old_user_usuestado', $data['usuestado'] ? '1' : '0');
     }
 

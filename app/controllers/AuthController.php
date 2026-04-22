@@ -43,7 +43,7 @@ class AuthController extends Controller
         $userModel = new UserModel();
         $user = $userModel->findActiveByUsername($username);
 
-        if ($user === false || $password !== (string) $user['usuclave']) {
+        if ($user === false || !$userModel->verifyPassword($user, $password)) {
             sessionFlash('error', 'Credenciales invalidas.');
             sessionFlash('old_username', $username);
             $this->redirect('/login');

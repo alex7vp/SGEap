@@ -57,7 +57,7 @@ class PeriodModel extends Model
         return $statement->fetchColumn() !== false;
     }
 
-    public function create(array $data): void
+    public function create(array $data): int
     {
         $statement = $this->db->prepare(
             "INSERT INTO {$this->table} (pledescripcion, plefechainicio, plefechafin, pleactivo)
@@ -69,10 +69,13 @@ class PeriodModel extends Model
         $statement->bindValue(':active', $data['pleactivo'], \PDO::PARAM_BOOL);
         $statement->execute();
 
+        $periodId = (int) $this->db->lastInsertId();
+
         if ($data['pleactivo']) {
-            $periodId = (int) $this->db->lastInsertId();
             $this->activate($periodId);
         }
+
+        return $periodId;
     }
 
     public function update(int $periodId, array $data): void

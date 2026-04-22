@@ -92,6 +92,35 @@ class CourseModel extends Model
         $statement->execute();
     }
 
+    public function createBaseCoursesForPeriod(int $periodId): int
+    {
+        $parallelId = $this->defaultParallelId();
+
+        if ($periodId <= 0 || $parallelId === null) {
+            return 0;
+        }
+
+        $statement = $this->db->prepare(
+            "INSERT INTO {$this->table} (pleid, graid, prlid, curestado)
+             SELECT :period_id, g.graid, :parallel_id, true
+             FROM grado g
+             WHERE NOT EXISTS (
+                 SELECT 1
+                 FROM {$this->table} c
+                 WHERE c.pleid = :period_id_check
+                   AND c.graid = g.graid
+                   AND c.prlid = :parallel_id_check
+             )"
+        );
+        $statement->bindValue(':period_id', $periodId, \PDO::PARAM_INT);
+        $statement->bindValue(':parallel_id', $parallelId, \PDO::PARAM_INT);
+        $statement->bindValue(':period_id_check', $periodId, \PDO::PARAM_INT);
+        $statement->bindValue(':parallel_id_check', $parallelId, \PDO::PARAM_INT);
+        $statement->execute();
+
+        return $statement->rowCount();
+    }
+
     public function updateStatus(int $courseId, bool $status): void
     {
         $statement = $this->db->prepare(
@@ -144,5 +173,26 @@ class CourseModel extends Model
         $statement->execute(['period_id' => $periodId]);
 
         return (int) $statement->fetchColumn();
+    }
+
+    private function defaultParallelId(): ?int
+    {
+        $statement = $this->db->query(
+            "SELECT prlid
+             FROM paralelo
+             ORDER BY
+                 CASE WHEN UPPER(prlnombre) = 'A' THEN 0 ELSE 1 END,
+                 prlnombre ASC,
+                 prlid ASC
+             LIMIT 1"
+        );
+
+        $parallelId = $statement->fetchColumn();
+
+        if ($parallelId === false) {
+            return null;
+        }
+
+        return (int) $parallelId;
     }
 }

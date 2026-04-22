@@ -139,15 +139,32 @@ class UserModel extends Model
 
     public function create(array $data): void
     {
+        $passwordHash = password_hash((string) $data['usuclave'], PASSWORD_DEFAULT);
+
+        if ($passwordHash === false) {
+            throw new \RuntimeException('No se pudo proteger la clave del usuario.');
+        }
+
         $statement = $this->db->prepare(
             "INSERT INTO {$this->table} (perid, usunombre, usuclave, usuestado)
              VALUES (:perid, :username, :password, :status)"
         );
         $statement->bindValue(':perid', $data['perid'], \PDO::PARAM_INT);
         $statement->bindValue(':username', $data['usunombre'], \PDO::PARAM_STR);
-        $statement->bindValue(':password', $data['usuclave'], \PDO::PARAM_STR);
+        $statement->bindValue(':password', $passwordHash, \PDO::PARAM_STR);
         $statement->bindValue(':status', $data['usuestado'], \PDO::PARAM_BOOL);
         $statement->execute();
+    }
+
+    public function verifyPassword(array $user, string $plainPassword): bool
+    {
+        $storedPassword = (string) ($user['usuclave'] ?? '');
+
+        if ($storedPassword === '') {
+            return false;
+        }
+
+        return password_verify($plainPassword, $storedPassword);
     }
 
     public function updateStatus(int $userId, bool $status): void

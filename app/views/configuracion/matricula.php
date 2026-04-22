@@ -5,6 +5,7 @@ declare(strict_types=1);
 require BASE_PATH . '/app/views/partials/header.php';
 
 $editingConfigurationId = (int) ($old['cmid'] ?? 0);
+$today = date('Y-m-d');
 ?>
 <nav class="module-subnav" aria-label="Submodulos de configuracion de matricula">
     <a class="is-active" href="<?= htmlspecialchars(baseUrl('configuracion/matricula'), ENT_QUOTES, 'UTF-8'); ?>">Configuracion de matricula</a>
@@ -139,6 +140,17 @@ $editingConfigurationId = (int) ($old['cmid'] ?? 0);
                 </thead>
                 <tbody>
                     <?php foreach ($settings as $setting): ?>
+                        <?php
+                        $ordinaryEndDate = trim((string) ($setting['cmfechafin'] ?? ''));
+                        $canEnableExtraordinary = $ordinaryEndDate !== '' && $today > $ordinaryEndDate;
+                        $isExtraordinaryActive = !empty($setting['cmhabilitadaextraordinaria']);
+                        $disableExtraordinaryOpen = !$isExtraordinaryActive && !$canEnableExtraordinary;
+                        $extraordinaryToggleTitle = $isExtraordinaryActive
+                            ? 'Cerrar matricula extraordinaria'
+                            : ($disableExtraordinaryOpen
+                                ? 'La matricula extraordinaria solo puede abrirse cuando haya vencido la fecha de fin de la ordinaria'
+                                : 'Abrir matricula extraordinaria');
+                        ?>
                         <tr>
                             <td>
                                 <span class="cell-title"><?= htmlspecialchars((string) $setting['pledescripcion'], ENT_QUOTES, 'UTF-8'); ?></span>
@@ -167,7 +179,12 @@ $editingConfigurationId = (int) ($old['cmid'] ?? 0);
                                     <form method="POST" action="<?= htmlspecialchars(baseUrl('configuracion/matricula/extraordinaria'), ENT_QUOTES, 'UTF-8'); ?>" class="inline-toggle-form">
                                         <input type="hidden" name="cmid" value="<?= htmlspecialchars((string) $setting['cmid'], ENT_QUOTES, 'UTF-8'); ?>">
                                         <input type="hidden" name="enabled" value="<?= !empty($setting['cmhabilitadaextraordinaria']) ? '0' : '1'; ?>">
-                                        <button type="submit" class="permission-option-state permission-option-toggle <?= !empty($setting['cmhabilitadaextraordinaria']) ? 'is-active' : 'is-inactive'; ?>" title="<?= !empty($setting['cmhabilitadaextraordinaria']) ? 'Cerrar matricula extraordinaria' : 'Abrir matricula extraordinaria'; ?>">
+                                        <button
+                                            type="submit"
+                                            class="permission-option-state permission-option-toggle <?= !empty($setting['cmhabilitadaextraordinaria']) ? 'is-active' : 'is-inactive'; ?>"
+                                            title="<?= htmlspecialchars($extraordinaryToggleTitle, ENT_QUOTES, 'UTF-8'); ?>"
+                                            <?= $disableExtraordinaryOpen ? 'disabled' : ''; ?>
+                                        >
                                             <?= !empty($setting['cmhabilitadaextraordinaria']) ? 'Abierta' : 'Cerrada'; ?>
                                         </button>
                                     </form>

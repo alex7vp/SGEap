@@ -6,6 +6,7 @@ namespace App\Controllers;
 
 use App\Core\Controller;
 use App\Models\CatalogModel;
+use App\Models\CourseModel;
 use App\Models\InstitutionModel;
 use App\Models\MatriculationConfigurationModel;
 use App\Models\MatriculationDocumentModel;
@@ -240,9 +241,16 @@ class ConfigurationController extends Controller
             $this->redirect('/configuracion/periodos');
         }
 
-        $periodModel->create($data);
+        $periodId = $periodModel->create($data);
+        $courseModel = new CourseModel();
+        $createdCourses = $courseModel->createBaseCoursesForPeriod($periodId);
 
-        sessionFlash('success', 'Periodo lectivo registrado correctamente.');
+        sessionFlash(
+            'success',
+            $createdCourses > 0
+                ? 'Periodo lectivo registrado correctamente. Se generaron los cursos base del nuevo periodo.'
+                : 'Periodo lectivo registrado correctamente.'
+        );
         $this->redirect('/configuracion/periodos');
     }
 
@@ -348,7 +356,7 @@ class ConfigurationController extends Controller
 
         if (!$this->hasValidMatriculationRanges($data)) {
             $this->flashMatriculationConfigurationFormData($data);
-            $this->flashMatriculationConfigFeedback('error', 'Las fechas de matricula ordinaria o extraordinaria no son validas.');
+            $this->flashMatriculationConfigFeedback('error', 'Las fechas de matricula no son validas. La extraordinaria debe iniciar despues de que termine la ordinaria.');
             $this->redirect('/configuracion/matricula');
         }
 
@@ -356,6 +364,16 @@ class ConfigurationController extends Controller
             $this->flashMatriculationConfigurationFormData($data);
             $this->flashMatriculationConfigFeedback('error', 'Ese periodo ya tiene una configuracion de matricula registrada.');
             $this->redirect('/configuracion/matricula');
+        }
+
+        if (!empty($data['cmhabilitadaextraordinaria'])) {
+            try {
+                $configurationModel->assertExtraordinaryCanBeEnabled($data);
+            } catch (\RuntimeException $exception) {
+                $this->flashMatriculationConfigurationFormData($data);
+                $this->flashMatriculationConfigFeedback('error', $exception->getMessage());
+                $this->redirect('/configuracion/matricula');
+            }
         }
 
         $configurationModel->create($data);
@@ -385,7 +403,7 @@ class ConfigurationController extends Controller
 
         if (!$this->hasValidMatriculationRanges($data)) {
             $this->flashMatriculationConfigurationFormData($data + ['cmid' => (string) $configurationId]);
-            $this->flashMatriculationConfigFeedback('error', 'Las fechas de matricula ordinaria o extraordinaria no son validas.');
+            $this->flashMatriculationConfigFeedback('error', 'Las fechas de matricula no son validas. La extraordinaria debe iniciar despues de que termine la ordinaria.');
             $this->redirect('/configuracion/matricula');
         }
 
@@ -393,6 +411,16 @@ class ConfigurationController extends Controller
             $this->flashMatriculationConfigurationFormData($data + ['cmid' => (string) $configurationId]);
             $this->flashMatriculationConfigFeedback('error', 'Ese periodo ya tiene otra configuracion de matricula registrada.');
             $this->redirect('/configuracion/matricula');
+        }
+
+        if (!empty($data['cmhabilitadaextraordinaria'])) {
+            try {
+                $configurationModel->assertExtraordinaryCanBeEnabled($data);
+            } catch (\RuntimeException $exception) {
+                $this->flashMatriculationConfigurationFormData($data + ['cmid' => (string) $configurationId]);
+                $this->flashMatriculationConfigFeedback('error', $exception->getMessage());
+                $this->redirect('/configuracion/matricula');
+            }
         }
 
         $configurationModel->update($configurationId, $data);
@@ -434,7 +462,13 @@ class ConfigurationController extends Controller
             $this->redirect('/configuracion/matricula');
         }
 
-        $configurationModel->toggleExtraordinary($configurationId, $enabled);
+        try {
+            $configurationModel->toggleExtraordinary($configurationId, $enabled);
+        } catch (\RuntimeException $exception) {
+            $this->flashMatriculationConfigFeedback('error', $exception->getMessage());
+            $this->redirect('/configuracion/matricula#configuracion-matricula-registrada');
+        }
+
         $this->flashMatriculationConfigFeedback(
             'success',
             'La matricula extraordinaria fue ' . ($enabled ? 'habilitada' : 'cerrada') . ' correctamente.'
@@ -863,6 +897,14 @@ class ConfigurationController extends Controller
         }
 
         if ($extraStart !== '' && $extraEnd !== '' && $extraStart > $extraEnd) {
+            return false;
+        }
+
+        if (
+            $ordinaryEnd !== ''
+            && $extraStart !== ''
+            && $extraStart <= $ordinaryEnd
+        ) {
             return false;
         }
 

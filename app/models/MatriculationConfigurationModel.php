@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Core\Model;
+use DateTimeImmutable;
 use PDO;
+use RuntimeException;
 
 class MatriculationConfigurationModel extends Model
 {
@@ -38,6 +40,21 @@ class MatriculationConfigurationModel extends Model
              LIMIT 1"
         );
         $statement->execute(['pleid' => $periodId]);
+
+        return $statement->fetch();
+    }
+
+    public function findById(int $configurationId): array|false
+    {
+        $statement = $this->db->prepare(
+            "SELECT cmid, pleid, cmhabilitada, cmfechainicio, cmfechafin,
+                    cmhabilitadaextraordinaria, cmfechainicioextraordinaria,
+                    cmfechafinextraordinaria, cmobservacion
+             FROM {$this->table}
+             WHERE {$this->primaryKey} = :id
+             LIMIT 1"
+        );
+        $statement->execute(['id' => $configurationId]);
 
         return $statement->fetch();
     }
@@ -145,6 +162,16 @@ class MatriculationConfigurationModel extends Model
 
     public function toggleExtraordinary(int $configurationId, bool $enabled): void
     {
+        $configuration = $this->findById($configurationId);
+
+        if ($configuration === false) {
+            throw new RuntimeException('La configuracion de matricula seleccionada no existe.');
+        }
+
+        if ($enabled) {
+            $this->assertExtraordinaryCanBeEnabled($configuration);
+        }
+
         $statement = $this->db->prepare(
             "UPDATE {$this->table}
              SET cmhabilitadaextraordinaria = :enabled,
@@ -154,6 +181,30 @@ class MatriculationConfigurationModel extends Model
         $statement->bindValue(':id', $configurationId, PDO::PARAM_INT);
         $statement->bindValue(':enabled', $enabled, PDO::PARAM_BOOL);
         $statement->execute();
+    }
+
+    public function assertExtraordinaryCanBeEnabled(array $configuration): void
+    {
+        $ordinaryEnd = trim((string) ($configuration['cmfechafin'] ?? ''));
+
+        if ($ordinaryEnd === '') {
+            throw new RuntimeException(
+                'No se puede habilitar la matricula extraordinaria sin una fecha de fin para la matricula ordinaria.'
+            );
+        }
+
+        try {
+            $today = new DateTimeImmutable('today');
+            $ordinaryEndDate = new DateTimeImmutable($ordinaryEnd);
+        } catch (\Exception) {
+            throw new RuntimeException('La fecha de fin de la matricula ordinaria no es valida.');
+        }
+
+        if ($today <= $ordinaryEndDate) {
+            throw new RuntimeException(
+                'No se puede habilitar la matricula extraordinaria mientras no haya vencido la fecha de fin de la matricula ordinaria.'
+            );
+        }
     }
 
     private function bindConfigurationValues(\PDOStatement $statement, array $data): void
