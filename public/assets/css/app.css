@@ -1697,6 +1697,22 @@ a.btn-primary.btn-icon-only.btn-icon-small:hover {
     gap: 8px;
 }
 
+.personal-type-radio-group {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px 20px;
+}
+
+.personal-type-radio-group .role-toggle {
+    min-width: auto;
+    gap: 8px;
+}
+
+.personal-type-radio-group .role-toggle span {
+    white-space: nowrap;
+}
+
 .dashboard-status-list {
     display: flex;
     flex-wrap: wrap;

@@ -149,8 +149,6 @@ class SecurityController extends Controller
     {
         $user = $this->requireAuth();
         $rolePermissionModel = new RolePermissionModel();
-        $roles = $rolePermissionModel->allRoles();
-        $users = $rolePermissionModel->allUsers();
 
         $this->view('seguridad.roles_permisos', [
             'appName' => config('app')['name'] ?? 'SGEap',
@@ -158,12 +156,27 @@ class SecurityController extends Controller
             'currentModule' => 'seguridad',
             'currentSection' => 'seguridad_roles_permisos',
             'user' => $user,
-            'roles' => $roles,
+            'roles' => $rolePermissionModel->allRoles(),
             'permissions' => $rolePermissionModel->allPermissions(),
             'assignedPermissions' => $rolePermissionModel->assignedPermissionIdsByRole(),
-            'users' => $users,
-            'assignedRoles' => $rolePermissionModel->assignedRoleIdsByUser(),
             'assignmentFeedback' => $this->assignmentFeedback(),
+        ]);
+    }
+
+    public function userRoles(): void
+    {
+        $user = $this->requireAuth();
+        $rolePermissionModel = new RolePermissionModel();
+
+        $this->view('seguridad.roles_usuarios', [
+            'appName' => config('app')['name'] ?? 'SGEap',
+            'pageTitle' => 'Roles por usuario',
+            'currentModule' => 'seguridad',
+            'currentSection' => 'seguridad_usuarios_roles',
+            'user' => $user,
+            'roles' => $rolePermissionModel->allRoles(),
+            'users' => $rolePermissionModel->allUsers(),
+            'assignedRoles' => $rolePermissionModel->assignedRoleIdsByUser(),
             'userRoleFeedback' => $this->userRoleFeedback(),
         ]);
     }
@@ -222,19 +235,19 @@ class SecurityController extends Controller
 
         if ($userId <= 0) {
             $this->flashUserRoleFeedback('error', $userId, 'El usuario seleccionado no es valido.');
-            $this->redirectToRolePermissions($anchor);
+            $this->redirectToUserRoles($anchor);
         }
 
         try {
             $rolePermissionModel->syncUserRoles($userId, $roleIds);
         } catch (\RuntimeException $exception) {
             $this->flashUserRoleFeedback('error', $userId, $exception->getMessage());
-            $this->redirectToRolePermissions($anchor);
+            $this->redirectToUserRoles($anchor);
             return;
         }
 
         $this->flashUserRoleFeedback('success', $userId, 'Roles actualizados correctamente para el usuario seleccionado.');
-        $this->redirectToRolePermissions($anchor);
+        $this->redirectToUserRoles($anchor);
     }
 
     public function storeCatalogItem(): void
@@ -418,6 +431,17 @@ class SecurityController extends Controller
     private function redirectToRolePermissions(string $anchor = ''): void
     {
         $path = '/seguridad/roles-permisos';
+
+        if ($anchor !== '') {
+            $path .= '#' . ltrim($anchor, '#');
+        }
+
+        $this->redirect($path);
+    }
+
+    private function redirectToUserRoles(string $anchor = ''): void
+    {
+        $path = '/seguridad/usuarios-roles';
 
         if ($anchor !== '') {
             $path .= '#' . ltrim($anchor, '#');

@@ -37,6 +37,9 @@ $sectionModuleMap = [
     'academico_home' => 'academico',
     'personas' => 'academico',
     'estudiantes' => 'academico',
+    'personal' => 'academico',
+    'personal_assignment' => 'academico',
+    'personal_listing' => 'academico',
     'configuracion_home' => 'configuracion',
     'grados' => 'configuracion',
     'institucion' => 'configuracion',
@@ -49,6 +52,7 @@ $sectionModuleMap = [
     'seguridad_catalogos' => 'seguridad',
     'seguridad_usuarios' => 'seguridad',
     'seguridad_roles_permisos' => 'seguridad',
+    'seguridad_usuarios_roles' => 'seguridad',
 ];
 
 $sidebarModules = [
@@ -65,36 +69,46 @@ $sidebarModules = [
     ],
     'academico' => [
         'title' => 'Gestion academica',
-        'items' => [
+        'groups' => [
             [
-                'key' => 'personas',
-                'label' => 'Personas',
-                'url' => baseUrl('personas'),
-                'icon' => 'fa-users',
+                'title' => 'Operativo',
+                'items' => [
+                    [
+                        'key' => 'estudiantes',
+                        'label' => 'Estudiantes',
+                        'url' => baseUrl('estudiantes'),
+                        'icon' => 'fa-graduation-cap',
+                    ],
+                    [
+                        'key' => 'personal',
+                        'label' => 'Personal',
+                        'url' => baseUrl('personal/asignacion'),
+                        'icon' => 'fa-id-badge',
+                    ],
+                    [
+                        'key' => 'matriculas',
+                        'label' => 'Matriculas',
+                        'url' => baseUrl('matriculas'),
+                        'icon' => 'fa-address-card',
+                    ],
+                ],
             ],
             [
-                'key' => 'estudiantes',
-                'label' => 'Estudiantes',
-                'url' => baseUrl('estudiantes'),
-                'icon' => 'fa-graduation-cap',
-            ],
-            [
-                'key' => 'docentes',
-                'label' => 'Docentes',
-                'url' => '#',
-                'icon' => 'fa-user-circle',
-            ],
-            [
-                'key' => 'administrativos',
-                'label' => 'Administrativos',
-                'url' => '#',
-                'icon' => 'fa-briefcase',
-            ],
-            [
-                'key' => 'matriculas',
-                'label' => 'Matriculas',
-                'url' => baseUrl('matriculas'),
-                'icon' => 'fa-address-card',
+                'title' => 'Personal',
+                'items' => [
+                    [
+                        'key' => 'personal_assignment',
+                        'label' => 'Asignacion del personal',
+                        'url' => baseUrl('personal/asignacion'),
+                        'icon' => 'fa-check-square-o',
+                    ],
+                    [
+                        'key' => 'personal_listing',
+                        'label' => 'Consulta de personal',
+                        'url' => baseUrl('personal/consulta'),
+                        'icon' => 'fa-list',
+                    ],
+                ],
             ],
         ],
     ],
@@ -194,9 +208,15 @@ $sidebarModules = [
             ],
             [
                 'key' => 'seguridad_roles_permisos',
-                'label' => 'Roles y permisos',
+                'label' => 'Designacion de permisos',
                 'url' => baseUrl('seguridad/roles-permisos'),
                 'icon' => 'fa-key',
+            ],
+            [
+                'key' => 'seguridad_usuarios_roles',
+                'label' => 'Roles por usuario',
+                'url' => baseUrl('seguridad/usuarios-roles'),
+                'icon' => 'fa-users',
             ],
             [
                 'key' => 'auditoria',

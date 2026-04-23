@@ -17,28 +17,22 @@ class ModuleController extends Controller
             'Centraliza los procesos operativos del ciclo estudiantil y la gestion diaria del area academica.',
             [
                 [
-                    'label' => 'Personas',
-                    'description' => 'Consulta, registra y actualiza la base general de personas.',
-                    'url' => baseUrl('personas'),
-                    'icon' => 'fa-users',
-                ],
-                [
                     'label' => 'Estudiantes',
                     'description' => 'Administra los registros estudiantiles vinculados a persona.',
                     'url' => baseUrl('estudiantes'),
                     'icon' => 'fa-graduation-cap',
                 ],
                 [
-                    'label' => 'Docentes',
-                    'description' => 'Espacio reservado para el futuro modulo de docentes.',
-                    'url' => null,
-                    'icon' => 'fa-user-circle',
+                    'label' => 'Asignacion del personal',
+                    'description' => 'Permite asignar uno o varios tipos al personal institucional registrado.',
+                    'url' => baseUrl('personal/asignacion'),
+                    'icon' => 'fa-id-badge',
                 ],
                 [
-                    'label' => 'Administrativos',
-                    'description' => 'Espacio reservado para el futuro modulo de personal administrativo.',
-                    'url' => null,
-                    'icon' => 'fa-briefcase',
+                    'label' => 'Consulta de personal',
+                    'description' => 'Consulta el personal general y filtra por tipo institucional desde una sola pantalla.',
+                    'url' => baseUrl('personal/consulta'),
+                    'icon' => 'fa-list',
                 ],
                 [
                     'label' => 'Matriculas',
@@ -143,10 +137,16 @@ class ModuleController extends Controller
                     'icon' => 'fa-user',
                 ],
                 [
-                    'label' => 'Roles y permisos',
-                    'description' => 'Define permisos por rol y asignacion de roles a usuarios.',
+                    'label' => 'Designacion de permisos',
+                    'description' => 'Define permisos funcionales para cada rol del sistema.',
                     'url' => baseUrl('seguridad/roles-permisos'),
                     'icon' => 'fa-key',
+                ],
+                [
+                    'label' => 'Roles por usuario',
+                    'description' => 'Asigna uno o varios roles a cada cuenta de usuario.',
+                    'url' => baseUrl('seguridad/usuarios-roles'),
+                    'icon' => 'fa-users',
                 ],
                 [
                     'label' => 'Auditoria',

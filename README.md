@@ -51,3 +51,15 @@ Los scripts SQL y semillas pueden ubicarse en:
 
 - `database/scripts/`
 - `database/seeds/`
+
+Orden sugerido de ejecucion de scripts:
+
+- `database/scripts/03_personas.sql`
+- `database/scripts/04_matriculacion.sql`
+- `database/scripts/sgeap_triggers.sql`
+
+Si se usa el consolidado general `database/scripts/sgeap.sql`, ejecutar luego `database/scripts/sgeap_triggers.sql`.
+
+## Documentacion funcional
+
+- `docs/regla-persona-y-roles.md`: regla de negocio de persona, diagrama y validacion de restricciones.

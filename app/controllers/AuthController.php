@@ -8,6 +8,7 @@ use App\Core\Controller;
 use App\Models\CourseModel;
 use App\Models\MatriculationConfigurationModel;
 use App\Models\MatriculationModel;
+use App\Models\PersonalModel;
 use App\Models\PeriodModel;
 use App\Models\PersonModel;
 use App\Models\StudentModel;
@@ -70,6 +71,7 @@ class AuthController extends Controller
         $user = $this->requireAuth();
         $periodModel = new PeriodModel();
         $personModel = new PersonModel();
+        $personalModel = new PersonalModel();
         $studentModel = new StudentModel();
         $courseModel = new CourseModel();
         $matriculationModel = new MatriculationModel();
@@ -85,6 +87,8 @@ class AuthController extends Controller
 
         $stats = [
             'personas' => $personModel->countAll(),
+            'personal' => $personalModel->countAll(),
+            'personal_activo' => $personalModel->countActive(),
             'estudiantes' => $studentModel->countAll(),
             'estudiantes_activos' => $studentModel->countActive(),
             'cursos_periodo' => $currentPeriod !== false ? $courseModel->countByPeriod((int) $currentPeriod['pleid']) : 0,

@@ -9,6 +9,7 @@ use App\Controllers\GradeController;
 use App\Controllers\MatriculationController;
 use App\Controllers\ModuleController;
 use App\Controllers\PersonController;
+use App\Controllers\PersonalController;
 use App\Controllers\SecurityController;
 use App\Controllers\StudentController;
 use App\Core\Router;
@@ -53,6 +54,7 @@ return static function (Router $router): void {
     $router->post('/seguridad/catalogos/actualizar', [SecurityController::class, 'updateCatalogItem']);
     $router->post('/seguridad/catalogos/eliminar', [SecurityController::class, 'deleteCatalogItem']);
     $router->get('/seguridad/roles-permisos', [SecurityController::class, 'rolePermissions']);
+    $router->get('/seguridad/usuarios-roles', [SecurityController::class, 'userRoles']);
     $router->get('/seguridad/usuarios-roles/buscar', [SecurityController::class, 'searchUserRoles']);
     $router->post('/seguridad/usuarios', [SecurityController::class, 'storeUser']);
     $router->post('/seguridad/usuarios/estado', [SecurityController::class, 'toggleUserStatus']);
@@ -60,6 +62,11 @@ return static function (Router $router): void {
     $router->post('/seguridad/usuarios-roles', [SecurityController::class, 'updateUserRoles']);
 
     $router->get('/personas', [PersonController::class, 'index']);
+    $router->get('/personal', [PersonalController::class, 'index']);
+    $router->get('/personal/asignacion', [PersonalController::class, 'assignment']);
+    $router->get('/personal/asignacion/buscar', [PersonalController::class, 'searchStaffTypes']);
+    $router->get('/personal/consulta', [PersonalController::class, 'listing']);
+    $router->get('/personal/consulta/buscar', [PersonalController::class, 'searchListing']);
     $router->get('/grados', [GradeController::class, 'index']);
     $router->get('/matriculas', [MatriculationController::class, 'index']);
     $router->get('/matriculas/persona', [MatriculationController::class, 'findPerson']);
@@ -71,6 +78,7 @@ return static function (Router $router): void {
     $router->get('/grados/buscar', [GradeController::class, 'search']);
     $router->get('/personas/buscar', [PersonController::class, 'search']);
     $router->post('/personas', [PersonController::class, 'store']);
+    $router->post('/personal/tipos', [PersonalController::class, 'updateStaffTypes']);
     $router->post('/grados', [GradeController::class, 'store']);
     $router->post('/matriculas', [MatriculationController::class, 'store']);
     $router->post('/matriculas/estado', [MatriculationController::class, 'toggleStatus']);

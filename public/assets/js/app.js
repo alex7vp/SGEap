@@ -438,6 +438,164 @@ document.addEventListener('DOMContentLoaded', () => {
         updateSecurityStatus();
     }
 
+    const staffTypeSearchInput = document.querySelector('[data-staff-type-search]');
+    const staffTypeTableBody = document.querySelector('[data-staff-type-table-body]');
+    const staffTypeTableWrapper = document.querySelector('[data-staff-type-table-wrapper]');
+    const staffTypeEmptyWrapper = document.querySelector('[data-staff-type-empty-wrapper]');
+    const staffTypeStatus = document.querySelector('[data-staff-type-status]');
+
+    if (
+        staffTypeSearchInput instanceof HTMLInputElement
+        && staffTypeTableBody instanceof HTMLTableSectionElement
+        && staffTypeTableWrapper instanceof HTMLElement
+        && staffTypeEmptyWrapper instanceof HTMLElement
+        && staffTypeStatus instanceof HTMLElement
+    ) {
+        let staffTypeDebounceTimer = null;
+
+        const updateStaffTypeStatus = () => {
+            const rows = staffTypeTableBody.querySelectorAll('tr').length;
+            staffTypeStatus.textContent = rows + ' registro(s)';
+        };
+
+        const runStaffTypeSearch = async () => {
+            const baseUrl = staffTypeSearchInput.dataset.staffTypeSearchUrl || '';
+
+            if (baseUrl === '') {
+                return;
+            }
+
+            const url = new URL(baseUrl, window.location.origin);
+            url.searchParams.set('q', staffTypeSearchInput.value.trim());
+
+            staffTypeStatus.textContent = 'Buscando...';
+
+            try {
+                const response = await fetch(url.toString(), {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                });
+
+                if (!response.ok) {
+                    throw new Error('Staff type search request failed');
+                }
+
+                const payload = await response.json();
+                staffTypeTableBody.innerHTML = payload.html || '';
+                staffTypeTableWrapper.hidden = !!payload.isEmpty;
+                staffTypeEmptyWrapper.hidden = !payload.isEmpty;
+
+                if (payload.isEmpty) {
+                    staffTypeEmptyWrapper.innerHTML = payload.emptyHtml || '<div class="empty-state">No se encontraron registros.</div>';
+                    staffTypeStatus.textContent = '0 registro(s)';
+                    return;
+                }
+
+                updateStaffTypeStatus();
+            } catch (error) {
+                staffTypeStatus.textContent = 'Error al filtrar';
+            }
+        };
+
+        staffTypeSearchInput.addEventListener('input', () => {
+            if (staffTypeDebounceTimer !== null) {
+                window.clearTimeout(staffTypeDebounceTimer);
+            }
+
+            staffTypeDebounceTimer = window.setTimeout(runStaffTypeSearch, 250);
+        });
+
+        updateStaffTypeStatus();
+    }
+
+    const staffListingTypeFilter = document.querySelector('[data-staff-listing-type-filter]');
+    const staffListingTableBody = document.querySelector('[data-staff-listing-table-body]');
+    const staffListingTableWrapper = document.querySelector('[data-staff-listing-table-wrapper]');
+    const staffListingEmptyWrapper = document.querySelector('[data-staff-listing-empty-wrapper]');
+    const staffListingStatus = document.querySelector('[data-staff-listing-status]');
+    const staffListingNote = document.querySelector('[data-staff-listing-note]');
+
+    if (
+        staffListingTypeFilter instanceof HTMLElement
+        && staffListingTableBody instanceof HTMLTableSectionElement
+        && staffListingTableWrapper instanceof HTMLElement
+        && staffListingEmptyWrapper instanceof HTMLElement
+        && staffListingStatus instanceof HTMLElement
+        && staffListingNote instanceof HTMLElement
+    ) {
+        const updateStaffListingStatus = () => {
+            const rows = staffListingTableBody.querySelectorAll('tr').length;
+            staffListingStatus.textContent = rows + ' registro(s)';
+        };
+
+        const updateStaffListingNote = () => {
+            const selectedOption = staffListingTypeFilter.querySelector('input[name="staff_listing_type"]:checked');
+            const selectedText = selectedOption instanceof HTMLInputElement ? selectedOption.value.trim() : '';
+
+            if (selectedText === '') {
+                staffListingNote.textContent = 'Mostrando todo el personal institucional registrado.';
+                return;
+            }
+
+            staffListingNote.textContent = 'Mostrando personal del tipo: ' + selectedText + '.';
+        };
+
+        const runStaffListingFilter = async () => {
+            const baseUrl = staffListingTypeFilter.dataset.staffListingFilterUrl || '';
+            const selectedOption = staffListingTypeFilter.querySelector('input[name="staff_listing_type"]:checked');
+            const selectedType = selectedOption instanceof HTMLInputElement ? selectedOption.value.trim() : '';
+
+            if (baseUrl === '') {
+                return;
+            }
+
+            const url = new URL(baseUrl, window.location.origin);
+            url.searchParams.set('tipo', selectedType);
+
+            staffListingStatus.textContent = 'Buscando...';
+
+            try {
+                const response = await fetch(url.toString(), {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                });
+
+                if (!response.ok) {
+                    throw new Error('Staff listing filter request failed');
+                }
+
+                const payload = await response.json();
+                staffListingTableBody.innerHTML = payload.html || '';
+                staffListingTableWrapper.hidden = !!payload.isEmpty;
+                staffListingEmptyWrapper.hidden = !payload.isEmpty;
+
+                if (payload.isEmpty) {
+                    staffListingEmptyWrapper.innerHTML = payload.emptyHtml || '<div class="empty-state">No se encontraron registros.</div>';
+                    staffListingStatus.textContent = '0 registro(s)';
+                    updateStaffListingNote();
+                    return;
+                }
+
+                updateStaffListingStatus();
+                updateStaffListingNote();
+            } catch (error) {
+                staffListingStatus.textContent = 'Error al filtrar';
+            }
+        };
+
+        staffListingTypeFilter.addEventListener('change', (event) => {
+            if (!(event.target instanceof HTMLInputElement) || event.target.name !== 'staff_listing_type') {
+                return;
+            }
+
+            runStaffListingFilter();
+        });
+        updateStaffListingStatus();
+        updateStaffListingNote();
+    }
+
     const securityUserSearchInput = document.querySelector('[data-security-user-search]');
     const securityUserTableBody = document.querySelector('[data-security-user-table-body]');
     const securityUserTableWrapper = document.querySelector('[data-security-user-table-wrapper]');

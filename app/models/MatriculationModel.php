@@ -152,8 +152,8 @@ class MatriculationModel extends Model
             }
 
             $matriculaId = $this->insertMatriculation($studentId, $data['matricula'], $photoPath);
-            $familyRepresentatives = $this->persistFamilies($studentId, $data['families']);
-            $representative = $this->resolveRepresentative($data['representative'] ?? [], $familyRepresentatives);
+            $familyRepresentatives = $this->persistFamilies($studentId, $studentPersonId, $data['families']);
+            $representative = $this->resolveRepresentative($studentPersonId, $data['representative'] ?? [], $familyRepresentatives);
 
             $this->insertMatriculationRepresentative($matriculaId, $representative['perid'], $representative['pteid']);
             $this->insertMatriculationResources($matriculaId, $data['resources'] ?? []);
@@ -349,7 +349,7 @@ class MatriculationModel extends Model
         return $nextStatus;
     }
 
-    private function persistFamilies(int $studentId, array $families): array
+    private function persistFamilies(int $studentId, int $studentPersonId, array $families): array
     {
         $persisted = [];
 
@@ -381,6 +381,10 @@ class MatriculationModel extends Model
                 'persexo' => $family['persexo'] ?? '',
             ]);
 
+            if ($personId === $studentPersonId) {
+                throw new RuntimeException('El estudiante no puede registrarse como su propio familiar.');
+            }
+
             $this->upsertFamily($studentId, $personId, $family);
 
             $persisted[$index] = [
@@ -392,7 +396,7 @@ class MatriculationModel extends Model
         return $persisted;
     }
 
-    private function resolveRepresentative(array $representative, array $familyRepresentatives): array
+    private function resolveRepresentative(int $studentPersonId, array $representative, array $familyRepresentatives): array
     {
         $source = (string) ($representative['source'] ?? 'family');
 
@@ -418,6 +422,10 @@ class MatriculationModel extends Model
                 'persexo' => $external['persexo'] ?? '',
             ]);
 
+            if ($personId === $studentPersonId) {
+                throw new RuntimeException('El estudiante no puede registrarse como su propio representante.');
+            }
+
             return [
                 'perid' => $personId,
                 'pteid' => (int) $external['pteid'],
@@ -428,6 +436,10 @@ class MatriculationModel extends Model
 
         if (!array_key_exists($familyIndex, $familyRepresentatives)) {
             throw new RuntimeException('Debe seleccionar un representante valido.');
+        }
+
+        if ((int) ($familyRepresentatives[$familyIndex]['perid'] ?? 0) === $studentPersonId) {
+            throw new RuntimeException('El estudiante no puede registrarse como su propio representante.');
         }
 
         return $familyRepresentatives[$familyIndex];

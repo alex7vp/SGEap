@@ -32,10 +32,13 @@ $newMatriculaLabel = (string) ($newMatriculaLabel ?? 'Nueva matricula');
 
 <section class="dashboard-grid dashboard-metrics-grid">
     <article class="summary-card">
-        <span class="summary-label">Personas</span>
-        <strong class="dashboard-metric-value"><?= htmlspecialchars((string) ($stats['personas'] ?? 0), ENT_QUOTES, 'UTF-8'); ?></strong>
-        <p>Registros base disponibles para estudiantes, familiares, usuarios y personal.</p>
-        <a class="text-link" href="<?= htmlspecialchars(baseUrl('personas'), ENT_QUOTES, 'UTF-8'); ?>">Administrar personas</a>
+        <span class="summary-label">Personal</span>
+        <strong class="dashboard-metric-value"><?= htmlspecialchars((string) ($stats['personal'] ?? 0), ENT_QUOTES, 'UTF-8'); ?></strong>
+        <p>
+            Activos:
+            <strong><?= htmlspecialchars((string) ($stats['personal_activo'] ?? 0), ENT_QUOTES, 'UTF-8'); ?></strong>
+        </p>
+        <a class="text-link" href="<?= htmlspecialchars(baseUrl('personal'), ENT_QUOTES, 'UTF-8'); ?>">Ir a personal</a>
     </article>
 
     <article class="summary-card">
@@ -71,7 +74,7 @@ $newMatriculaLabel = (string) ($newMatriculaLabel ?? 'Nueva matricula');
         <span class="summary-label">Accesos rapidos</span>
         <strong>Operaciones frecuentes</strong>
         <div class="dashboard-link-list">
-            <a class="text-link" href="<?= htmlspecialchars(baseUrl('personas/crear'), ENT_QUOTES, 'UTF-8'); ?>">Registrar persona</a>
+            <a class="text-link" href="<?= htmlspecialchars(baseUrl('personal'), ENT_QUOTES, 'UTF-8'); ?>">Ver personal</a>
             <a class="text-link" href="<?= htmlspecialchars(baseUrl('estudiantes/crear'), ENT_QUOTES, 'UTF-8'); ?>">Registrar estudiante</a>
             <?php if ($canCreateMatricula): ?>
                 <a class="text-link" href="<?= htmlspecialchars(baseUrl('matriculas?panel=nueva'), ENT_QUOTES, 'UTF-8'); ?>"><?= htmlspecialchars($newMatriculaLabel, ENT_QUOTES, 'UTF-8'); ?></a>
@@ -83,7 +86,7 @@ $newMatriculaLabel = (string) ($newMatriculaLabel ?? 'Nueva matricula');
     <article class="summary-card">
         <span class="summary-label">Estado del sistema</span>
         <strong>Base operativa</strong>
-        <p>Autenticacion, catalogos, personas, estudiantes, cursos y matriculas ya trabajan sobre PostgreSQL.</p>
+        <p>Autenticacion, catalogos, personal, estudiantes, cursos y matriculas ya trabajan sobre PostgreSQL.</p>
         <div class="dashboard-status-list">
             <span class="permission-option-state is-active">Login activo</span>
             <span class="permission-option-state is-active">Periodo seleccionado</span>
