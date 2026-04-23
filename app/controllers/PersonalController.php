@@ -8,12 +8,57 @@ use App\Core\Controller;
 use App\Core\Database;
 use App\Models\PersonalModel;
 use App\Models\PersonModel;
+use PDOException;
 
 class PersonalController extends Controller
 {
     public function index(): void
     {
-        $this->redirect('/personal/asignacion');
+        $user = $this->requireAuth();
+
+        $this->view('module.home', [
+            'appName' => config('app')['name'] ?? 'SGEap',
+            'pageTitle' => 'Personal',
+            'currentSection' => 'personal',
+            'user' => $user,
+            'moduleDescription' => 'Administra el registro, la asignacion de tipos y la consulta general del personal institucional.',
+            'moduleCards' => [
+                [
+                    'label' => 'Registro de personal',
+                    'description' => 'Registra datos de persona, datos laborales y tipos para incorporarla al personal institucional.',
+                    'url' => baseUrl('personal/registro'),
+                    'icon' => 'fa-user-plus',
+                ],
+                [
+                    'label' => 'Asignacion del personal',
+                    'description' => 'Asigna uno o varios tipos institucionales al personal registrado.',
+                    'url' => baseUrl('personal/asignacion'),
+                    'icon' => 'fa-check-square-o',
+                ],
+                [
+                    'label' => 'Consulta de personal',
+                    'description' => 'Consulta, filtra y edita la informacion del personal institucional.',
+                    'url' => baseUrl('personal/consulta'),
+                    'icon' => 'fa-list',
+                ],
+            ],
+        ]);
+    }
+
+    public function create(): void
+    {
+        $user = $this->requireAuth();
+        $personalModel = new PersonalModel();
+
+        $this->view('personal.registro', [
+            'appName' => config('app')['name'] ?? 'SGEap',
+            'pageTitle' => 'Registro de personal',
+            'currentSection' => 'personal_register',
+            'user' => $user,
+            'staffTypes' => $personalModel->activeTypes(),
+            'error' => sessionFlash('error'),
+            'old' => $this->registrationFormOldData(),
+        ]);
     }
 
     public function assignment(): void
@@ -91,6 +136,96 @@ class PersonalController extends Controller
         ]);
     }
 
+    public function store(): void
+    {
+        $this->requireAuth();
+
+        $personData = $this->personFormData();
+        $staffData = $this->staffFormData();
+        $typeIds = array_values(array_unique(array_map('intval', (array) ($_POST['type_ids'] ?? []))));
+        $personalModel = new PersonalModel();
+        $personModel = new PersonModel();
+
+        if (
+            $personData['percedula'] === ''
+            || $personData['pernombres'] === ''
+            || $personData['perapellidos'] === ''
+        ) {
+            $this->flashRegistrationFormData($personData, $staffData, $typeIds);
+            sessionFlash('error', 'Cedula, nombres y apellidos son obligatorios.');
+            $this->redirect('/personal/registro');
+        }
+
+        if ($staffData['psnfechacontratacion'] === '') {
+            $this->flashRegistrationFormData($personData, $staffData, $typeIds);
+            sessionFlash('error', 'La fecha de contratacion es obligatoria.');
+            $this->redirect('/personal/registro');
+        }
+
+        if (
+            $staffData['psnfechasalida'] !== ''
+            && $staffData['psnfechasalida'] < $staffData['psnfechacontratacion']
+        ) {
+            $this->flashRegistrationFormData($personData, $staffData, $typeIds);
+            sessionFlash('error', 'La fecha de salida no puede ser menor a la fecha de contratacion.');
+            $this->redirect('/personal/registro');
+        }
+
+        $validTypeIds = $personalModel->validTypeIds($typeIds);
+
+        if ($typeIds === []) {
+            $this->flashRegistrationFormData($personData, $staffData, $typeIds);
+            sessionFlash('error', 'Debe seleccionar al menos un tipo de personal.');
+            $this->redirect('/personal/registro');
+        }
+
+        if (count($validTypeIds) !== count($typeIds)) {
+            $this->flashRegistrationFormData($personData, $staffData, $typeIds);
+            sessionFlash('error', 'Existe al menos un tipo de personal no valido en el registro.');
+            $this->redirect('/personal/registro');
+        }
+
+        $existingPerson = $personModel->findByCedula($personData['percedula']);
+
+        if ($existingPerson !== false && $personalModel->existsByPersonId((int) $existingPerson['perid'])) {
+            $this->flashRegistrationFormData($personData, $staffData, $typeIds);
+            sessionFlash('error', 'La persona ingresada ya se encuentra registrada como personal.');
+            $this->redirect('/personal/registro');
+        }
+
+        $db = Database::connection();
+        $db->beginTransaction();
+
+        try {
+            if ($existingPerson === false) {
+                $personId = $personModel->create($personData);
+            } else {
+                $personId = (int) $existingPerson['perid'];
+                $personModel->update($personId, $personData);
+            }
+
+            $staffId = $personalModel->create(array_merge(
+                ['perid' => $personId],
+                $staffData
+            ));
+
+            $personalModel->syncStaffTypes($staffId, $typeIds);
+            $db->commit();
+        } catch (\Throwable $exception) {
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
+
+            $this->flashRegistrationFormData($personData, $staffData, $typeIds);
+            sessionFlash('error', $this->humanizeRegistrationException($exception));
+            $this->redirect('/personal/registro');
+            return;
+        }
+
+        sessionFlash('success', 'Personal registrado correctamente.');
+        $this->redirect('/personal/consulta');
+    }
+
     public function update(): void
     {
         $this->requireAuth();
@@ -155,7 +290,7 @@ class PersonalController extends Controller
         } catch (\Throwable $exception) {
             $db->rollBack();
             $this->flashPersonAndStaffFormData($personData, $staffData);
-            sessionFlash('error', 'No se pudo actualizar la informacion del personal.');
+            sessionFlash('error', $this->humanizeUpdateException($exception));
             $this->redirect('/personal/editar?id=' . $staffId);
             return;
         }
@@ -277,6 +412,34 @@ class PersonalController extends Controller
         sessionFlash('old_staff_note', (string) ($staffData['psnobservacion'] ?? ''));
     }
 
+    private function flashRegistrationFormData(array $personData, array $staffData, array $typeIds): void
+    {
+        $this->flashPersonAndStaffFormData($personData, $staffData);
+        sessionFlash('old_staff_type_ids', implode(',', array_map('strval', $typeIds)));
+    }
+
+    private function registrationFormOldData(): array
+    {
+        $selectedTypes = trim((string) (sessionFlash('old_staff_type_ids') ?? ''));
+
+        return [
+            'percedula' => sessionFlash('old_staff_person_cedula') ?? '',
+            'pernombres' => sessionFlash('old_staff_person_names') ?? '',
+            'perapellidos' => sessionFlash('old_staff_person_lastnames') ?? '',
+            'pertelefono1' => sessionFlash('old_staff_person_phone1') ?? '',
+            'pertelefono2' => sessionFlash('old_staff_person_phone2') ?? '',
+            'percorreo' => sessionFlash('old_staff_person_email') ?? '',
+            'persexo' => sessionFlash('old_staff_person_gender') ?? '',
+            'psnfechacontratacion' => sessionFlash('old_staff_hire_date') ?? '',
+            'psnfechasalida' => sessionFlash('old_staff_exit_date') ?? '',
+            'psnestado' => sessionFlash('old_staff_status') ?? '1',
+            'psnobservacion' => sessionFlash('old_staff_note') ?? '',
+            'type_ids' => $selectedTypes !== ''
+                ? array_map('intval', array_filter(explode(',', $selectedTypes), static fn (string $value): bool => $value !== ''))
+                : [],
+        ];
+    }
+
     private function flashStaffTypeFeedback(string $type, int $staffId, string $message): void
     {
         sessionFlash('staff_type_feedback_type', $type);
@@ -299,5 +462,59 @@ class PersonalController extends Controller
             'staff_id' => (int) $staffId,
             'message' => $message,
         ];
+    }
+
+    private function humanizeRegistrationException(\Throwable $exception): string
+    {
+        if ($exception instanceof PDOException) {
+            $sqlState = (string) ($exception->errorInfo[0] ?? $exception->getCode());
+
+            if ($sqlState === '23505') {
+                return 'No se pudo registrar el personal porque la persona o su asignacion ya existen en el sistema.';
+            }
+
+            if ($sqlState === '23503') {
+                return 'No se pudo registrar el personal porque uno de los datos relacionados no existe o ya no esta disponible.';
+            }
+
+            if ($sqlState === '23514') {
+                return 'No se pudo registrar el personal porque una validacion de fechas o estado fue rechazada por la base de datos.';
+            }
+        }
+
+        if ($exception instanceof \RuntimeException && trim($exception->getMessage()) !== '') {
+            return $exception->getMessage();
+        }
+
+        $message = 'No se pudo registrar el personal institucional.';
+
+        if ((string) env('APP_DEBUG', 'false') === 'true' && trim($exception->getMessage()) !== '') {
+            $message .= ' Detalle: ' . $exception->getMessage();
+        }
+
+        return $message;
+    }
+
+    private function humanizeUpdateException(\Throwable $exception): string
+    {
+        if ($exception instanceof PDOException) {
+            $sqlState = (string) ($exception->errorInfo[0] ?? $exception->getCode());
+
+            if ($sqlState === '23505') {
+                return 'No se pudo actualizar el personal porque la cedula ingresada ya pertenece a otro registro.';
+            }
+
+            if ($sqlState === '23514') {
+                return 'No se pudo actualizar el personal porque una validacion de fechas o estado fue rechazada por la base de datos.';
+            }
+        }
+
+        $message = 'No se pudo actualizar la informacion del personal.';
+
+        if ((string) env('APP_DEBUG', 'false') === 'true' && trim($exception->getMessage()) !== '') {
+            $message .= ' Detalle: ' . $exception->getMessage();
+        }
+
+        return $message;
     }
 }

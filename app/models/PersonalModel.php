@@ -157,6 +157,48 @@ class PersonalModel extends Model
         return $statement->fetchColumn() !== false;
     }
 
+    public function existsByPersonId(int $personId): bool
+    {
+        $statement = $this->db->prepare(
+            "SELECT 1
+             FROM {$this->table}
+             WHERE perid = :person_id
+             LIMIT 1"
+        );
+        $statement->execute(['person_id' => $personId]);
+
+        return $statement->fetchColumn() !== false;
+    }
+
+    public function create(array $data): int
+    {
+        $statement = $this->db->prepare(
+            "INSERT INTO {$this->table} (
+                perid,
+                psnfechacontratacion,
+                psnfechasalida,
+                psnestado,
+                psnobservacion
+            ) VALUES (
+                :person_id,
+                :hire_date,
+                :exit_date,
+                :status,
+                :note
+            )
+            RETURNING psnid"
+        );
+
+        $statement->bindValue(':person_id', $data['perid'], PDO::PARAM_INT);
+        $statement->bindValue(':hire_date', $data['psnfechacontratacion'], PDO::PARAM_STR);
+        $statement->bindValue(':exit_date', $data['psnfechasalida'] !== '' ? $data['psnfechasalida'] : null, $data['psnfechasalida'] !== '' ? PDO::PARAM_STR : PDO::PARAM_NULL);
+        $statement->bindValue(':status', $data['psnestado'], PDO::PARAM_BOOL);
+        $statement->bindValue(':note', $data['psnobservacion'] !== '' ? $data['psnobservacion'] : null, $data['psnobservacion'] !== '' ? PDO::PARAM_STR : PDO::PARAM_NULL);
+        $statement->execute();
+
+        return (int) $statement->fetchColumn();
+    }
+
     public function findDetailed(int $staffId): array|false
     {
         $statement = $this->db->prepare(
@@ -213,9 +255,13 @@ class PersonalModel extends Model
             throw new RuntimeException('Existe al menos un tipo de personal no valido en la asignacion.');
         }
 
-        $this->db->beginTransaction();
+        $manageTransaction = !$this->db->inTransaction();
 
         try {
+            if ($manageTransaction) {
+                $this->db->beginTransaction();
+            }
+
             $deleteStatement = $this->db->prepare(
                 "DELETE FROM asignacion_tipo_personal
                  WHERE psnid = :staff_id"
@@ -236,9 +282,13 @@ class PersonalModel extends Model
                 }
             }
 
-            $this->db->commit();
+            if ($manageTransaction) {
+                $this->db->commit();
+            }
         } catch (\Throwable $exception) {
-            $this->db->rollBack();
+            if ($manageTransaction && $this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
             throw $exception;
         }
     }

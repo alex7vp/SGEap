@@ -38,6 +38,7 @@ $sectionModuleMap = [
     'personas' => 'academico',
     'estudiantes' => 'academico',
     'personal' => 'academico',
+    'personal_register' => 'academico',
     'personal_assignment' => 'academico',
     'personal_listing' => 'academico',
     'configuracion_home' => 'configuracion',
@@ -82,7 +83,7 @@ $sidebarModules = [
                     [
                         'key' => 'personal',
                         'label' => 'Personal',
-                        'url' => baseUrl('personal/asignacion'),
+                        'url' => baseUrl('personal'),
                         'icon' => 'fa-id-badge',
                     ],
                     [
@@ -90,23 +91,6 @@ $sidebarModules = [
                         'label' => 'Matriculas',
                         'url' => baseUrl('matriculas'),
                         'icon' => 'fa-address-card',
-                    ],
-                ],
-            ],
-            [
-                'title' => 'Personal',
-                'items' => [
-                    [
-                        'key' => 'personal_assignment',
-                        'label' => 'Asignacion del personal',
-                        'url' => baseUrl('personal/asignacion'),
-                        'icon' => 'fa-check-square-o',
-                    ],
-                    [
-                        'key' => 'personal_listing',
-                        'label' => 'Consulta de personal',
-                        'url' => baseUrl('personal/consulta'),
-                        'icon' => 'fa-list',
                     ],
                 ],
             ],
@@ -227,6 +211,32 @@ $sidebarModules = [
         ],
     ],
 ];
+
+if (in_array((string) ($currentSection ?? ''), ['personal', 'personal_register', 'personal_assignment', 'personal_listing'], true)) {
+    $sidebarModules['academico']['groups'][] = [
+        'title' => 'Personal',
+        'items' => [
+            [
+                'key' => 'personal_register',
+                'label' => 'Registro de personal',
+                'url' => baseUrl('personal/registro'),
+                'icon' => 'fa-user-plus',
+            ],
+            [
+                'key' => 'personal_assignment',
+                'label' => 'Asignacion del personal',
+                'url' => baseUrl('personal/asignacion'),
+                'icon' => 'fa-check-square-o',
+            ],
+            [
+                'key' => 'personal_listing',
+                'label' => 'Consulta de personal',
+                'url' => baseUrl('personal/consulta'),
+                'icon' => 'fa-list',
+            ],
+        ],
+    ];
+}
 
 $currentModule = $currentModule ?? ($sectionModuleMap[$currentSection ?? ''] ?? 'inicio');
 $activeSidebar = $sidebarModules[$currentModule] ?? $sidebarModules['inicio'];

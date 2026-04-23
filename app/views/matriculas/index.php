@@ -79,6 +79,7 @@ $emptyFamilyRow = static function (): array {
         'eciid' => 0,
         'istid' => 0,
         'famprofesion' => '',
+        'famocupacion' => '',
         'famlugardetrabajo' => '',
         'famfechanacimiento' => '',
     ];
@@ -219,6 +220,7 @@ $renderFamilyFields = static function (
         <div class="form-group"><div class="input-group"><span class="input-addon">Celular</span><input name="family[<?= htmlspecialchars((string) $index, ENT_QUOTES, 'UTF-8'); ?>][pertelefono1]" placeholder="(09) 9894 5698" maxlength="14" inputmode="numeric" value="<?= htmlspecialchars((string) ($family['pertelefono1'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" data-phone-mask data-family-dependent data-family-person-field data-submit-enable <?= $personDisabledAttribute; ?>></div></div>
         <div class="form-group"><div class="input-group"><span class="input-addon">Correo</span><input name="family[<?= htmlspecialchars((string) $index, ENT_QUOTES, 'UTF-8'); ?>][percorreo]" type="email" value="<?= htmlspecialchars((string) ($family['percorreo'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" data-family-dependent data-family-person-field data-submit-enable <?= $personDisabledAttribute; ?>></div></div>
         <div class="form-group"><div class="input-group"><span class="input-addon">Profesion</span><input name="family[<?= htmlspecialchars((string) $index, ENT_QUOTES, 'UTF-8'); ?>][famprofesion]" value="<?= htmlspecialchars((string) ($family['famprofesion'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" data-family-dependent data-submit-enable <?= $familyDisabledAttribute; ?>></div></div>
+        <div class="form-group"><div class="input-group"><span class="input-addon">Ocupacion</span><input name="family[<?= htmlspecialchars((string) $index, ENT_QUOTES, 'UTF-8'); ?>][famocupacion]" value="<?= htmlspecialchars((string) ($family['famocupacion'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" data-family-dependent data-submit-enable <?= $familyDisabledAttribute; ?>></div></div>
         <div class="form-group"><div class="input-group"><span class="input-addon">Trabajo</span><input name="family[<?= htmlspecialchars((string) $index, ENT_QUOTES, 'UTF-8'); ?>][famlugardetrabajo]" value="<?= htmlspecialchars((string) ($family['famlugardetrabajo'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" data-family-dependent data-submit-enable <?= $familyDisabledAttribute; ?>></div></div>
         <div class="form-group"><div class="input-group"><span class="input-addon">Nacimiento</span><input name="family[<?= htmlspecialchars((string) $index, ENT_QUOTES, 'UTF-8'); ?>][famfechanacimiento]" type="date" value="<?= htmlspecialchars((string) ($family['famfechanacimiento'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" data-family-dependent data-submit-enable <?= $familyDisabledAttribute; ?>></div></div>
     </div>

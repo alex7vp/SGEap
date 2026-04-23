@@ -23,16 +23,10 @@ class ModuleController extends Controller
                     'icon' => 'fa-graduation-cap',
                 ],
                 [
-                    'label' => 'Asignacion del personal',
-                    'description' => 'Permite asignar uno o varios tipos al personal institucional registrado.',
-                    'url' => baseUrl('personal/asignacion'),
+                    'label' => 'Personal',
+                    'description' => 'Centraliza el registro, la asignacion de tipos y la consulta del personal institucional.',
+                    'url' => baseUrl('personal'),
                     'icon' => 'fa-id-badge',
-                ],
-                [
-                    'label' => 'Consulta de personal',
-                    'description' => 'Consulta el personal general y filtra por tipo institucional desde una sola pantalla.',
-                    'url' => baseUrl('personal/consulta'),
-                    'icon' => 'fa-list',
                 ],
                 [
                     'label' => 'Matriculas',

@@ -455,6 +455,7 @@ class MatriculationModel extends Model
                  SET eciid = :civil_status,
                      istid = :instruction_level,
                      famprofesion = :profession,
+                     famocupacion = :occupation,
                      famlugardetrabajo = :workplace,
                      famfechanacimiento = :birth_date
                  WHERE famid = :id"
@@ -464,6 +465,7 @@ class MatriculationModel extends Model
                 'civil_status' => (int) ($family['eciid'] ?? 0) > 0 ? (int) $family['eciid'] : null,
                 'instruction_level' => (int) ($family['istid'] ?? 0) > 0 ? (int) $family['istid'] : null,
                 'profession' => ($family['famprofesion'] ?? '') !== '' ? $family['famprofesion'] : null,
+                'occupation' => ($family['famocupacion'] ?? '') !== '' ? $family['famocupacion'] : null,
                 'workplace' => ($family['famlugardetrabajo'] ?? '') !== '' ? $family['famlugardetrabajo'] : null,
                 'birth_date' => ($family['famfechanacimiento'] ?? '') !== '' ? $family['famfechanacimiento'] : null,
             ]);
@@ -473,9 +475,9 @@ class MatriculationModel extends Model
 
         $statement = $this->db->prepare(
             "INSERT INTO familiar (
-                estid, perid, pteid, eciid, istid, famprofesion, famlugardetrabajo, famfechanacimiento
+                estid, perid, pteid, eciid, istid, famprofesion, famocupacion, famlugardetrabajo, famfechanacimiento
              ) VALUES (
-                :student_id, :person_id, :relationship_id, :civil_status, :instruction_level, :profession, :workplace, :birth_date
+                :student_id, :person_id, :relationship_id, :civil_status, :instruction_level, :profession, :occupation, :workplace, :birth_date
              )"
         );
         $statement->execute([
@@ -485,6 +487,7 @@ class MatriculationModel extends Model
             'civil_status' => (int) ($family['eciid'] ?? 0) > 0 ? (int) $family['eciid'] : null,
             'instruction_level' => (int) ($family['istid'] ?? 0) > 0 ? (int) $family['istid'] : null,
             'profession' => ($family['famprofesion'] ?? '') !== '' ? $family['famprofesion'] : null,
+            'occupation' => ($family['famocupacion'] ?? '') !== '' ? $family['famocupacion'] : null,
             'workplace' => ($family['famlugardetrabajo'] ?? '') !== '' ? $family['famlugardetrabajo'] : null,
             'birth_date' => ($family['famfechanacimiento'] ?? '') !== '' ? $family['famfechanacimiento'] : null,
         ]);

@@ -62,6 +62,7 @@ CREATE TABLE familiar (
     eciid integer,
     istid integer,
     famprofesion varchar(100),
+    famocupacion varchar(150),
     famlugardetrabajo varchar(150),
     famfechanacimiento date,
     CONSTRAINT pk_familiar PRIMARY KEY (famid),
@@ -77,3 +78,7 @@ CREATE TABLE familiar (
         REFERENCES instruccion (istid),
     CONSTRAINT uq_familiar_estid_perid_pteid UNIQUE (estid, perid, pteid)
 );
+
+-- Para una base de datos ya existente, aplicar manualmente:
+-- ALTER TABLE familiar
+-- ADD COLUMN famocupacion varchar(150);

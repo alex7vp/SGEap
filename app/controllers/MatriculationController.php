@@ -234,6 +234,7 @@ class MatriculationController extends Controller
                 'eciid' => (int) ($row['eciid'] ?? 0),
                 'istid' => (int) ($row['istid'] ?? 0),
                 'famprofesion' => trim((string) ($row['famprofesion'] ?? '')),
+                'famocupacion' => trim((string) ($row['famocupacion'] ?? '')),
                 'famlugardetrabajo' => trim((string) ($row['famlugardetrabajo'] ?? '')),
                 'famfechanacimiento' => trim((string) ($row['famfechanacimiento'] ?? '')),
             ];

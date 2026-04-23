@@ -1413,6 +1413,21 @@ a.btn-primary.btn-icon-only.btn-icon-small:hover {
     margin-top: 10px;
 }
 
+.personal-type-grid {
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.personal-type-option {
+    align-items: start;
+    min-height: 64px;
+    padding: 10px 12px;
+}
+
+.personal-type-option strong {
+    display: block;
+    margin-bottom: 2px;
+}
+
 .dashboard-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
