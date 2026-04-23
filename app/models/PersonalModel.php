@@ -157,6 +157,31 @@ class PersonalModel extends Model
         return $statement->fetchColumn() !== false;
     }
 
+    public function findDetailed(int $staffId): array|false
+    {
+        $statement = $this->db->prepare(
+            "SELECT
+                ps.psnid,
+                ps.perid,
+                ps.psnfechacontratacion,
+                ps.psnfechasalida,
+                ps.psnestado,
+                ps.psnobservacion,
+                p.percedula,
+                p.pernombres,
+                p.perapellidos,
+                p.pertelefono1,
+                p.percorreo
+             FROM {$this->table} ps
+             INNER JOIN persona p ON p.perid = ps.perid
+             WHERE ps.psnid = :id
+             LIMIT 1"
+        );
+        $statement->execute(['id' => $staffId]);
+
+        return $statement->fetch();
+    }
+
     public function validTypeIds(array $typeIds): array
     {
         if ($typeIds === []) {
@@ -216,6 +241,26 @@ class PersonalModel extends Model
             $this->db->rollBack();
             throw $exception;
         }
+    }
+
+    public function update(int $staffId, array $data): void
+    {
+        $statement = $this->db->prepare(
+            "UPDATE {$this->table}
+             SET psnfechacontratacion = :fecha_contratacion,
+                 psnfechasalida = :fecha_salida,
+                 psnestado = :estado,
+                 psnobservacion = :observacion,
+                 psnfecha_modificacion = CURRENT_TIMESTAMP
+             WHERE psnid = :id"
+        );
+
+        $statement->bindValue(':id', $staffId, PDO::PARAM_INT);
+        $statement->bindValue(':fecha_contratacion', $data['psnfechacontratacion'], PDO::PARAM_STR);
+        $statement->bindValue(':fecha_salida', $data['psnfechasalida'] !== '' ? $data['psnfechasalida'] : null, $data['psnfechasalida'] !== '' ? PDO::PARAM_STR : PDO::PARAM_NULL);
+        $statement->bindValue(':estado', $data['psnestado'], PDO::PARAM_BOOL);
+        $statement->bindValue(':observacion', $data['psnobservacion'] !== '' ? $data['psnobservacion'] : null, $data['psnobservacion'] !== '' ? PDO::PARAM_STR : PDO::PARAM_NULL);
+        $statement->execute();
     }
 
     public function countAll(): int

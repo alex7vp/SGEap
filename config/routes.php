@@ -67,6 +67,7 @@ return static function (Router $router): void {
     $router->get('/personal/asignacion/buscar', [PersonalController::class, 'searchStaffTypes']);
     $router->get('/personal/consulta', [PersonalController::class, 'listing']);
     $router->get('/personal/consulta/buscar', [PersonalController::class, 'searchListing']);
+    $router->get('/personal/editar', [PersonalController::class, 'edit']);
     $router->get('/grados', [GradeController::class, 'index']);
     $router->get('/matriculas', [MatriculationController::class, 'index']);
     $router->get('/matriculas/persona', [MatriculationController::class, 'findPerson']);
@@ -79,6 +80,7 @@ return static function (Router $router): void {
     $router->get('/personas/buscar', [PersonController::class, 'search']);
     $router->post('/personas', [PersonController::class, 'store']);
     $router->post('/personal/tipos', [PersonalController::class, 'updateStaffTypes']);
+    $router->post('/personal/actualizar', [PersonalController::class, 'update']);
     $router->post('/grados', [GradeController::class, 'store']);
     $router->post('/matriculas', [MatriculationController::class, 'store']);
     $router->post('/matriculas/estado', [MatriculationController::class, 'toggleStatus']);

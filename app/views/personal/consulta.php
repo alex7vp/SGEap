@@ -62,6 +62,7 @@ $selectedType = trim((string) ($selectedType ?? ''));
                     <th>Tipos de personal</th>
                     <th>Contratacion</th>
                     <th>Estado</th>
+                    <th>Acciones</th>
                 </tr>
             </thead>
             <tbody data-staff-listing-table-body>
