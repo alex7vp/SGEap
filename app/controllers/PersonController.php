@@ -28,12 +28,14 @@ class PersonController extends Controller
     public function create(): void
     {
         $user = $this->requireAuth();
+        $personModel = new PersonModel();
 
         $this->view('personas.create', [
             'appName' => config('app')['name'] ?? 'SGEap',
             'pageTitle' => 'Nueva persona',
             'currentSection' => 'personas',
             'user' => $user,
+            'instructionLevels' => $personModel->allInstructionLevels(),
             'error' => sessionFlash('error'),
             'formAction' => baseUrl('personas'),
             'submitLabel' => 'Guardar persona',
@@ -45,6 +47,11 @@ class PersonController extends Controller
                 'pertelefono2' => sessionFlash('old_pertelefono2') ?? '',
                 'percorreo' => sessionFlash('old_percorreo') ?? '',
                 'persexo' => sessionFlash('old_persexo') ?? '',
+                'perfechanacimiento' => sessionFlash('old_perfechanacimiento') ?? '',
+                'istid' => sessionFlash('old_istid') ?? '',
+                'perprofesion' => sessionFlash('old_perprofesion') ?? '',
+                'perocupacion' => sessionFlash('old_perocupacion') ?? '',
+                'perhablaingles' => sessionFlash('old_perhablaingles') ?? '0',
             ],
         ]);
     }
@@ -66,6 +73,7 @@ class PersonController extends Controller
             'pageTitle' => 'Editar persona',
             'currentSection' => 'personas',
             'user' => $user,
+            'instructionLevels' => $personModel->allInstructionLevels(),
             'error' => sessionFlash('error'),
             'formAction' => baseUrl('personas/actualizar'),
             'submitLabel' => 'Actualizar persona',
@@ -78,6 +86,11 @@ class PersonController extends Controller
                 'pertelefono2' => sessionFlash('old_pertelefono2') ?? (string) ($person['pertelefono2'] ?? ''),
                 'percorreo' => sessionFlash('old_percorreo') ?? (string) ($person['percorreo'] ?? ''),
                 'persexo' => sessionFlash('old_persexo') ?? (string) ($person['persexo'] ?? ''),
+                'perfechanacimiento' => sessionFlash('old_perfechanacimiento') ?? (string) ($person['perfechanacimiento'] ?? ''),
+                'istid' => sessionFlash('old_istid') ?? (string) ($person['istid'] ?? ''),
+                'perprofesion' => sessionFlash('old_perprofesion') ?? (string) ($person['perprofesion'] ?? ''),
+                'perocupacion' => sessionFlash('old_perocupacion') ?? (string) ($person['perocupacion'] ?? ''),
+                'perhablaingles' => sessionFlash('old_perhablaingles') ?? (!empty($person['perhablaingles']) ? '1' : '0'),
             ],
         ]);
     }
@@ -204,13 +217,18 @@ class PersonController extends Controller
             'pertelefono2' => trim($_POST['pertelefono2'] ?? ''),
             'percorreo' => trim($_POST['percorreo'] ?? ''),
             'persexo' => trim($_POST['persexo'] ?? ''),
+            'perfechanacimiento' => trim($_POST['perfechanacimiento'] ?? ''),
+            'istid' => (int) ($_POST['istid'] ?? 0),
+            'perprofesion' => trim($_POST['perprofesion'] ?? ''),
+            'perocupacion' => trim($_POST['perocupacion'] ?? ''),
+            'perhablaingles' => isset($_POST['perhablaingles']),
         ];
     }
 
     private function flashPersonFormData(array $data): void
     {
         foreach ($data as $key => $value) {
-            sessionFlash('old_' . $key, (string) $value);
+            sessionFlash('old_' . $key, is_bool($value) ? ($value ? '1' : '0') : (string) $value);
         }
     }
 

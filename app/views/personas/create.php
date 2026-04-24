@@ -37,6 +37,13 @@ require BASE_PATH . '/app/views/partials/header.php';
 
         <div class="form-group">
             <div class="input-group">
+                <span class="input-addon">Nacimiento</span>
+                <input id="perfechanacimiento" name="perfechanacimiento" type="date" value="<?= htmlspecialchars((string) ($old['perfechanacimiento'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>">
+            </div>
+        </div>
+
+        <div class="form-group">
+            <div class="input-group">
                 <span class="input-addon">Nombres</span>
                 <input id="pernombres" name="pernombres" placeholder="Ingrese los nombres" required value="<?= htmlspecialchars((string) ($old['pernombres'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>">
             </div>
@@ -63,11 +70,46 @@ require BASE_PATH . '/app/views/partials/header.php';
             </div>
         </div>
 
+        <div class="form-group">
+            <div class="input-group">
+                <span class="input-addon">Instruccion</span>
+                <select id="istid" name="istid">
+                    <option value="">Seleccione una opcion</option>
+                    <?php foreach (($instructionLevels ?? []) as $instructionLevel): ?>
+                        <option value="<?= htmlspecialchars((string) $instructionLevel['istid'], ENT_QUOTES, 'UTF-8'); ?>" <?= (string) ($old['istid'] ?? '') === (string) $instructionLevel['istid'] ? 'selected' : ''; ?>>
+                            <?= htmlspecialchars((string) $instructionLevel['istnombre'], ENT_QUOTES, 'UTF-8'); ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <div class="input-group">
+                <span class="input-addon">Profesion</span>
+                <input id="perprofesion" name="perprofesion" placeholder="Ingrese la profesion" value="<?= htmlspecialchars((string) ($old['perprofesion'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>">
+            </div>
+        </div>
+
+        <div class="form-group">
+            <div class="input-group">
+                <span class="input-addon">Ocupacion</span>
+                <input id="perocupacion" name="perocupacion" placeholder="Ingrese la ocupacion" value="<?= htmlspecialchars((string) ($old['perocupacion'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>">
+            </div>
+        </div>
+
         <div class="form-group form-group-full">
             <div class="input-group">
                 <span class="input-addon">E-mail</span>
                 <input id="percorreo" name="percorreo" type="email" placeholder="Ingrese el correo electronico" value="<?= htmlspecialchars((string) ($old['percorreo'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>">
             </div>
+        </div>
+
+        <div class="form-group form-group-full">
+            <label class="switch-card">
+                <span>Habla ingles</span>
+                <input type="checkbox" name="perhablaingles" value="1" <?= !empty($old['perhablaingles']) ? 'checked' : ''; ?>>
+            </label>
         </div>
     </div>
 

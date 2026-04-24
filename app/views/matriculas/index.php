@@ -15,7 +15,13 @@ $resourcesOld = array_merge([
     'mrtlaptop' => false,
     'mrttablet' => false,
     'mrtcelular' => false,
+    'mrtimpresora' => false,
 ], is_array($old['resources'] ?? null) ? $old['resources'] : []);
+$insuranceOld = array_merge([
+    'smid' => 0,
+    'msmtelefono' => '',
+    'msmobservacion' => '',
+], is_array($old['insurance'] ?? null) ? $old['insurance'] : []);
 $billingOld = array_merge([
     'mfcnombre' => '',
     'mfctipoidentificacion' => 'CEDULA',
@@ -24,6 +30,57 @@ $billingOld = array_merge([
     'mfccorreo' => '',
     'mfctelefono' => '',
 ], is_array($old['billing'] ?? null) ? $old['billing'] : []);
+$familyContextOld = array_merge([
+    'ecfconvivecon' => '',
+    'ecfnumerohermanos' => '',
+    'ecfposicionhermanos' => '',
+], is_array($old['family_context'] ?? null) ? $old['family_context'] : []);
+$housingOld = array_merge([
+    'cviid' => 0,
+    'estvdescripcion' => '',
+    'estvluzelectrica' => false,
+    'estvaguapotable' => false,
+    'estvsshh' => false,
+    'estvtelefono' => false,
+    'estvcable' => false,
+], is_array($old['housing'] ?? null) ? $old['housing'] : []);
+$healthContextOld = array_merge([
+    'gsid' => 0,
+    'ecstienediscapacidad' => false,
+    'ecsdetallediscapacidad' => '',
+    'amid' => 0,
+], is_array($old['health_context'] ?? null) ? $old['health_context'] : []);
+$healthConditionsOld = is_array($old['health_conditions'] ?? null) ? $old['health_conditions'] : [];
+$healthMeasurementOld = array_merge([
+    'emspeso' => '',
+    'emstalla' => '',
+    'emsimc' => '',
+    'emsfecha_medicion' => date('Y-m-d'),
+    'emsobservacion' => '',
+], is_array($old['health_measurement'] ?? null) ? $old['health_measurement'] : []);
+$vitalHistoryOld = array_merge([
+    'ehvedadmadre' => '',
+    'ehvcomplicacionesembarazo' => '',
+    'ehvmedicacionembarazo' => '',
+    'teid' => 0,
+    'tpid' => 0,
+    'ehvdetalleembarazo' => '',
+    'ehvpesonacer' => '',
+    'ehvtallanacer' => '',
+    'ehvedadcaminar' => '',
+    'ehvedadhablar' => '',
+    'ehvperiodolactancia' => '',
+    'ehvedadbiberon' => '',
+    'ehvedadcontrolesfinteres' => '',
+], is_array($old['vital_history'] ?? null) ? $old['vital_history'] : []);
+$academicContextOld = array_merge([
+    'ecafechaingresoinstitucion' => '',
+    'ecaharepetidoanios' => false,
+    'ecadetallerepeticion' => '',
+    'ecaasignaturaspreferencia' => '',
+    'ecaasignaturasdificultad' => '',
+    'ecaactividadesextras' => '',
+], is_array($old['academic_context'] ?? null) ? $old['academic_context'] : []);
 $documentAcceptancesOld = array_map('intval', is_array($old['documents'] ?? null) ? $old['documents'] : []);
 $motherRelationship = null;
 $fatherRelationship = null;
@@ -75,13 +132,14 @@ $emptyFamilyRow = static function (): array {
         'pertelefono2' => '',
         'percorreo' => '',
         'persexo' => '',
+        'perfechanacimiento' => '',
         'pteid' => 0,
         'eciid' => 0,
         'istid' => 0,
-        'famprofesion' => '',
-        'famocupacion' => '',
+        'perprofesion' => '',
+        'perocupacion' => '',
+        'perhablaingles' => false,
         'famlugardetrabajo' => '',
-        'famfechanacimiento' => '',
     ];
 };
 
@@ -95,7 +153,22 @@ $emptyRepresentativeRow = static function (): array {
         'pertelefono2' => '',
         'percorreo' => '',
         'persexo' => '',
+        'perfechanacimiento' => '',
+        'istid' => 0,
+        'perprofesion' => '',
+        'perocupacion' => '',
+        'perhablaingles' => false,
         'pteid' => 0,
+    ];
+};
+
+$emptyHealthConditionRow = static function (): array {
+    return [
+        'tcsid' => 0,
+        'ecsadescripcion' => '',
+        'ecsamedicamentos' => '',
+        'ecsaobservacion' => '',
+        'ecsavigente' => true,
     ];
 };
 
@@ -217,12 +290,19 @@ $renderFamilyFields = static function (
         <?php endif; ?>
         <div class="form-group"><div class="input-group"><span class="input-addon">Estado civil</span><select name="family[<?= htmlspecialchars((string) $index, ENT_QUOTES, 'UTF-8'); ?>][eciid]" data-family-dependent data-submit-enable <?= $familyDisabledAttribute; ?>><option value="">Seleccione</option><?php foreach ($civilStatuses as $civilStatus): ?><option value="<?= htmlspecialchars((string) $civilStatus['eciid'], ENT_QUOTES, 'UTF-8'); ?>" <?= (int) ($family['eciid'] ?? 0) === (int) $civilStatus['eciid'] ? 'selected' : ''; ?>><?= htmlspecialchars((string) $civilStatus['ecinombre'], ENT_QUOTES, 'UTF-8'); ?></option><?php endforeach; ?></select></div></div>
         <div class="form-group"><div class="input-group"><span class="input-addon">Instruccion</span><select name="family[<?= htmlspecialchars((string) $index, ENT_QUOTES, 'UTF-8'); ?>][istid]" data-family-dependent data-submit-enable <?= $familyDisabledAttribute; ?>><option value="">Seleccione</option><?php foreach ($instructionLevels as $instructionLevel): ?><option value="<?= htmlspecialchars((string) $instructionLevel['istid'], ENT_QUOTES, 'UTF-8'); ?>" <?= (int) ($family['istid'] ?? 0) === (int) $instructionLevel['istid'] ? 'selected' : ''; ?>><?= htmlspecialchars((string) $instructionLevel['istnombre'], ENT_QUOTES, 'UTF-8'); ?></option><?php endforeach; ?></select></div></div>
+        <div class="form-group"><div class="input-group"><span class="input-addon">Nacimiento</span><input name="family[<?= htmlspecialchars((string) $index, ENT_QUOTES, 'UTF-8'); ?>][perfechanacimiento]" type="date" value="<?= htmlspecialchars((string) ($family['perfechanacimiento'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" data-family-dependent data-family-person-field data-submit-enable <?= $personDisabledAttribute; ?>></div></div>
         <div class="form-group"><div class="input-group"><span class="input-addon">Celular</span><input name="family[<?= htmlspecialchars((string) $index, ENT_QUOTES, 'UTF-8'); ?>][pertelefono1]" placeholder="(09) 9894 5698" maxlength="14" inputmode="numeric" value="<?= htmlspecialchars((string) ($family['pertelefono1'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" data-phone-mask data-family-dependent data-family-person-field data-submit-enable <?= $personDisabledAttribute; ?>></div></div>
         <div class="form-group"><div class="input-group"><span class="input-addon">Correo</span><input name="family[<?= htmlspecialchars((string) $index, ENT_QUOTES, 'UTF-8'); ?>][percorreo]" type="email" value="<?= htmlspecialchars((string) ($family['percorreo'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" data-family-dependent data-family-person-field data-submit-enable <?= $personDisabledAttribute; ?>></div></div>
-        <div class="form-group"><div class="input-group"><span class="input-addon">Profesion</span><input name="family[<?= htmlspecialchars((string) $index, ENT_QUOTES, 'UTF-8'); ?>][famprofesion]" value="<?= htmlspecialchars((string) ($family['famprofesion'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" data-family-dependent data-submit-enable <?= $familyDisabledAttribute; ?>></div></div>
-        <div class="form-group"><div class="input-group"><span class="input-addon">Ocupacion</span><input name="family[<?= htmlspecialchars((string) $index, ENT_QUOTES, 'UTF-8'); ?>][famocupacion]" value="<?= htmlspecialchars((string) ($family['famocupacion'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" data-family-dependent data-submit-enable <?= $familyDisabledAttribute; ?>></div></div>
+        <div class="form-group"><div class="input-group"><span class="input-addon">Profesion</span><input name="family[<?= htmlspecialchars((string) $index, ENT_QUOTES, 'UTF-8'); ?>][perprofesion]" value="<?= htmlspecialchars((string) ($family['perprofesion'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" data-family-dependent data-family-person-field data-submit-enable <?= $personDisabledAttribute; ?>></div></div>
+        <div class="form-group"><div class="input-group"><span class="input-addon">Ocupacion</span><input name="family[<?= htmlspecialchars((string) $index, ENT_QUOTES, 'UTF-8'); ?>][perocupacion]" value="<?= htmlspecialchars((string) ($family['perocupacion'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" data-family-dependent data-family-person-field data-submit-enable <?= $personDisabledAttribute; ?>></div></div>
         <div class="form-group"><div class="input-group"><span class="input-addon">Trabajo</span><input name="family[<?= htmlspecialchars((string) $index, ENT_QUOTES, 'UTF-8'); ?>][famlugardetrabajo]" value="<?= htmlspecialchars((string) ($family['famlugardetrabajo'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" data-family-dependent data-submit-enable <?= $familyDisabledAttribute; ?>></div></div>
-        <div class="form-group"><div class="input-group"><span class="input-addon">Nacimiento</span><input name="family[<?= htmlspecialchars((string) $index, ENT_QUOTES, 'UTF-8'); ?>][famfechanacimiento]" type="date" value="<?= htmlspecialchars((string) ($family['famfechanacimiento'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" data-family-dependent data-submit-enable <?= $familyDisabledAttribute; ?>></div></div>
+        <label class="resource-option resource-option-switch family-switch-inline">
+            <span>Habla ingles</span>
+            <span class="switch-control">
+                <input type="checkbox" name="family[<?= htmlspecialchars((string) $index, ENT_QUOTES, 'UTF-8'); ?>][perhablaingles]" value="1" <?= !empty($family['perhablaingles']) ? 'checked' : ''; ?> data-family-dependent data-family-person-field data-submit-enable <?= $personDisabledAttribute; ?>>
+                <span class="switch-slider" aria-hidden="true"></span>
+            </span>
+        </label>
     </div>
     <?php
 };
@@ -230,6 +310,34 @@ $renderFamilyFields = static function (
 ob_start();
 $renderFamilyFields($emptyFamilyRow(), '__INDEX__', $civilStatuses, $instructionLevels, $relationships, null, $personLookupUrl);
 $dynamicFamilyTemplate = ob_get_clean();
+
+if ($healthConditionsOld === []) {
+    $healthConditionsOld[] = $emptyHealthConditionRow();
+}
+
+ob_start();
+?>
+<article class="family-card health-condition-card" data-health-condition-row data-health-condition-index="__INDEX__">
+    <div class="family-card-header">
+        <strong>Condicion de salud</strong>
+        <button class="btn-secondary btn-auto" type="button" data-health-condition-remove>Quitar</button>
+    </div>
+    <div class="form-grid">
+        <div class="form-group"><div class="input-group"><span class="input-addon">Tipo</span><select name="health_conditions[__INDEX__][tcsid]"><option value="">Seleccione</option><?php foreach (($healthConditionTypes ?? []) as $healthConditionType): ?><option value="<?= htmlspecialchars((string) $healthConditionType['tcsid'], ENT_QUOTES, 'UTF-8'); ?>"><?= htmlspecialchars((string) $healthConditionType['tcsnombre'], ENT_QUOTES, 'UTF-8'); ?></option><?php endforeach; ?></select></div></div>
+        <div class="form-group form-group-full"><div class="input-group"><span class="input-addon">Descripcion</span><input name="health_conditions[__INDEX__][ecsadescripcion]"></div></div>
+        <div class="form-group form-group-full"><div class="input-group"><span class="input-addon">Medicamentos</span><input name="health_conditions[__INDEX__][ecsamedicamentos]"></div></div>
+        <div class="form-group form-group-full"><div class="input-group"><span class="input-addon">Observacion</span><textarea name="health_conditions[__INDEX__][ecsaobservacion]" rows="2"></textarea></div></div>
+        <label class="resource-option resource-option-switch family-switch-inline">
+            <span>Vigente</span>
+            <span class="switch-control">
+                <input type="checkbox" name="health_conditions[__INDEX__][ecsavigente]" value="1" checked>
+                <span class="switch-slider" aria-hidden="true"></span>
+            </span>
+        </label>
+    </div>
+</article>
+<?php
+$healthConditionTemplate = ob_get_clean();
 ?>
 <p class="module-note">La matriculacion consolida persona, estudiante, familiares, representante y curso en un solo flujo operativo.</p>
 
@@ -275,7 +383,12 @@ $dynamicFamilyTemplate = ob_get_clean();
                 <div class="wizard-tabs" role="tablist" aria-label="Secciones de matricula">
                     <button type="button" class="wizard-tab is-active" data-wizard-tab="persona">Estudiante</button>
                     <button type="button" class="wizard-tab" data-wizard-tab="estudiante">Datos Personales</button>
+                    <button type="button" class="wizard-tab" data-wizard-tab="contexto-familiar">Contexto familiar</button>
                     <button type="button" class="wizard-tab" data-wizard-tab="familiares">Datos Familiares</button>
+                    <button type="button" class="wizard-tab" data-wizard-tab="vivienda">Vivienda</button>
+                    <button type="button" class="wizard-tab" data-wizard-tab="salud">Salud</button>
+                    <button type="button" class="wizard-tab" data-wizard-tab="historia-vital">Historia vital</button>
+                    <button type="button" class="wizard-tab" data-wizard-tab="academico">Contexto academico</button>
                     <button type="button" class="wizard-tab" data-wizard-tab="representante">Representante</button>
                     <button type="button" class="wizard-tab" data-wizard-tab="recursos">Recursos tecnologicos</button>
                     <button type="button" class="wizard-tab" data-wizard-tab="facturacion">Facturacion</button>
@@ -287,11 +400,22 @@ $dynamicFamilyTemplate = ob_get_clean();
                     <div class="form-grid">
                         <div class="form-group"><div class="input-group"><span class="input-addon">Cedula</span><input name="person[percedula]" maxlength="10" minlength="10" pattern="\d{10}" inputmode="numeric" required value="<?= htmlspecialchars((string) ($old['person']['percedula'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>"></div></div>
                         <div class="form-group"><div class="input-group"><span class="input-addon">Sexo</span><select name="person[persexo]"><option value="">Seleccione</option><option value="Masculino" <?= ($old['person']['persexo'] ?? '') === 'Masculino' ? 'selected' : ''; ?>>Masculino</option><option value="Femenino" <?= ($old['person']['persexo'] ?? '') === 'Femenino' ? 'selected' : ''; ?>>Femenino</option></select></div></div>
+                        <div class="form-group"><div class="input-group"><span class="input-addon">Nacimiento</span><input name="person[perfechanacimiento]" type="date" value="<?= htmlspecialchars((string) ($old['person']['perfechanacimiento'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>"></div></div>
+                        <div class="form-group"><div class="input-group"><span class="input-addon">Instruccion</span><select name="person[istid]"><option value="">Seleccione</option><?php foreach ($instructionLevels as $instructionLevel): ?><option value="<?= htmlspecialchars((string) $instructionLevel['istid'], ENT_QUOTES, 'UTF-8'); ?>" <?= (int) ($old['person']['istid'] ?? 0) === (int) $instructionLevel['istid'] ? 'selected' : ''; ?>><?= htmlspecialchars((string) $instructionLevel['istnombre'], ENT_QUOTES, 'UTF-8'); ?></option><?php endforeach; ?></select></div></div>
                         <div class="form-group"><div class="input-group"><span class="input-addon">Nombres</span><input name="person[pernombres]" required value="<?= htmlspecialchars((string) ($old['person']['pernombres'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>"></div></div>
                         <div class="form-group"><div class="input-group"><span class="input-addon">Apellidos</span><input name="person[perapellidos]" required value="<?= htmlspecialchars((string) ($old['person']['perapellidos'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>"></div></div>
                         <div class="form-group"><div class="input-group"><span class="input-addon">Celular</span><input name="person[pertelefono1]" placeholder="(09) 9894 5698" maxlength="14" inputmode="numeric" value="<?= htmlspecialchars((string) ($old['person']['pertelefono1'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" data-phone-mask></div></div>
                         <div class="form-group"><div class="input-group"><span class="input-addon">Fijo</span><input name="person[pertelefono2]" value="<?= htmlspecialchars((string) ($old['person']['pertelefono2'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>"></div></div>
+                        <div class="form-group"><div class="input-group"><span class="input-addon">Profesion</span><input name="person[perprofesion]" value="<?= htmlspecialchars((string) ($old['person']['perprofesion'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>"></div></div>
+                        <div class="form-group"><div class="input-group"><span class="input-addon">Ocupacion</span><input name="person[perocupacion]" value="<?= htmlspecialchars((string) ($old['person']['perocupacion'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>"></div></div>
                         <div class="form-group form-group-full"><div class="input-group"><span class="input-addon">E-mail</span><input name="person[percorreo]" type="email" value="<?= htmlspecialchars((string) ($old['person']['percorreo'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>"></div></div>
+                        <label class="resource-option resource-option-switch family-switch-inline">
+                            <span>Habla ingles</span>
+                            <span class="switch-control">
+                                <input type="checkbox" name="person[perhablaingles]" value="1" <?= !empty($old['person']['perhablaingles']) ? 'checked' : ''; ?>>
+                                <span class="switch-slider" aria-hidden="true"></span>
+                            </span>
+                        </label>
                     </div>
                     <div class="actions-row">
                         <button class="btn-secondary btn-inline" type="button" data-matricula-draft-save>Guardar</button>
@@ -361,6 +485,125 @@ $dynamicFamilyTemplate = ob_get_clean();
                     </div>
                 </section>
 
+                <section class="wizard-panel" data-wizard-panel="vivienda" hidden>
+                    <div class="form-grid">
+                        <div class="form-group"><div class="input-group"><span class="input-addon">Condicion</span><select name="housing[cviid]"><option value="">Seleccione</option><?php foreach ($housingConditions as $housingCondition): ?><option value="<?= htmlspecialchars((string) $housingCondition['cviid'], ENT_QUOTES, 'UTF-8'); ?>" <?= (int) ($housingOld['cviid'] ?? 0) === (int) $housingCondition['cviid'] ? 'selected' : ''; ?>><?= htmlspecialchars((string) $housingCondition['cvinombre'], ENT_QUOTES, 'UTF-8'); ?></option><?php endforeach; ?></select></div></div>
+                        <div class="form-group form-group-full"><div class="input-group"><span class="input-addon">Descripcion</span><input name="housing[estvdescripcion]" value="<?= htmlspecialchars((string) ($housingOld['estvdescripcion'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>"></div></div>
+                    </div>
+                    <div class="resource-grid">
+                        <label class="resource-option"><span>Luz electrica</span><input type="checkbox" name="housing[estvluzelectrica]" value="1" <?= !empty($housingOld['estvluzelectrica']) ? 'checked' : ''; ?>></label>
+                        <label class="resource-option"><span>Agua potable</span><input type="checkbox" name="housing[estvaguapotable]" value="1" <?= !empty($housingOld['estvaguapotable']) ? 'checked' : ''; ?>></label>
+                        <label class="resource-option"><span>SSHH</span><input type="checkbox" name="housing[estvsshh]" value="1" <?= !empty($housingOld['estvsshh']) ? 'checked' : ''; ?>></label>
+                        <label class="resource-option"><span>Telefono</span><input type="checkbox" name="housing[estvtelefono]" value="1" <?= !empty($housingOld['estvtelefono']) ? 'checked' : ''; ?>></label>
+                        <label class="resource-option"><span>Cable</span><input type="checkbox" name="housing[estvcable]" value="1" <?= !empty($housingOld['estvcable']) ? 'checked' : ''; ?>></label>
+                    </div>
+                    <div class="actions-row">
+                        <button class="btn-secondary btn-inline" type="button" data-matricula-draft-save>Guardar</button>
+                        <button class="btn-secondary btn-inline" type="button" data-matricula-draft-clear>Borrar temporal</button>
+                    </div>
+                </section>
+
+                <section class="wizard-panel" data-wizard-panel="salud" hidden>
+                    <div class="form-grid">
+                        <div class="form-group"><div class="input-group"><span class="input-addon">Grupo sanguineo</span><select name="health_context[gsid]"><option value="">Seleccione</option><?php foreach ($bloodGroups as $bloodGroup): ?><option value="<?= htmlspecialchars((string) $bloodGroup['gsid'], ENT_QUOTES, 'UTF-8'); ?>" <?= (int) ($healthContextOld['gsid'] ?? 0) === (int) $bloodGroup['gsid'] ? 'selected' : ''; ?>><?= htmlspecialchars((string) $bloodGroup['gsnombre'], ENT_QUOTES, 'UTF-8'); ?></option><?php endforeach; ?></select></div></div>
+                        <div class="form-group"><div class="input-group"><span class="input-addon">Atencion medica</span><select name="health_context[amid]"><option value="">Seleccione</option><?php foreach ($medicalCareTypes as $medicalCareType): ?><option value="<?= htmlspecialchars((string) $medicalCareType['amid'], ENT_QUOTES, 'UTF-8'); ?>" <?= (int) ($healthContextOld['amid'] ?? 0) === (int) $medicalCareType['amid'] ? 'selected' : ''; ?>><?= htmlspecialchars((string) $medicalCareType['amnombre'], ENT_QUOTES, 'UTF-8'); ?></option><?php endforeach; ?></select></div></div>
+                        <label class="resource-option resource-option-switch family-switch-inline">
+                            <span>Tiene discapacidad</span>
+                            <span class="switch-control">
+                                <input type="checkbox" name="health_context[ecstienediscapacidad]" value="1" <?= !empty($healthContextOld['ecstienediscapacidad']) ? 'checked' : ''; ?>>
+                                <span class="switch-slider" aria-hidden="true"></span>
+                            </span>
+                        </label>
+                        <div class="form-group form-group-full"><div class="input-group"><span class="input-addon">Detalle discapacidad</span><textarea name="health_context[ecsdetallediscapacidad]" rows="2"><?= htmlspecialchars((string) ($healthContextOld['ecsdetallediscapacidad'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></textarea></div></div>
+                    </div>
+                    <div class="family-actions">
+                        <button class="btn-secondary btn-inline" type="button" data-health-condition-add>Agregar condicion de salud</button>
+                    </div>
+                    <div class="family-stack" data-health-condition-rows>
+                        <?php foreach ($healthConditionsOld as $healthIndex => $healthCondition): ?>
+                            <article class="family-card health-condition-card" data-health-condition-row data-health-condition-index="<?= htmlspecialchars((string) $healthIndex, ENT_QUOTES, 'UTF-8'); ?>">
+                                <div class="family-card-header">
+                                    <strong>Condicion de salud <?= $healthIndex + 1; ?></strong>
+                                    <button class="btn-secondary btn-auto" type="button" data-health-condition-remove>Quitar</button>
+                                </div>
+                                <div class="form-grid">
+                                    <div class="form-group"><div class="input-group"><span class="input-addon">Tipo</span><select name="health_conditions[<?= htmlspecialchars((string) $healthIndex, ENT_QUOTES, 'UTF-8'); ?>][tcsid]"><option value="">Seleccione</option><?php foreach ($healthConditionTypes as $healthConditionType): ?><option value="<?= htmlspecialchars((string) $healthConditionType['tcsid'], ENT_QUOTES, 'UTF-8'); ?>" <?= (int) ($healthCondition['tcsid'] ?? 0) === (int) $healthConditionType['tcsid'] ? 'selected' : ''; ?>><?= htmlspecialchars((string) $healthConditionType['tcsnombre'], ENT_QUOTES, 'UTF-8'); ?></option><?php endforeach; ?></select></div></div>
+                                    <div class="form-group form-group-full"><div class="input-group"><span class="input-addon">Descripcion</span><input name="health_conditions[<?= htmlspecialchars((string) $healthIndex, ENT_QUOTES, 'UTF-8'); ?>][ecsadescripcion]" value="<?= htmlspecialchars((string) ($healthCondition['ecsadescripcion'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>"></div></div>
+                                    <div class="form-group form-group-full"><div class="input-group"><span class="input-addon">Medicamentos</span><input name="health_conditions[<?= htmlspecialchars((string) $healthIndex, ENT_QUOTES, 'UTF-8'); ?>][ecsamedicamentos]" value="<?= htmlspecialchars((string) ($healthCondition['ecsamedicamentos'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>"></div></div>
+                                    <div class="form-group form-group-full"><div class="input-group"><span class="input-addon">Observacion</span><textarea name="health_conditions[<?= htmlspecialchars((string) $healthIndex, ENT_QUOTES, 'UTF-8'); ?>][ecsaobservacion]" rows="2"><?= htmlspecialchars((string) ($healthCondition['ecsaobservacion'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></textarea></div></div>
+                                    <label class="resource-option resource-option-switch family-switch-inline">
+                                        <span>Vigente</span>
+                                        <span class="switch-control">
+                                            <input type="checkbox" name="health_conditions[<?= htmlspecialchars((string) $healthIndex, ENT_QUOTES, 'UTF-8'); ?>][ecsavigente]" value="1" <?= !array_key_exists('ecsavigente', $healthCondition) || !empty($healthCondition['ecsavigente']) ? 'checked' : ''; ?>>
+                                            <span class="switch-slider" aria-hidden="true"></span>
+                                        </span>
+                                    </label>
+                                </div>
+                            </article>
+                        <?php endforeach; ?>
+                    </div>
+                    <template data-health-condition-template><?= $healthConditionTemplate; ?></template>
+                    <div class="form-grid">
+                        <div class="form-group"><div class="input-group"><span class="input-addon">Peso (kg)</span><input name="health_measurement[emspeso]" type="number" step="0.01" min="0" value="<?= htmlspecialchars((string) ($healthMeasurementOld['emspeso'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" data-imc-weight></div></div>
+                        <div class="form-group"><div class="input-group"><span class="input-addon">Talla (m)</span><input name="health_measurement[emstalla]" type="number" step="0.01" min="0" value="<?= htmlspecialchars((string) ($healthMeasurementOld['emstalla'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" data-imc-height></div></div>
+                        <div class="form-group"><div class="input-group"><span class="input-addon">IMC</span><input name="health_measurement[emsimc]" readonly value="<?= htmlspecialchars((string) ($healthMeasurementOld['emsimc'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" data-imc-output></div></div>
+                        <div class="form-group"><div class="input-group"><span class="input-addon">Fecha medicion</span><input name="health_measurement[emsfecha_medicion]" type="date" value="<?= htmlspecialchars((string) ($healthMeasurementOld['emsfecha_medicion'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>"></div></div>
+                        <div class="form-group form-group-full"><div class="input-group"><span class="input-addon">Obs. medicion</span><input name="health_measurement[emsobservacion]" value="<?= htmlspecialchars((string) ($healthMeasurementOld['emsobservacion'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>"></div></div>
+                    </div>
+                    <div class="form-grid">
+                        <div class="form-group"><div class="input-group"><span class="input-addon">Seguro medico</span><select name="insurance[smid]"><option value="">Seleccione</option><?php foreach ($insuranceProviders as $insuranceProvider): ?><option value="<?= htmlspecialchars((string) $insuranceProvider['smid'], ENT_QUOTES, 'UTF-8'); ?>" <?= (int) ($insuranceOld['smid'] ?? 0) === (int) $insuranceProvider['smid'] ? 'selected' : ''; ?>><?= htmlspecialchars((string) $insuranceProvider['smnombre'], ENT_QUOTES, 'UTF-8'); ?></option><?php endforeach; ?></select></div></div>
+                        <div class="form-group"><div class="input-group"><span class="input-addon">Telefono seguro</span><input name="insurance[msmtelefono]" value="<?= htmlspecialchars((string) ($insuranceOld['msmtelefono'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" data-phone-mask></div></div>
+                        <div class="form-group form-group-full"><div class="input-group"><span class="input-addon">Obs. seguro</span><input name="insurance[msmobservacion]" value="<?= htmlspecialchars((string) ($insuranceOld['msmobservacion'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>"></div></div>
+                    </div>
+                    <div class="actions-row">
+                        <button class="btn-secondary btn-inline" type="button" data-matricula-draft-save>Guardar</button>
+                        <button class="btn-secondary btn-inline" type="button" data-matricula-draft-clear>Borrar temporal</button>
+                    </div>
+                </section>
+
+                <section class="wizard-panel" data-wizard-panel="historia-vital" hidden>
+                    <div class="form-grid">
+                        <div class="form-group"><div class="input-group"><span class="input-addon">Edad madre</span><input name="vital_history[ehvedadmadre]" type="number" min="0" value="<?= htmlspecialchars((string) ($vitalHistoryOld['ehvedadmadre'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>"></div></div>
+                        <div class="form-group"><div class="input-group"><span class="input-addon">Tipo embarazo</span><select name="vital_history[teid]"><option value="">Seleccione</option><?php foreach ($pregnancyTypes as $pregnancyType): ?><option value="<?= htmlspecialchars((string) $pregnancyType['teid'], ENT_QUOTES, 'UTF-8'); ?>" <?= (int) ($vitalHistoryOld['teid'] ?? 0) === (int) $pregnancyType['teid'] ? 'selected' : ''; ?>><?= htmlspecialchars((string) $pregnancyType['tenombre'], ENT_QUOTES, 'UTF-8'); ?></option><?php endforeach; ?></select></div></div>
+                        <div class="form-group"><div class="input-group"><span class="input-addon">Tipo parto</span><select name="vital_history[tpid]"><option value="">Seleccione</option><?php foreach ($birthTypes as $birthType): ?><option value="<?= htmlspecialchars((string) $birthType['tpid'], ENT_QUOTES, 'UTF-8'); ?>" <?= (int) ($vitalHistoryOld['tpid'] ?? 0) === (int) $birthType['tpid'] ? 'selected' : ''; ?>><?= htmlspecialchars((string) $birthType['tpnombre'], ENT_QUOTES, 'UTF-8'); ?></option><?php endforeach; ?></select></div></div>
+                        <div class="form-group form-group-full"><div class="input-group"><span class="input-addon">Complicaciones</span><textarea name="vital_history[ehvcomplicacionesembarazo]" rows="2"><?= htmlspecialchars((string) ($vitalHistoryOld['ehvcomplicacionesembarazo'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></textarea></div></div>
+                        <div class="form-group form-group-full"><div class="input-group"><span class="input-addon">Medicacion</span><textarea name="vital_history[ehvmedicacionembarazo]" rows="2"><?= htmlspecialchars((string) ($vitalHistoryOld['ehvmedicacionembarazo'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></textarea></div></div>
+                        <div class="form-group form-group-full"><div class="input-group"><span class="input-addon">Detalle embarazo</span><textarea name="vital_history[ehvdetalleembarazo]" rows="3"><?= htmlspecialchars((string) ($vitalHistoryOld['ehvdetalleembarazo'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></textarea></div></div>
+                        <div class="form-group"><div class="input-group"><span class="input-addon">Peso al nacer</span><input name="vital_history[ehvpesonacer]" value="<?= htmlspecialchars((string) ($vitalHistoryOld['ehvpesonacer'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>"></div></div>
+                        <div class="form-group"><div class="input-group"><span class="input-addon">Talla al nacer</span><input name="vital_history[ehvtallanacer]" value="<?= htmlspecialchars((string) ($vitalHistoryOld['ehvtallanacer'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>"></div></div>
+                        <div class="form-group"><div class="input-group"><span class="input-addon">Edad camino</span><input name="vital_history[ehvedadcaminar]" value="<?= htmlspecialchars((string) ($vitalHistoryOld['ehvedadcaminar'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>"></div></div>
+                        <div class="form-group"><div class="input-group"><span class="input-addon">Edad hablo</span><input name="vital_history[ehvedadhablar]" value="<?= htmlspecialchars((string) ($vitalHistoryOld['ehvedadhablar'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>"></div></div>
+                        <div class="form-group"><div class="input-group"><span class="input-addon">Lactancia</span><input name="vital_history[ehvperiodolactancia]" value="<?= htmlspecialchars((string) ($vitalHistoryOld['ehvperiodolactancia'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>"></div></div>
+                        <div class="form-group"><div class="input-group"><span class="input-addon">Uso biberon</span><input name="vital_history[ehvedadbiberon]" value="<?= htmlspecialchars((string) ($vitalHistoryOld['ehvedadbiberon'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>"></div></div>
+                        <div class="form-group"><div class="input-group"><span class="input-addon">Control esfinteres</span><input name="vital_history[ehvedadcontrolesfinteres]" value="<?= htmlspecialchars((string) ($vitalHistoryOld['ehvedadcontrolesfinteres'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>"></div></div>
+                    </div>
+                    <div class="actions-row">
+                        <button class="btn-secondary btn-inline" type="button" data-matricula-draft-save>Guardar</button>
+                        <button class="btn-secondary btn-inline" type="button" data-matricula-draft-clear>Borrar temporal</button>
+                    </div>
+                </section>
+
+                <section class="wizard-panel" data-wizard-panel="academico" hidden>
+                    <div class="form-grid">
+                        <div class="form-group"><div class="input-group"><span class="input-addon">Ingreso institucion</span><input name="academic_context[ecafechaingresoinstitucion]" type="date" value="<?= htmlspecialchars((string) ($academicContextOld['ecafechaingresoinstitucion'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>"></div></div>
+                        <label class="resource-option resource-option-switch family-switch-inline">
+                            <span>Ha repetido anios</span>
+                            <span class="switch-control">
+                                <input type="checkbox" name="academic_context[ecaharepetidoanios]" value="1" <?= !empty($academicContextOld['ecaharepetidoanios']) ? 'checked' : ''; ?>>
+                                <span class="switch-slider" aria-hidden="true"></span>
+                            </span>
+                        </label>
+                        <div class="form-group form-group-full"><div class="input-group"><span class="input-addon">Detalle repeticion</span><textarea name="academic_context[ecadetallerepeticion]" rows="2"><?= htmlspecialchars((string) ($academicContextOld['ecadetallerepeticion'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></textarea></div></div>
+                        <div class="form-group form-group-full"><div class="input-group"><span class="input-addon">Asignaturas preferidas</span><textarea name="academic_context[ecaasignaturaspreferencia]" rows="2"><?= htmlspecialchars((string) ($academicContextOld['ecaasignaturaspreferencia'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></textarea></div></div>
+                        <div class="form-group form-group-full"><div class="input-group"><span class="input-addon">Asignaturas dificultad</span><textarea name="academic_context[ecaasignaturasdificultad]" rows="2"><?= htmlspecialchars((string) ($academicContextOld['ecaasignaturasdificultad'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></textarea></div></div>
+                        <div class="form-group form-group-full"><div class="input-group"><span class="input-addon">Actividades extras</span><textarea name="academic_context[ecaactividadesextras]" rows="2"><?= htmlspecialchars((string) ($academicContextOld['ecaactividadesextras'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></textarea></div></div>
+                    </div>
+                    <div class="actions-row">
+                        <button class="btn-secondary btn-inline" type="button" data-matricula-draft-save>Guardar</button>
+                        <button class="btn-secondary btn-inline" type="button" data-matricula-draft-clear>Borrar temporal</button>
+                    </div>
+                </section>
+
                 <section class="wizard-panel" data-wizard-panel="representante" hidden>
                     <p class="module-note">Selecciona un familiar cargado o elige Otro para registrar un tutor, apoderado o responsable externo.</p>
                     <input type="hidden" name="representative_source" value="<?= htmlspecialchars($representativeSource, ENT_QUOTES, 'UTF-8'); ?>" data-representative-source-input>
@@ -396,12 +639,23 @@ $dynamicFamilyTemplate = ob_get_clean();
                         <input type="hidden" name="representative_external[perid]" value="<?= htmlspecialchars((string) ($externalRepresentative['perid'] ?? 0), ENT_QUOTES, 'UTF-8'); ?>" data-representative-external-person-id>
                         <div class="form-grid">
                             <div class="form-group"><div class="input-group"><span class="input-addon">Sexo</span><select name="representative_external[persexo]" data-representative-external-person-field><option value="">Seleccione</option><option value="Masculino" <?= ($externalRepresentative['persexo'] ?? '') === 'Masculino' ? 'selected' : ''; ?>>Masculino</option><option value="Femenino" <?= ($externalRepresentative['persexo'] ?? '') === 'Femenino' ? 'selected' : ''; ?>>Femenino</option></select></div></div>
+                            <div class="form-group"><div class="input-group"><span class="input-addon">Nacimiento</span><input name="representative_external[perfechanacimiento]" type="date" value="<?= htmlspecialchars((string) ($externalRepresentative['perfechanacimiento'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" data-representative-external-person-field></div></div>
                             <div class="form-group"><div class="input-group"><span class="input-addon">Nombres</span><input name="representative_external[pernombres]" value="<?= htmlspecialchars((string) ($externalRepresentative['pernombres'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" data-representative-external-person-field></div></div>
                             <div class="form-group"><div class="input-group"><span class="input-addon">Apellidos</span><input name="representative_external[perapellidos]" value="<?= htmlspecialchars((string) ($externalRepresentative['perapellidos'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" data-representative-external-person-field></div></div>
                             <div class="form-group"><div class="input-group"><span class="input-addon">Parentesco</span><select name="representative_external[pteid]" data-representative-external-detail-field><option value="">Seleccione</option><?php foreach ($relationships as $relationship): ?><option value="<?= htmlspecialchars((string) $relationship['pteid'], ENT_QUOTES, 'UTF-8'); ?>" <?= (int) ($externalRepresentative['pteid'] ?? 0) === (int) $relationship['pteid'] ? 'selected' : ''; ?>><?= htmlspecialchars((string) $relationship['ptenombre'], ENT_QUOTES, 'UTF-8'); ?></option><?php endforeach; ?></select></div></div>
+                            <div class="form-group"><div class="input-group"><span class="input-addon">Instruccion</span><select name="representative_external[istid]" data-representative-external-person-field><option value="">Seleccione</option><?php foreach ($instructionLevels as $instructionLevel): ?><option value="<?= htmlspecialchars((string) $instructionLevel['istid'], ENT_QUOTES, 'UTF-8'); ?>" <?= (int) ($externalRepresentative['istid'] ?? 0) === (int) $instructionLevel['istid'] ? 'selected' : ''; ?>><?= htmlspecialchars((string) $instructionLevel['istnombre'], ENT_QUOTES, 'UTF-8'); ?></option><?php endforeach; ?></select></div></div>
                             <div class="form-group"><div class="input-group"><span class="input-addon">Celular</span><input name="representative_external[pertelefono1]" placeholder="(09) 9894 5698" maxlength="14" inputmode="numeric" value="<?= htmlspecialchars((string) ($externalRepresentative['pertelefono1'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" data-phone-mask data-representative-external-person-field></div></div>
                             <div class="form-group"><div class="input-group"><span class="input-addon">Fijo</span><input name="representative_external[pertelefono2]" value="<?= htmlspecialchars((string) ($externalRepresentative['pertelefono2'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" data-representative-external-detail-field></div></div>
+                            <div class="form-group"><div class="input-group"><span class="input-addon">Profesion</span><input name="representative_external[perprofesion]" value="<?= htmlspecialchars((string) ($externalRepresentative['perprofesion'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" data-representative-external-person-field></div></div>
+                            <div class="form-group"><div class="input-group"><span class="input-addon">Ocupacion</span><input name="representative_external[perocupacion]" value="<?= htmlspecialchars((string) ($externalRepresentative['perocupacion'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" data-representative-external-person-field></div></div>
                             <div class="form-group form-group-full"><div class="input-group"><span class="input-addon">Correo</span><input name="representative_external[percorreo]" type="email" value="<?= htmlspecialchars((string) ($externalRepresentative['percorreo'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" data-representative-external-person-field></div></div>
+                            <label class="resource-option resource-option-switch family-switch-inline">
+                                <span>Habla ingles</span>
+                                <span class="switch-control">
+                                    <input type="checkbox" name="representative_external[perhablaingles]" value="1" <?= !empty($externalRepresentative['perhablaingles']) ? 'checked' : ''; ?> data-representative-external-person-field>
+                                    <span class="switch-slider" aria-hidden="true"></span>
+                                </span>
+                            </label>
                         </div>
                     </div>
                     <div class="actions-row">
@@ -432,6 +686,10 @@ $dynamicFamilyTemplate = ob_get_clean();
                         <label class="resource-option">
                             <span>Telefono inteligente</span>
                             <input type="checkbox" name="resources[mrtcelular]" value="1" <?= !empty($resourcesOld['mrtcelular']) ? 'checked' : ''; ?>>
+                        </label>
+                        <label class="resource-option">
+                            <span>Impresora</span>
+                            <input type="checkbox" name="resources[mrtimpresora]" value="1" <?= !empty($resourcesOld['mrtimpresora']) ? 'checked' : ''; ?>>
                         </label>
                     </div>
                     <div class="actions-row">
@@ -496,6 +754,18 @@ $dynamicFamilyTemplate = ob_get_clean();
                             <?php endforeach; ?>
                         </div>
                     <?php endif; ?>
+                    <div class="actions-row">
+                        <button class="btn-secondary btn-inline" type="button" data-matricula-draft-save>Guardar</button>
+                        <button class="btn-secondary btn-inline" type="button" data-matricula-draft-clear>Borrar temporal</button>
+                    </div>
+                </section>
+
+                <section class="wizard-panel" data-wizard-panel="contexto-familiar" hidden>
+                    <div class="form-grid">
+                        <div class="form-group form-group-full"><div class="input-group"><span class="input-addon">Convive con</span><input name="family_context[ecfconvivecon]" value="<?= htmlspecialchars((string) ($familyContextOld['ecfconvivecon'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>"></div></div>
+                        <div class="form-group"><div class="input-group"><span class="input-addon">No. hermanos</span><input name="family_context[ecfnumerohermanos]" type="number" min="0" value="<?= htmlspecialchars((string) ($familyContextOld['ecfnumerohermanos'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>"></div></div>
+                        <div class="form-group"><div class="input-group"><span class="input-addon">Posicion</span><input name="family_context[ecfposicionhermanos]" placeholder="Ej: 1ro de 3" value="<?= htmlspecialchars((string) ($familyContextOld['ecfposicionhermanos'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>"></div></div>
+                    </div>
                     <div class="actions-row">
                         <button class="btn-secondary btn-inline" type="button" data-matricula-draft-save>Guardar</button>
                         <button class="btn-secondary btn-inline" type="button" data-matricula-draft-clear>Borrar temporal</button>

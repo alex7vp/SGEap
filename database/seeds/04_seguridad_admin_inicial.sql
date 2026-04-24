@@ -1,8 +1,14 @@
 -- Usuario administrador inicial
--- Ejecutar despues de:
---   01_periodos_base.sql
---   02_catalogos_base.sql
---   03_cursos_base.sql
+-- Si se usa la secuencia modular, ejecutar despues de:
+--   database/scripts/01_catalogos.sql
+--   database/scripts/02_academico.sql
+--   database/scripts/03_personas.sql
+--   database/scripts/04_matriculacion.sql
+--   database/scripts/05_seguridad.sql
+--
+-- Si se usa el consolidado database/scripts/sgeap.sql,
+-- no ejecutar este seed porque el usuario administrador inicial
+-- ya se crea dentro del script consolidado.
 
 -- Persona administradora
 INSERT INTO persona (
@@ -105,6 +111,9 @@ WHERE NOT EXISTS (
 );
 
 -- Usuario administrador
+-- Credenciales iniciales:
+-- usuario: admin
+-- clave: 1234567890
 INSERT INTO usuario (
     perid,
     usunombre,
@@ -114,7 +123,7 @@ INSERT INTO usuario (
 SELECT
     p.perid,
     'admin',
-    '$2y$10$aSwxP9tPDp27hYH3k6AR7uartIJLlv1mjQ6Hqv3UvsIeQWjzYcgxq',
+    '$2y$10$IY0emg0HIqhfP05t4KHtAO5lN0FdhQ1XL4LGYTBZY5iS4tJaVZ5ma',
     true
 FROM persona p
 WHERE p.percedula = '1234567890'

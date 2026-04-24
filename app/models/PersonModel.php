@@ -12,6 +12,17 @@ class PersonModel extends Model
     protected string $table = 'persona';
     protected string $primaryKey = 'perid';
 
+    public function allInstructionLevels(): array
+    {
+        $statement = $this->db->query(
+            "SELECT istid, istnombre
+             FROM instruccion
+             ORDER BY istnombre ASC"
+        );
+
+        return $statement->fetchAll();
+    }
+
     public function allOrdered(): array
     {
         return $this->search();
@@ -27,7 +38,12 @@ class PersonModel extends Model
                 pertelefono1,
                 pertelefono2,
                 percorreo,
-                persexo
+                persexo,
+                perfechanacimiento,
+                istid,
+                perprofesion,
+                perocupacion,
+                perhablaingles
             ) VALUES (
                 :cedula,
                 :nombres,
@@ -35,7 +51,12 @@ class PersonModel extends Model
                 :telefono1,
                 :telefono2,
                 :correo,
-                :sexo
+                :sexo,
+                :fecha_nacimiento,
+                :instruccion,
+                :profesion,
+                :ocupacion,
+                :habla_ingles
             )
             RETURNING perid"
         );
@@ -48,6 +69,11 @@ class PersonModel extends Model
             'telefono2' => $data['pertelefono2'] !== '' ? $data['pertelefono2'] : null,
             'correo' => $data['percorreo'] !== '' ? $data['percorreo'] : null,
             'sexo' => $data['persexo'] !== '' ? $data['persexo'] : null,
+            'fecha_nacimiento' => ($data['perfechanacimiento'] ?? '') !== '' ? $data['perfechanacimiento'] : null,
+            'instruccion' => (int) ($data['istid'] ?? 0) > 0 ? (int) $data['istid'] : null,
+            'profesion' => ($data['perprofesion'] ?? '') !== '' ? $data['perprofesion'] : null,
+            'ocupacion' => ($data['perocupacion'] ?? '') !== '' ? $data['perocupacion'] : null,
+            'habla_ingles' => !empty($data['perhablaingles']),
         ]);
 
         return (int) $statement->fetchColumn();
@@ -86,7 +112,8 @@ class PersonModel extends Model
     public function findByCedula(string $cedula): array|false
     {
         $statement = $this->db->prepare(
-            "SELECT perid, percedula, pernombres, perapellidos, pertelefono1, pertelefono2, percorreo, persexo
+            "SELECT perid, percedula, pernombres, perapellidos, pertelefono1, pertelefono2,
+                    percorreo, persexo, perfechanacimiento, istid, perprofesion, perocupacion, perhablaingles
              FROM {$this->table}
              WHERE percedula = :cedula
              LIMIT 1"
@@ -102,7 +129,8 @@ class PersonModel extends Model
 
         if ($normalizedTerm === '') {
             $statement = $this->db->query(
-                "SELECT perid, percedula, pernombres, perapellidos, pertelefono1, pertelefono2, percorreo, persexo
+                "SELECT perid, percedula, pernombres, perapellidos, pertelefono1, pertelefono2,
+                        percorreo, persexo, perfechanacimiento, istid, perprofesion, perocupacion, perhablaingles
                  FROM {$this->table}
                  ORDER BY perapellidos ASC, pernombres ASC"
             );
@@ -111,7 +139,8 @@ class PersonModel extends Model
         }
 
         $statement = $this->db->prepare(
-            "SELECT perid, percedula, pernombres, perapellidos, pertelefono1, pertelefono2, percorreo, persexo
+            "SELECT perid, percedula, pernombres, perapellidos, pertelefono1, pertelefono2,
+                    percorreo, persexo, perfechanacimiento, istid, perprofesion, perocupacion, perhablaingles
              FROM {$this->table}
              WHERE percedula ILIKE :term
                 OR pernombres ILIKE :term
@@ -136,7 +165,12 @@ class PersonModel extends Model
                  pertelefono1 = :telefono1,
                  pertelefono2 = :telefono2,
                  percorreo = :correo,
-                 persexo = :sexo
+                 persexo = :sexo,
+                 perfechanacimiento = :fecha_nacimiento,
+                 istid = :instruccion,
+                 perprofesion = :profesion,
+                 perocupacion = :ocupacion,
+                 perhablaingles = :habla_ingles
              WHERE perid = :perid"
         );
 
@@ -149,6 +183,11 @@ class PersonModel extends Model
             'telefono2' => $data['pertelefono2'] !== '' ? $data['pertelefono2'] : null,
             'correo' => $data['percorreo'] !== '' ? $data['percorreo'] : null,
             'sexo' => $data['persexo'] !== '' ? $data['persexo'] : null,
+            'fecha_nacimiento' => ($data['perfechanacimiento'] ?? '') !== '' ? $data['perfechanacimiento'] : null,
+            'instruccion' => (int) ($data['istid'] ?? 0) > 0 ? (int) $data['istid'] : null,
+            'profesion' => ($data['perprofesion'] ?? '') !== '' ? $data['perprofesion'] : null,
+            'ocupacion' => ($data['perocupacion'] ?? '') !== '' ? $data['perocupacion'] : null,
+            'habla_ingles' => !empty($data['perhablaingles']),
         ]);
     }
 

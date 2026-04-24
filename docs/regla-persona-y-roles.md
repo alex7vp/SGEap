@@ -28,7 +28,7 @@ Ejemplos validos:
 
 ### 1. Persona como entidad base
 
-La tabla `persona` concentra los datos generales de identificacion:
+La tabla `persona` concentra los datos generales de identificacion y datos personales reutilizables:
 
 - cedula
 - nombres
@@ -36,6 +36,11 @@ La tabla `persona` concentra los datos generales de identificacion:
 - telefonos
 - correo
 - sexo
+- fecha de nacimiento
+- instruccion
+- profesion
+- ocupacion
+- habla ingles
 
 No guarda por si sola el papel funcional de la persona.
 
@@ -113,6 +118,11 @@ Soporte actual:
 - `familiar.perid -> persona.perid`
 - `familiar.pteid -> parentesco.pteid`
 - `UNIQUE (estid, perid, pteid)`
+
+Nota de transicion:
+
+- `familiar` todavia conserva algunos campos personales por compatibilidad con la logica actual.
+- El modelo objetivo del refactor es dejar esos datos en `persona` y usar `familiar` solo como tabla relacional.
 
 ### Representante
 
@@ -267,9 +277,13 @@ Con esa regla, no conviene guardar un campo unico tipo `rol_persona` en `persona
 
 ## Archivos Relacionados
 
+- `database/scripts/01_catalogos.sql`
+- `database/scripts/02_academico.sql`
 - `database/scripts/03_personas.sql`
 - `database/scripts/04_matriculacion.sql`
 - `database/scripts/05_seguridad.sql`
+- `database/scripts/06_triggers_reglas_negocio.sql`
 - `database/scripts/sgeap.sql`
+- `database/scripts/sgeap_triggers.sql`
 - `app/models/MatriculationModel.php`
 

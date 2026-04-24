@@ -1011,6 +1011,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const representativeExternalPersonId = document.querySelector('[data-representative-external-person-id]');
     const familyTemplate = document.querySelector('[data-family-template]');
     const familyAddButton = document.querySelector('[data-family-add]');
+    const healthConditionContainer = document.querySelector('[data-health-condition-rows]');
+    const healthConditionTemplate = document.querySelector('[data-health-condition-template]');
+    const healthConditionAddButton = document.querySelector('[data-health-condition-add]');
+    const imcWeightInput = document.querySelector('[data-imc-weight]');
+    const imcHeightInput = document.querySelector('[data-imc-height]');
+    const imcOutputInput = document.querySelector('[data-imc-output]');
 
     if (
         familyContainer instanceof HTMLElement
@@ -1065,6 +1071,63 @@ document.addEventListener('DOMContentLoaded', () => {
             const row = wrapper.firstElementChild;
 
             return row instanceof HTMLElement ? row : null;
+        };
+
+        const getNextHealthConditionIndex = () => {
+            const rows = Array.from(
+                (healthConditionContainer instanceof HTMLElement
+                    ? healthConditionContainer.querySelectorAll('[data-health-condition-row]')
+                    : [])
+            );
+
+            return rows.reduce((max, row) => {
+                if (!(row instanceof HTMLElement)) {
+                    return max;
+                }
+
+                const rowIndex = Number.parseInt(row.dataset.healthConditionIndex || '-1', 10);
+                return Number.isNaN(rowIndex) ? max : Math.max(max, rowIndex);
+            }, -1) + 1;
+        };
+
+        const createHealthConditionRow = (index) => {
+            if (!(healthConditionTemplate instanceof HTMLTemplateElement)) {
+                return null;
+            }
+
+            const wrapper = document.createElement('div');
+            wrapper.innerHTML = healthConditionTemplate.innerHTML.replace(/__INDEX__/g, String(index)).trim();
+            const row = wrapper.firstElementChild;
+
+            return row instanceof HTMLElement ? row : null;
+        };
+
+        const wireHealthConditionRow = (row) => {
+            if (!(row instanceof HTMLElement) || row.dataset.healthConditionBound === 'true') {
+                return;
+            }
+
+            row.dataset.healthConditionBound = 'true';
+
+            const removeButton = row.querySelector('[data-health-condition-remove]');
+
+            if (removeButton instanceof HTMLButtonElement) {
+                removeButton.addEventListener('click', () => {
+                    row.remove();
+
+                    if (
+                        healthConditionContainer instanceof HTMLElement
+                        && healthConditionContainer.querySelector('[data-health-condition-row]') === null
+                    ) {
+                        const fallbackRow = createHealthConditionRow(0);
+
+                        if (fallbackRow instanceof HTMLElement) {
+                            healthConditionContainer.appendChild(fallbackRow);
+                            wireHealthConditionRow(fallbackRow);
+                        }
+                    }
+                });
+            }
         };
 
         const setFamilyAlert = (row, message, type = 'error') => {
@@ -1122,7 +1185,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
             row.querySelectorAll('[data-family-dependent]').forEach((field) => {
                 if (field instanceof HTMLInputElement) {
-                    field.value = '';
+                    if (field.type === 'checkbox') {
+                        field.checked = false;
+                    } else {
+                        field.value = '';
+                    }
                 }
 
                 if (field instanceof HTMLSelectElement) {
@@ -1286,7 +1353,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
             representativeExternalForm.querySelectorAll('input, select').forEach((field) => {
                 if (field instanceof HTMLInputElement && field.type !== 'hidden') {
-                    field.value = '';
+                    if (field.type === 'checkbox') {
+                        field.checked = false;
+                    } else {
+                        field.value = '';
+                    }
                 }
 
                 if (field instanceof HTMLSelectElement) {
@@ -1478,7 +1549,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             return;
                         }
 
-                        const match = field.name.match(/\[(persexo|pernombres|perapellidos|pertelefono1|pertelefono2|percorreo)\]$/);
+                        const match = field.name.match(/\[(persexo|pernombres|perapellidos|pertelefono1|pertelefono2|percorreo|perfechanacimiento|istid|perprofesion|perocupacion|perhablaingles)\]$/);
 
                         if (!match) {
                             return;
@@ -1486,7 +1557,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
                         const key = match[1];
                         const nextValue = payload.person?.[key] ?? '';
-                        field.value = String(nextValue);
+
+                        if (field instanceof HTMLInputElement && field.type === 'checkbox') {
+                            field.checked = Boolean(nextValue);
+                        } else {
+                            field.value = String(nextValue);
+                        }
                     });
 
                     setFamilyFieldsDisabled(row, true);
@@ -1649,14 +1725,20 @@ document.addEventListener('DOMContentLoaded', () => {
                             return;
                         }
 
-                        const match = field.name.match(/\[(persexo|pernombres|perapellidos|pertelefono1|percorreo)\]$/);
+                        const match = field.name.match(/\[(persexo|pernombres|perapellidos|pertelefono1|percorreo|pertelefono2|perfechanacimiento|istid|perprofesion|perocupacion|perhablaingles)\]$/);
 
                         if (!match) {
                             return;
                         }
 
                         const key = match[1];
-                        field.value = String(payload.person?.[key] ?? '');
+                        const nextValue = payload.person?.[key] ?? '';
+
+                        if (field instanceof HTMLInputElement && field.type === 'checkbox') {
+                            field.checked = Boolean(nextValue);
+                        } else {
+                            field.value = String(nextValue);
+                        }
                     });
 
                     setRepresentativeExternalPersonFieldsDisabled(true);
@@ -1677,7 +1759,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 representativeExternalForm.querySelectorAll('[data-representative-external-person-field]').forEach((field) => {
                     if (field instanceof HTMLInputElement || field instanceof HTMLSelectElement) {
                         if (field instanceof HTMLInputElement) {
-                            field.value = '';
+                            if (field.type === 'checkbox') {
+                                field.checked = false;
+                            } else {
+                                field.value = '';
+                            }
                         } else {
                             field.selectedIndex = 0;
                         }
@@ -1704,6 +1790,36 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 updateFamilyCardTitles();
                 clearRepresentativeExternalForm();
+                if (healthConditionContainer instanceof HTMLElement) {
+                    healthConditionContainer.querySelectorAll('[data-health-condition-row]').forEach((row, index) => {
+                        if (!(row instanceof HTMLElement)) {
+                            return;
+                        }
+
+                        if (index === 0) {
+                            row.querySelectorAll('input, select, textarea').forEach((field) => {
+                                if (field instanceof HTMLInputElement) {
+                                    if (field.type === 'checkbox') {
+                                        field.checked = field.name.endsWith('[ecsavigente]');
+                                    } else {
+                                        field.value = '';
+                                    }
+                                }
+
+                                if (field instanceof HTMLSelectElement) {
+                                    field.selectedIndex = 0;
+                                }
+
+                                if (field instanceof HTMLTextAreaElement) {
+                                    field.value = '';
+                                }
+                            });
+                            return;
+                        }
+
+                        row.remove();
+                    });
+                }
                 if (representativeSourceInput instanceof HTMLInputElement) {
                     representativeSourceInput.value = 'family';
                 }
@@ -1741,11 +1857,42 @@ document.addEventListener('DOMContentLoaded', () => {
                         wireFamilyRow(row);
                     });
 
+                    const requiredHealthConditionIndexes = Object.keys(draftPayload)
+                        .map((name) => {
+                            const match = name.match(/^health_conditions\[(\d+)\]\[/);
+                            return match ? Number.parseInt(match[1], 10) : -1;
+                        })
+                        .filter((index) => index >= 0)
+                        .sort((left, right) => left - right);
+
+                    if (healthConditionContainer instanceof HTMLElement && requiredHealthConditionIndexes.length > 0) {
+                        healthConditionContainer.querySelectorAll('[data-health-condition-row]').forEach((row) => {
+                            if (row instanceof HTMLElement) {
+                                row.remove();
+                            }
+                        });
+
+                        requiredHealthConditionIndexes.forEach((index) => {
+                            const row = createHealthConditionRow(index);
+
+                            if (!(row instanceof HTMLElement)) {
+                                return;
+                            }
+
+                            healthConditionContainer.appendChild(row);
+                            wireHealthConditionRow(row);
+                        });
+                    }
+
                     Object.entries(draftPayload).forEach(([name, value]) => {
                         const field = matriculaForm.querySelector(`[name="${CSS.escape(name)}"]`);
 
                         if (field instanceof HTMLInputElement || field instanceof HTMLSelectElement || field instanceof HTMLTextAreaElement) {
-                            field.value = String(value);
+                            if (field instanceof HTMLInputElement && field.type === 'checkbox') {
+                                field.checked = ['1', 'true', 'on', 'yes'].includes(String(value).toLowerCase());
+                            } else {
+                                field.value = String(value);
+                            }
 
                             if (field instanceof HTMLInputElement && field.hasAttribute('data-phone-mask')) {
                                 field.dispatchEvent(new Event('input', { bubbles: true }));
@@ -1760,9 +1907,47 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         Array.from(familyContainer.querySelectorAll('[data-family-row]')).forEach(wireFamilyRow);
+        if (healthConditionContainer instanceof HTMLElement) {
+            Array.from(healthConditionContainer.querySelectorAll('[data-health-condition-row]')).forEach(wireHealthConditionRow);
+        }
         updateFamilyCardTitles();
         syncFixedFamilyVisibility();
         syncRepresentativeOptions();
+    }
+
+    if (healthConditionAddButton instanceof HTMLButtonElement && healthConditionContainer instanceof HTMLElement) {
+        healthConditionAddButton.addEventListener('click', () => {
+            const row = createHealthConditionRow(getNextHealthConditionIndex());
+
+            if (!(row instanceof HTMLElement)) {
+                return;
+            }
+
+            healthConditionContainer.appendChild(row);
+            wireHealthConditionRow(row);
+        });
+    }
+
+    if (
+        imcWeightInput instanceof HTMLInputElement
+        && imcHeightInput instanceof HTMLInputElement
+        && imcOutputInput instanceof HTMLInputElement
+    ) {
+        const syncImc = () => {
+            const peso = Number.parseFloat(imcWeightInput.value);
+            const talla = Number.parseFloat(imcHeightInput.value);
+
+            if (!Number.isFinite(peso) || !Number.isFinite(talla) || talla <= 0) {
+                imcOutputInput.value = '';
+                return;
+            }
+
+            imcOutputInput.value = (peso / (talla * talla)).toFixed(2);
+        };
+
+        imcWeightInput.addEventListener('input', syncImc);
+        imcHeightInput.addEventListener('input', syncImc);
+        syncImc();
     }
 
     if (matriculaForm instanceof HTMLFormElement) {

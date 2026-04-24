@@ -52,11 +52,14 @@ Los scripts SQL y semillas pueden ubicarse en:
 - `database/scripts/`
 - `database/seeds/`
 
-Orden sugerido de ejecucion de scripts:
+Orden sugerido de ejecucion de scripts modulares en una base nueva:
 
+- `database/scripts/01_catalogos.sql`
+- `database/scripts/02_academico.sql`
 - `database/scripts/03_personas.sql`
 - `database/scripts/04_matriculacion.sql`
-- `database/scripts/sgeap_triggers.sql`
+- `database/scripts/05_seguridad.sql`
+- `database/scripts/06_triggers_reglas_negocio.sql`
 
 Si se usa el consolidado general `database/scripts/sgeap.sql`, ejecutar luego `database/scripts/sgeap_triggers.sql`.
 

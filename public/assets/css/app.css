@@ -963,6 +963,34 @@ input::placeholder {
     box-shadow: 0 0 0 4px rgba(15, 76, 129, 0.12);
 }
 
+.switch-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 32px;
+    margin-bottom: 0;
+    padding: 0 10px;
+    border: 1px solid var(--border);
+    border-radius: 0;
+    background: #fbfdff;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.switch-card input[type="checkbox"] {
+    position: absolute;
+    opacity: 0;
+    width: 1px !important;
+    height: 1px;
+    pointer-events: none;
+}
+
+.switch-card .switch-control {
+    margin-left: auto;
+}
+
 .module-subnav {
     display: flex;
     flex-wrap: wrap;
@@ -1035,6 +1063,10 @@ input::placeholder {
     border: 1px solid var(--border);
     border-radius: 8px;
     background: #f8fbfe;
+}
+
+.health-condition-card {
+    border-style: dashed;
 }
 
 .family-card-header {
