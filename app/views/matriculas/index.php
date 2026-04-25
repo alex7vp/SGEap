@@ -31,10 +31,19 @@ $billingOld = array_merge([
     'mfctelefono' => '',
 ], is_array($old['billing'] ?? null) ? $old['billing'] : []);
 $familyContextOld = array_merge([
+    'ecfconvivecon_pteids' => [],
     'ecfconvivecon' => '',
     'ecfnumerohermanos' => '',
     'ecfposicionhermanos' => '',
 ], is_array($old['family_context'] ?? null) ? $old['family_context'] : []);
+$cohabitationSelectedIds = array_filter(array_map(
+    'intval',
+    (array) ($familyContextOld['ecfconvivecon_pteids'] ?? [])
+));
+$cohabitationSelectedNames = array_filter(array_map(
+    static fn (string $value): string => strtolower(trim($value)),
+    explode(',', (string) ($familyContextOld['ecfconvivecon'] ?? ''))
+));
 $housingOld = array_merge([
     'cviid' => 0,
     'estvdescripcion' => '',
@@ -154,6 +163,7 @@ $emptyRepresentativeRow = static function (): array {
         'percorreo' => '',
         'persexo' => '',
         'perfechanacimiento' => '',
+        'eciid' => 0,
         'istid' => 0,
         'perprofesion' => '',
         'perocupacion' => '',
@@ -288,7 +298,7 @@ $renderFamilyFields = static function (
         <?php else: ?>
             <div class="form-group"><div class="input-group"><span class="input-addon">Parentesco</span><select name="family[<?= htmlspecialchars((string) $index, ENT_QUOTES, 'UTF-8'); ?>][pteid]" data-family-field="parentesco" data-family-dependent data-submit-enable <?= $familyDisabledAttribute; ?>><option value="">Seleccione</option><?php foreach ($relationships as $relationship): ?><option value="<?= htmlspecialchars((string) $relationship['pteid'], ENT_QUOTES, 'UTF-8'); ?>" <?= (int) ($family['pteid'] ?? 0) === (int) $relationship['pteid'] ? 'selected' : ''; ?>><?= htmlspecialchars((string) $relationship['ptenombre'], ENT_QUOTES, 'UTF-8'); ?></option><?php endforeach; ?></select></div></div>
         <?php endif; ?>
-        <div class="form-group"><div class="input-group"><span class="input-addon">Estado civil</span><select name="family[<?= htmlspecialchars((string) $index, ENT_QUOTES, 'UTF-8'); ?>][eciid]" data-family-dependent data-submit-enable <?= $familyDisabledAttribute; ?>><option value="">Seleccione</option><?php foreach ($civilStatuses as $civilStatus): ?><option value="<?= htmlspecialchars((string) $civilStatus['eciid'], ENT_QUOTES, 'UTF-8'); ?>" <?= (int) ($family['eciid'] ?? 0) === (int) $civilStatus['eciid'] ? 'selected' : ''; ?>><?= htmlspecialchars((string) $civilStatus['ecinombre'], ENT_QUOTES, 'UTF-8'); ?></option><?php endforeach; ?></select></div></div>
+        <div class="form-group"><div class="input-group"><span class="input-addon">Estado civil</span><select name="family[<?= htmlspecialchars((string) $index, ENT_QUOTES, 'UTF-8'); ?>][eciid]" data-family-dependent data-family-person-field data-submit-enable <?= $personDisabledAttribute; ?>><option value="">Seleccione</option><?php foreach ($civilStatuses as $civilStatus): ?><option value="<?= htmlspecialchars((string) $civilStatus['eciid'], ENT_QUOTES, 'UTF-8'); ?>" <?= (int) ($family['eciid'] ?? 0) === (int) $civilStatus['eciid'] ? 'selected' : ''; ?>><?= htmlspecialchars((string) $civilStatus['ecinombre'], ENT_QUOTES, 'UTF-8'); ?></option><?php endforeach; ?></select></div></div>
         <div class="form-group"><div class="input-group"><span class="input-addon">Instruccion</span><select name="family[<?= htmlspecialchars((string) $index, ENT_QUOTES, 'UTF-8'); ?>][istid]" data-family-dependent data-submit-enable <?= $familyDisabledAttribute; ?>><option value="">Seleccione</option><?php foreach ($instructionLevels as $instructionLevel): ?><option value="<?= htmlspecialchars((string) $instructionLevel['istid'], ENT_QUOTES, 'UTF-8'); ?>" <?= (int) ($family['istid'] ?? 0) === (int) $instructionLevel['istid'] ? 'selected' : ''; ?>><?= htmlspecialchars((string) $instructionLevel['istnombre'], ENT_QUOTES, 'UTF-8'); ?></option><?php endforeach; ?></select></div></div>
         <div class="form-group"><div class="input-group"><span class="input-addon">Nacimiento</span><input name="family[<?= htmlspecialchars((string) $index, ENT_QUOTES, 'UTF-8'); ?>][perfechanacimiento]" type="date" value="<?= htmlspecialchars((string) ($family['perfechanacimiento'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" data-family-dependent data-family-person-field data-submit-enable <?= $personDisabledAttribute; ?>></div></div>
         <div class="form-group"><div class="input-group"><span class="input-addon">Celular</span><input name="family[<?= htmlspecialchars((string) $index, ENT_QUOTES, 'UTF-8'); ?>][pertelefono1]" placeholder="(09) 9894 5698" maxlength="14" inputmode="numeric" value="<?= htmlspecialchars((string) ($family['pertelefono1'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" data-phone-mask data-family-dependent data-family-person-field data-submit-enable <?= $personDisabledAttribute; ?>></div></div>
@@ -406,16 +416,7 @@ $healthConditionTemplate = ob_get_clean();
                         <div class="form-group"><div class="input-group"><span class="input-addon">Apellidos</span><input name="person[perapellidos]" required value="<?= htmlspecialchars((string) ($old['person']['perapellidos'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>"></div></div>
                         <div class="form-group"><div class="input-group"><span class="input-addon">Celular</span><input name="person[pertelefono1]" placeholder="(09) 9894 5698" maxlength="14" inputmode="numeric" value="<?= htmlspecialchars((string) ($old['person']['pertelefono1'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" data-phone-mask></div></div>
                         <div class="form-group"><div class="input-group"><span class="input-addon">Fijo</span><input name="person[pertelefono2]" value="<?= htmlspecialchars((string) ($old['person']['pertelefono2'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>"></div></div>
-                        <div class="form-group"><div class="input-group"><span class="input-addon">Profesion</span><input name="person[perprofesion]" value="<?= htmlspecialchars((string) ($old['person']['perprofesion'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>"></div></div>
-                        <div class="form-group"><div class="input-group"><span class="input-addon">Ocupacion</span><input name="person[perocupacion]" value="<?= htmlspecialchars((string) ($old['person']['perocupacion'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>"></div></div>
                         <div class="form-group form-group-full"><div class="input-group"><span class="input-addon">E-mail</span><input name="person[percorreo]" type="email" value="<?= htmlspecialchars((string) ($old['person']['percorreo'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>"></div></div>
-                        <label class="resource-option resource-option-switch family-switch-inline">
-                            <span>Habla ingles</span>
-                            <span class="switch-control">
-                                <input type="checkbox" name="person[perhablaingles]" value="1" <?= !empty($old['person']['perhablaingles']) ? 'checked' : ''; ?>>
-                                <span class="switch-slider" aria-hidden="true"></span>
-                            </span>
-                        </label>
                     </div>
                     <div class="actions-row">
                         <button class="btn-secondary btn-inline" type="button" data-matricula-draft-save>Guardar</button>
@@ -640,6 +641,7 @@ $healthConditionTemplate = ob_get_clean();
                         <div class="form-grid">
                             <div class="form-group"><div class="input-group"><span class="input-addon">Sexo</span><select name="representative_external[persexo]" data-representative-external-person-field><option value="">Seleccione</option><option value="Masculino" <?= ($externalRepresentative['persexo'] ?? '') === 'Masculino' ? 'selected' : ''; ?>>Masculino</option><option value="Femenino" <?= ($externalRepresentative['persexo'] ?? '') === 'Femenino' ? 'selected' : ''; ?>>Femenino</option></select></div></div>
                             <div class="form-group"><div class="input-group"><span class="input-addon">Nacimiento</span><input name="representative_external[perfechanacimiento]" type="date" value="<?= htmlspecialchars((string) ($externalRepresentative['perfechanacimiento'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" data-representative-external-person-field></div></div>
+                            <div class="form-group"><div class="input-group"><span class="input-addon">Estado civil</span><select name="representative_external[eciid]" data-representative-external-person-field><option value="">Seleccione</option><?php foreach ($civilStatuses as $civilStatus): ?><option value="<?= htmlspecialchars((string) $civilStatus['eciid'], ENT_QUOTES, 'UTF-8'); ?>" <?= (int) ($externalRepresentative['eciid'] ?? 0) === (int) $civilStatus['eciid'] ? 'selected' : ''; ?>><?= htmlspecialchars((string) $civilStatus['ecinombre'], ENT_QUOTES, 'UTF-8'); ?></option><?php endforeach; ?></select></div></div>
                             <div class="form-group"><div class="input-group"><span class="input-addon">Nombres</span><input name="representative_external[pernombres]" value="<?= htmlspecialchars((string) ($externalRepresentative['pernombres'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" data-representative-external-person-field></div></div>
                             <div class="form-group"><div class="input-group"><span class="input-addon">Apellidos</span><input name="representative_external[perapellidos]" value="<?= htmlspecialchars((string) ($externalRepresentative['perapellidos'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" data-representative-external-person-field></div></div>
                             <div class="form-group"><div class="input-group"><span class="input-addon">Parentesco</span><select name="representative_external[pteid]" data-representative-external-detail-field><option value="">Seleccione</option><?php foreach ($relationships as $relationship): ?><option value="<?= htmlspecialchars((string) $relationship['pteid'], ENT_QUOTES, 'UTF-8'); ?>" <?= (int) ($externalRepresentative['pteid'] ?? 0) === (int) $relationship['pteid'] ? 'selected' : ''; ?>><?= htmlspecialchars((string) $relationship['ptenombre'], ENT_QUOTES, 'UTF-8'); ?></option><?php endforeach; ?></select></div></div>
@@ -762,7 +764,31 @@ $healthConditionTemplate = ob_get_clean();
 
                 <section class="wizard-panel" data-wizard-panel="contexto-familiar" hidden>
                     <div class="form-grid">
-                        <div class="form-group form-group-full"><div class="input-group"><span class="input-addon">Convive con</span><input name="family_context[ecfconvivecon]" value="<?= htmlspecialchars((string) ($familyContextOld['ecfconvivecon'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>"></div></div>
+                        <div class="form-group form-group-full">
+                            <div class="input-group">
+                                <span class="input-addon">Convive con</span>
+                                <div class="resource-grid cohabitation-grid">
+                                    <?php foreach ($relationships as $relationship): ?>
+                                        <?php
+                                            $relationshipId = (int) ($relationship['pteid'] ?? 0);
+                                            $relationshipName = (string) ($relationship['ptenombre'] ?? '');
+                                            $relationshipKey = strtolower(trim($relationshipName));
+                                            $isSelected = in_array($relationshipId, $cohabitationSelectedIds, true)
+                                                || ($cohabitationSelectedIds === [] && in_array($relationshipKey, $cohabitationSelectedNames, true));
+                                        ?>
+                                        <label class="resource-option">
+                                            <span><?= htmlspecialchars($relationshipName, ENT_QUOTES, 'UTF-8'); ?></span>
+                                            <input
+                                                type="checkbox"
+                                                name="family_context[ecfconvivecon_pteids][<?= htmlspecialchars((string) $relationshipId, ENT_QUOTES, 'UTF-8'); ?>]"
+                                                value="<?= htmlspecialchars((string) $relationshipId, ENT_QUOTES, 'UTF-8'); ?>"
+                                                <?= $isSelected ? 'checked' : ''; ?>
+                                            >
+                                        </label>
+                                    <?php endforeach; ?>
+                                </div>
+                            </div>
+                        </div>
                         <div class="form-group"><div class="input-group"><span class="input-addon">No. hermanos</span><input name="family_context[ecfnumerohermanos]" type="number" min="0" value="<?= htmlspecialchars((string) ($familyContextOld['ecfnumerohermanos'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>"></div></div>
                         <div class="form-group"><div class="input-group"><span class="input-addon">Posicion</span><input name="family_context[ecfposicionhermanos]" placeholder="Ej: 1ro de 3" value="<?= htmlspecialchars((string) ($familyContextOld['ecfposicionhermanos'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>"></div></div>
                     </div>

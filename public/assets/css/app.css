@@ -176,6 +176,7 @@ input[type="search"]::-webkit-search-cancel-button {
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    flex: 0 0 auto;
     min-width: 88px;
     padding: 6px 8px;
     background: linear-gradient(180deg, #e6eef6 0%, #d8e4ef 100%);
@@ -881,6 +882,20 @@ input::placeholder {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     gap: 12px;
+}
+
+.cohabitation-grid {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 6px 8px;
+}
+
+.cohabitation-grid .resource-option {
+    flex: 0 1 150px;
+    margin-bottom: 0;
 }
 
 .resource-option {
@@ -1718,12 +1733,14 @@ a.btn-primary.btn-icon-only.btn-icon-small:hover {
     justify-content: flex-end;
 }
 
+.btn-purple,
 .dashboard-periods-button {
     background: #6d43a8;
     border-color: #6d43a8;
     color: #ffffff;
 }
 
+.btn-purple:hover,
 .dashboard-periods-button:hover {
     background: #d4e4f1;
     border-color: #d4e4f1;

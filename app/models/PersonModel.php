@@ -23,6 +23,17 @@ class PersonModel extends Model
         return $statement->fetchAll();
     }
 
+    public function allCivilStatuses(): array
+    {
+        $statement = $this->db->query(
+            "SELECT eciid, ecinombre
+             FROM estado_civil
+             ORDER BY ecinombre ASC"
+        );
+
+        return $statement->fetchAll();
+    }
+
     public function allOrdered(): array
     {
         return $this->search();
@@ -40,6 +51,7 @@ class PersonModel extends Model
                 percorreo,
                 persexo,
                 perfechanacimiento,
+                eciid,
                 istid,
                 perprofesion,
                 perocupacion,
@@ -53,6 +65,7 @@ class PersonModel extends Model
                 :correo,
                 :sexo,
                 :fecha_nacimiento,
+                :estado_civil,
                 :instruccion,
                 :profesion,
                 :ocupacion,
@@ -70,10 +83,11 @@ class PersonModel extends Model
             'correo' => $data['percorreo'] !== '' ? $data['percorreo'] : null,
             'sexo' => $data['persexo'] !== '' ? $data['persexo'] : null,
             'fecha_nacimiento' => ($data['perfechanacimiento'] ?? '') !== '' ? $data['perfechanacimiento'] : null,
+            'estado_civil' => (int) ($data['eciid'] ?? 0) > 0 ? (int) $data['eciid'] : null,
             'instruccion' => (int) ($data['istid'] ?? 0) > 0 ? (int) $data['istid'] : null,
             'profesion' => ($data['perprofesion'] ?? '') !== '' ? $data['perprofesion'] : null,
             'ocupacion' => ($data['perocupacion'] ?? '') !== '' ? $data['perocupacion'] : null,
-            'habla_ingles' => !empty($data['perhablaingles']),
+            'habla_ingles' => $this->booleanSqlValue($data['perhablaingles'] ?? false),
         ]);
 
         return (int) $statement->fetchColumn();
@@ -113,7 +127,7 @@ class PersonModel extends Model
     {
         $statement = $this->db->prepare(
             "SELECT perid, percedula, pernombres, perapellidos, pertelefono1, pertelefono2,
-                    percorreo, persexo, perfechanacimiento, istid, perprofesion, perocupacion, perhablaingles
+                    percorreo, persexo, perfechanacimiento, eciid, istid, perprofesion, perocupacion, perhablaingles
              FROM {$this->table}
              WHERE percedula = :cedula
              LIMIT 1"
@@ -130,7 +144,7 @@ class PersonModel extends Model
         if ($normalizedTerm === '') {
             $statement = $this->db->query(
                 "SELECT perid, percedula, pernombres, perapellidos, pertelefono1, pertelefono2,
-                        percorreo, persexo, perfechanacimiento, istid, perprofesion, perocupacion, perhablaingles
+                        percorreo, persexo, perfechanacimiento, eciid, istid, perprofesion, perocupacion, perhablaingles
                  FROM {$this->table}
                  ORDER BY perapellidos ASC, pernombres ASC"
             );
@@ -140,7 +154,7 @@ class PersonModel extends Model
 
         $statement = $this->db->prepare(
             "SELECT perid, percedula, pernombres, perapellidos, pertelefono1, pertelefono2,
-                    percorreo, persexo, perfechanacimiento, istid, perprofesion, perocupacion, perhablaingles
+                    percorreo, persexo, perfechanacimiento, eciid, istid, perprofesion, perocupacion, perhablaingles
              FROM {$this->table}
              WHERE percedula ILIKE :term
                 OR pernombres ILIKE :term
@@ -167,6 +181,7 @@ class PersonModel extends Model
                  percorreo = :correo,
                  persexo = :sexo,
                  perfechanacimiento = :fecha_nacimiento,
+                 eciid = :estado_civil,
                  istid = :instruccion,
                  perprofesion = :profesion,
                  perocupacion = :ocupacion,
@@ -184,10 +199,49 @@ class PersonModel extends Model
             'correo' => $data['percorreo'] !== '' ? $data['percorreo'] : null,
             'sexo' => $data['persexo'] !== '' ? $data['persexo'] : null,
             'fecha_nacimiento' => ($data['perfechanacimiento'] ?? '') !== '' ? $data['perfechanacimiento'] : null,
+            'estado_civil' => (int) ($data['eciid'] ?? 0) > 0 ? (int) $data['eciid'] : null,
             'instruccion' => (int) ($data['istid'] ?? 0) > 0 ? (int) $data['istid'] : null,
             'profesion' => ($data['perprofesion'] ?? '') !== '' ? $data['perprofesion'] : null,
             'ocupacion' => ($data['perocupacion'] ?? '') !== '' ? $data['perocupacion'] : null,
-            'habla_ingles' => !empty($data['perhablaingles']),
+            'habla_ingles' => $this->booleanSqlValue($data['perhablaingles'] ?? false),
+        ]);
+    }
+
+    public function updateBasic(int $personId, array $data): void
+    {
+        $statement = $this->db->prepare(
+            "UPDATE {$this->table}
+             SET percedula = :cedula,
+                 pernombres = :nombres,
+                 perapellidos = :apellidos,
+                 pertelefono1 = :telefono1,
+                 pertelefono2 = :telefono2,
+                 percorreo = :correo,
+                 persexo = :sexo,
+                 perfechanacimiento = :fecha_nacimiento,
+                 eciid = :estado_civil,
+                 istid = :instruccion,
+                 perprofesion = :profesion,
+                 perocupacion = :ocupacion,
+                 perhablaingles = :habla_ingles
+             WHERE perid = :perid"
+        );
+
+        $statement->execute([
+            'perid' => $personId,
+            'cedula' => $data['percedula'],
+            'nombres' => $data['pernombres'],
+            'apellidos' => $data['perapellidos'],
+            'telefono1' => $data['pertelefono1'] !== '' ? $data['pertelefono1'] : null,
+            'telefono2' => $data['pertelefono2'] !== '' ? $data['pertelefono2'] : null,
+            'correo' => $data['percorreo'] !== '' ? $data['percorreo'] : null,
+            'sexo' => $data['persexo'] !== '' ? $data['persexo'] : null,
+            'fecha_nacimiento' => ($data['perfechanacimiento'] ?? '') !== '' ? $data['perfechanacimiento'] : null,
+            'estado_civil' => (int) ($data['eciid'] ?? 0) > 0 ? (int) $data['eciid'] : null,
+            'instruccion' => (int) ($data['istid'] ?? 0) > 0 ? (int) $data['istid'] : null,
+            'profesion' => ($data['perprofesion'] ?? '') !== '' ? $data['perprofesion'] : null,
+            'ocupacion' => ($data['perocupacion'] ?? '') !== '' ? $data['perocupacion'] : null,
+            'habla_ingles' => $this->booleanSqlValue($data['perhablaingles'] ?? false),
         ]);
     }
 
@@ -226,5 +280,18 @@ class PersonModel extends Model
         );
 
         return (int) $statement->fetchColumn();
+    }
+
+    private function booleanSqlValue(mixed $value): string
+    {
+        if (is_bool($value)) {
+            return $value ? 'true' : 'false';
+        }
+
+        $normalized = strtolower(trim((string) $value));
+
+        return in_array($normalized, ['1', 'true', 't', 'yes', 'si', 'on'], true)
+            ? 'true'
+            : 'false';
     }
 }

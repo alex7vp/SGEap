@@ -213,7 +213,15 @@ class PersonalModel extends Model
                 p.pernombres,
                 p.perapellidos,
                 p.pertelefono1,
-                p.percorreo
+                p.pertelefono2,
+                p.percorreo,
+                p.persexo,
+                p.perfechanacimiento,
+                p.eciid,
+                p.istid,
+                p.perprofesion,
+                p.perocupacion,
+                p.perhablaingles
              FROM {$this->table} ps
              INNER JOIN persona p ON p.perid = ps.perid
              WHERE ps.psnid = :id

@@ -44,6 +44,20 @@ require BASE_PATH . '/app/views/partials/header.php';
 
         <div class="form-group">
             <div class="input-group">
+                <span class="input-addon">Estado civil</span>
+                <select id="eciid" name="eciid">
+                    <option value="">Seleccione una opcion</option>
+                    <?php foreach (($civilStatuses ?? []) as $civilStatus): ?>
+                        <option value="<?= htmlspecialchars((string) $civilStatus['eciid'], ENT_QUOTES, 'UTF-8'); ?>" <?= (string) ($old['eciid'] ?? '') === (string) $civilStatus['eciid'] ? 'selected' : ''; ?>>
+                            <?= htmlspecialchars((string) $civilStatus['ecinombre'], ENT_QUOTES, 'UTF-8'); ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <div class="input-group">
                 <span class="input-addon">Nombres</span>
                 <input id="pernombres" name="pernombres" placeholder="Ingrese los nombres" required value="<?= htmlspecialchars((string) ($old['pernombres'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>">
             </div>

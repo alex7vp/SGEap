@@ -217,6 +217,7 @@ class MatriculationModel extends Model
             $representative = $this->resolveRepresentative($studentPersonId, $data['representative'] ?? [], $familyRepresentatives);
 
             $this->upsertStudentFamilyContext($studentId, $data['family_context'] ?? []);
+            $this->replaceStudentCohabitation($studentId, $data['family_context']['ecfconvivecon_pteids'] ?? []);
             $this->upsertStudentHousing($studentId, $data['housing'] ?? []);
             $this->upsertStudentHealthContext($studentId, $data['health_context'] ?? []);
             $this->replaceStudentHealthConditions($studentId, $data['health_conditions'] ?? []);
@@ -278,6 +279,7 @@ class MatriculationModel extends Model
                      percorreo = :correo,
                      persexo = :sexo,
                      perfechanacimiento = :birth_date,
+                     eciid = :civil_status,
                      istid = :instruction_level,
                      perprofesion = :profession,
                      perocupacion = :occupation,
@@ -293,6 +295,7 @@ class MatriculationModel extends Model
                 'correo' => $person['percorreo'] !== '' ? $person['percorreo'] : null,
                 'sexo' => $person['persexo'] !== '' ? $person['persexo'] : null,
                 'birth_date' => ($person['perfechanacimiento'] ?? '') !== '' ? $person['perfechanacimiento'] : null,
+                'civil_status' => (int) ($person['eciid'] ?? 0) > 0 ? (int) $person['eciid'] : null,
                 'instruction_level' => (int) ($person['istid'] ?? 0) > 0 ? (int) $person['istid'] : null,
                 'profession' => ($person['perprofesion'] ?? '') !== '' ? $person['perprofesion'] : null,
                 'occupation' => ($person['perocupacion'] ?? '') !== '' ? $person['perocupacion'] : null,
@@ -305,10 +308,10 @@ class MatriculationModel extends Model
         $statement = $this->db->prepare(
             "INSERT INTO persona (
                 percedula, pernombres, perapellidos, pertelefono1, pertelefono2, percorreo, persexo,
-                perfechanacimiento, istid, perprofesion, perocupacion, perhablaingles
+                perfechanacimiento, eciid, istid, perprofesion, perocupacion, perhablaingles
              ) VALUES (
                 :cedula, :nombres, :apellidos, :telefono1, :telefono2, :correo, :sexo,
-                :birth_date, :instruction_level, :profession, :occupation, :speaks_english
+                :birth_date, :civil_status, :instruction_level, :profession, :occupation, :speaks_english
              ) RETURNING perid"
         );
         $statement->execute([
@@ -320,6 +323,7 @@ class MatriculationModel extends Model
             'correo' => $person['percorreo'] !== '' ? $person['percorreo'] : null,
             'sexo' => $person['persexo'] !== '' ? $person['persexo'] : null,
             'birth_date' => ($person['perfechanacimiento'] ?? '') !== '' ? $person['perfechanacimiento'] : null,
+            'civil_status' => (int) ($person['eciid'] ?? 0) > 0 ? (int) $person['eciid'] : null,
             'instruction_level' => (int) ($person['istid'] ?? 0) > 0 ? (int) $person['istid'] : null,
             'profession' => ($person['perprofesion'] ?? '') !== '' ? $person['perprofesion'] : null,
             'occupation' => ($person['perocupacion'] ?? '') !== '' ? $person['perocupacion'] : null,
@@ -467,6 +471,7 @@ class MatriculationModel extends Model
                 'percorreo' => $family['percorreo'] ?? '',
                 'persexo' => $family['persexo'] ?? '',
                 'perfechanacimiento' => $family['perfechanacimiento'] ?? '',
+                'eciid' => $family['eciid'] ?? 0,
                 'istid' => $family['istid'] ?? 0,
                 'perprofesion' => $family['perprofesion'] ?? '',
                 'perocupacion' => $family['perocupacion'] ?? '',
@@ -513,6 +518,7 @@ class MatriculationModel extends Model
                 'percorreo' => $external['percorreo'] ?? '',
                 'persexo' => $external['persexo'] ?? '',
                 'perfechanacimiento' => $external['perfechanacimiento'] ?? '',
+                'eciid' => $external['eciid'] ?? 0,
                 'istid' => $external['istid'] ?? 0,
                 'perprofesion' => $external['perprofesion'] ?? '',
                 'perocupacion' => $external['perocupacion'] ?? '',
@@ -549,13 +555,11 @@ class MatriculationModel extends Model
         if ($existing !== false) {
             $statement = $this->db->prepare(
                 "UPDATE familiar
-                 SET eciid = :civil_status,
-                     famlugardetrabajo = :workplace
+                 SET famlugardetrabajo = :workplace
                  WHERE famid = :id"
             );
             $statement->execute([
                 'id' => $existing['famid'],
-                'civil_status' => (int) ($family['eciid'] ?? 0) > 0 ? (int) $family['eciid'] : null,
                 'workplace' => ($family['famlugardetrabajo'] ?? '') !== '' ? $family['famlugardetrabajo'] : null,
             ]);
 
@@ -564,16 +568,15 @@ class MatriculationModel extends Model
 
         $statement = $this->db->prepare(
             "INSERT INTO familiar (
-                estid, perid, pteid, eciid, famlugardetrabajo
+                estid, perid, pteid, famlugardetrabajo
              ) VALUES (
-                :student_id, :person_id, :relationship_id, :civil_status, :workplace
+                :student_id, :person_id, :relationship_id, :workplace
              )"
         );
         $statement->execute([
             'student_id' => $studentId,
             'person_id' => $personId,
             'relationship_id' => $family['pteid'],
-            'civil_status' => (int) ($family['eciid'] ?? 0) > 0 ? (int) $family['eciid'] : null,
             'workplace' => ($family['famlugardetrabajo'] ?? '') !== '' ? $family['famlugardetrabajo'] : null,
         ]);
     }
@@ -666,6 +669,42 @@ class MatriculationModel extends Model
              )"
         );
         $statement->execute($payload);
+    }
+
+    private function replaceStudentCohabitation(int $studentId, array $relationshipIds): void
+    {
+        $deleteStatement = $this->db->prepare(
+            "DELETE FROM estudiante_convive_con
+             WHERE estid = :student_id"
+        );
+        $deleteStatement->execute(['student_id' => $studentId]);
+
+        $normalizedIds = [];
+
+        foreach ($relationshipIds as $relationshipId) {
+            $id = (int) $relationshipId;
+
+            if ($id > 0 && !in_array($id, $normalizedIds, true)) {
+                $normalizedIds[] = $id;
+            }
+        }
+
+        if ($normalizedIds === []) {
+            return;
+        }
+
+        $insertStatement = $this->db->prepare(
+            "INSERT INTO estudiante_convive_con (estid, pteid)
+             VALUES (:student_id, :relationship_id)
+             ON CONFLICT (estid, pteid) DO NOTHING"
+        );
+
+        foreach ($normalizedIds as $relationshipId) {
+            $insertStatement->execute([
+                'student_id' => $studentId,
+                'relationship_id' => $relationshipId,
+            ]);
+        }
     }
 
     private function upsertStudentHousing(int $studentId, array $housing): void
@@ -984,7 +1023,7 @@ class MatriculationModel extends Model
     private function findPersonByCedula(string $cedula): array|false
     {
         $statement = $this->db->prepare(
-            "SELECT perid, percedula
+            "SELECT perid, percedula, eciid
              FROM persona
              WHERE percedula = :cedula
              LIMIT 1"

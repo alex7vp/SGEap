@@ -14,6 +14,77 @@ INSERT INTO nivel_educativo (nednombre) VALUES
 ('Bachillerato General Unificado')
 ON CONFLICT (nednombre) DO NOTHING;
 
+INSERT INTO condicion_vivienda (cvinombre) VALUES
+('PROPIA'),
+('ARRENDADA'),
+('PRESTADA'),
+('ANTICRESIS'),
+('CON_PRESTAMO')
+ON CONFLICT (cvinombre) DO NOTHING;
+
+INSERT INTO grupo_sanguineo (gsnombre) VALUES
+('A+'),
+('A-'),
+('B+'),
+('B-'),
+('AB+'),
+('AB-'),
+('O+'),
+('O-')
+ON CONFLICT (gsnombre) DO NOTHING;
+
+INSERT INTO atencion_medica (amnombre) VALUES
+('CENTRO_SALUD'),
+('SUBCENTRO_SALUD'),
+('HOSPITAL_PUBLICO'),
+('HOSPITAL_PRIVADO')
+ON CONFLICT (amnombre) DO NOTHING;
+
+INSERT INTO tipo_condicion_salud (tcsnombre) VALUES
+('ALERGIA'),
+('ENFERMEDAD'),
+('CONDICION_MEDICA'),
+('ACCIDENTE'),
+('CIRUGIA'),
+('PERDIDA_CONOCIMIENTO'),
+('OTRO')
+ON CONFLICT (tcsnombre) DO NOTHING;
+
+INSERT INTO seguro_medico (smnombre, smactivo) VALUES
+('IESS', true),
+('ISSFA', true),
+('ISSPOL', true),
+('Seguro privado', true),
+('Ninguno', true)
+ON CONFLICT (smnombre) DO NOTHING;
+
+INSERT INTO tipo_embarazo (tenombre) VALUES
+('TERMINO'),
+('PREMATURO')
+ON CONFLICT (tenombre) DO NOTHING;
+
+INSERT INTO tipo_parto (tpnombre) VALUES
+('CESAREA'),
+('PARTO_NORMAL')
+ON CONFLICT (tpnombre) DO NOTHING;
+
+INSERT INTO documento_matricula (
+    domnombre,
+    domdescripcion,
+    domtipo,
+    domorigen,
+    domurl,
+    domplantilla_archivo,
+    domplantilla_extension,
+    domobligatorio,
+    domactivo
+) VALUES
+('Cedula del estudiante', 'Copia de cedula o documento de identidad del estudiante', 'ESTATICO', 'URL', '#', NULL, NULL, true, true),
+('Cedula del representante', 'Copia de cedula o documento de identidad del representante', 'ESTATICO', 'URL', '#', NULL, NULL, true, true),
+('Certificado de promocion', 'Certificado de promocion o pase de ano anterior', 'ESTATICO', 'URL', '#', NULL, NULL, true, true),
+('Ficha de matricula', 'Plantilla institucional de ficha de matricula', 'PLANTILLA', 'ARCHIVO', NULL, 'ficha_matricula.docx', 'DOCX', true, true)
+ON CONFLICT (domnombre) DO NOTHING;
+
 INSERT INTO grado (nedid, granombre)
 SELECT nedid, 'Inicial 1'
 FROM nivel_educativo
@@ -107,8 +178,7 @@ ON CONFLICT (nedid, granombre) DO NOTHING;
 INSERT INTO parentesco (ptenombre) VALUES
 ('Padre'),
 ('Madre'),
-('Hermano'),
-('Hermana'),
+('Hermano/Hermana'),
 ('Abuelo/Abuela'),
 ('Tio/Tia'),
 ('Tutor'),
@@ -128,6 +198,7 @@ ON CONFLICT (ecinombre) DO NOTHING;
 INSERT INTO instruccion (istnombre) VALUES
 ('Sin instruccion'),
 ('Primaria'),
+('Secundaria'),
 ('Bachiller'),
 ('Tercer Nivel'),
 ('Cuarto Nivel'),

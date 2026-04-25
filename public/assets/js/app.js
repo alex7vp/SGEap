@@ -1549,7 +1549,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             return;
                         }
 
-                        const match = field.name.match(/\[(persexo|pernombres|perapellidos|pertelefono1|pertelefono2|percorreo|perfechanacimiento|istid|perprofesion|perocupacion|perhablaingles)\]$/);
+                        const match = field.name.match(/\[(persexo|pernombres|perapellidos|pertelefono1|pertelefono2|percorreo|perfechanacimiento|eciid|istid|perprofesion|perocupacion|perhablaingles)\]$/);
 
                         if (!match) {
                             return;
@@ -1725,7 +1725,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             return;
                         }
 
-                        const match = field.name.match(/\[(persexo|pernombres|perapellidos|pertelefono1|percorreo|pertelefono2|perfechanacimiento|istid|perprofesion|perocupacion|perhablaingles)\]$/);
+                        const match = field.name.match(/\[(persexo|pernombres|perapellidos|pertelefono1|percorreo|pertelefono2|perfechanacimiento|eciid|istid|perprofesion|perocupacion|perhablaingles)\]$/);
 
                         if (!match) {
                             return;

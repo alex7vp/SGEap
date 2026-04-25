@@ -49,6 +49,7 @@ class PersonalController extends Controller
     {
         $user = $this->requireAuth();
         $personalModel = new PersonalModel();
+        $personModel = new PersonModel();
 
         $this->view('personal.registro', [
             'appName' => config('app')['name'] ?? 'SGEap',
@@ -56,6 +57,8 @@ class PersonalController extends Controller
             'currentSection' => 'personal_register',
             'user' => $user,
             'staffTypes' => $personalModel->activeTypes(),
+            'civilStatuses' => $personModel->allCivilStatuses(),
+            'instructionLevels' => $personModel->allInstructionLevels(),
             'error' => sessionFlash('error'),
             'old' => $this->registrationFormOldData(),
         ]);
@@ -86,6 +89,7 @@ class PersonalController extends Controller
         $staffId = (int) ($_GET['id'] ?? 0);
         $personalModel = new PersonalModel();
         $staff = $personalModel->findDetailed($staffId);
+        $personModel = new PersonModel();
 
         if ($staff === false) {
             sessionFlash('error', 'El personal solicitado no existe.');
@@ -98,6 +102,8 @@ class PersonalController extends Controller
             'currentSection' => 'personal_listing',
             'user' => $user,
             'staff' => $staff,
+            'civilStatuses' => $personModel->allCivilStatuses(),
+            'instructionLevels' => $personModel->allInstructionLevels(),
             'error' => sessionFlash('error'),
             'old' => [
                 'psnid' => (string) $staff['psnid'],
@@ -109,6 +115,12 @@ class PersonalController extends Controller
                 'pertelefono2' => sessionFlash('old_staff_person_phone2') ?? (string) ($staff['pertelefono2'] ?? ''),
                 'percorreo' => sessionFlash('old_staff_person_email') ?? (string) ($staff['percorreo'] ?? ''),
                 'persexo' => sessionFlash('old_staff_person_gender') ?? (string) ($staff['persexo'] ?? ''),
+                'perfechanacimiento' => sessionFlash('old_staff_person_birth_date') ?? (string) ($staff['perfechanacimiento'] ?? ''),
+                'eciid' => sessionFlash('old_staff_person_civil_status') ?? (string) ($staff['eciid'] ?? ''),
+                'istid' => sessionFlash('old_staff_person_instruction') ?? (string) ($staff['istid'] ?? ''),
+                'perprofesion' => sessionFlash('old_staff_person_profession') ?? (string) ($staff['perprofesion'] ?? ''),
+                'perocupacion' => sessionFlash('old_staff_person_occupation') ?? (string) ($staff['perocupacion'] ?? ''),
+                'perhablaingles' => sessionFlash('old_staff_person_speaks_english') ?? (!empty($staff['perhablaingles']) ? '1' : '0'),
                 'psnfechacontratacion' => sessionFlash('old_staff_hire_date') ?? (string) ($staff['psnfechacontratacion'] ?? ''),
                 'psnfechasalida' => sessionFlash('old_staff_exit_date') ?? (string) ($staff['psnfechasalida'] ?? ''),
                 'psnestado' => sessionFlash('old_staff_status') ?? (!empty($staff['psnestado']) ? '1' : '0'),
@@ -201,7 +213,7 @@ class PersonalController extends Controller
                 $personId = $personModel->create($personData);
             } else {
                 $personId = (int) $existingPerson['perid'];
-                $personModel->update($personId, $personData);
+                $personModel->updateBasic($personId, $personData);
             }
 
             $staffId = $personalModel->create(array_merge(
@@ -284,7 +296,7 @@ class PersonalController extends Controller
         $db->beginTransaction();
 
         try {
-            $personModel->update($personId, $personData);
+            $personModel->updateBasic($personId, $personData);
             $personalModel->update($staffId, $staffData);
             $db->commit();
         } catch (\Throwable $exception) {
@@ -394,6 +406,12 @@ class PersonalController extends Controller
             'pertelefono2' => trim((string) ($_POST['pertelefono2'] ?? '')),
             'percorreo' => trim((string) ($_POST['percorreo'] ?? '')),
             'persexo' => trim((string) ($_POST['persexo'] ?? '')),
+            'perfechanacimiento' => trim((string) ($_POST['perfechanacimiento'] ?? '')),
+            'eciid' => (int) ($_POST['eciid'] ?? 0),
+            'istid' => (int) ($_POST['istid'] ?? 0),
+            'perprofesion' => trim((string) ($_POST['perprofesion'] ?? '')),
+            'perocupacion' => trim((string) ($_POST['perocupacion'] ?? '')),
+            'perhablaingles' => isset($_POST['perhablaingles']),
         ];
     }
 
@@ -406,6 +424,12 @@ class PersonalController extends Controller
         sessionFlash('old_staff_person_phone2', (string) ($personData['pertelefono2'] ?? ''));
         sessionFlash('old_staff_person_email', (string) ($personData['percorreo'] ?? ''));
         sessionFlash('old_staff_person_gender', (string) ($personData['persexo'] ?? ''));
+        sessionFlash('old_staff_person_birth_date', (string) ($personData['perfechanacimiento'] ?? ''));
+        sessionFlash('old_staff_person_civil_status', (string) ($personData['eciid'] ?? ''));
+        sessionFlash('old_staff_person_instruction', (string) ($personData['istid'] ?? ''));
+        sessionFlash('old_staff_person_profession', (string) ($personData['perprofesion'] ?? ''));
+        sessionFlash('old_staff_person_occupation', (string) ($personData['perocupacion'] ?? ''));
+        sessionFlash('old_staff_person_speaks_english', !empty($personData['perhablaingles']) ? '1' : '0');
         sessionFlash('old_staff_hire_date', (string) ($staffData['psnfechacontratacion'] ?? ''));
         sessionFlash('old_staff_exit_date', (string) ($staffData['psnfechasalida'] ?? ''));
         sessionFlash('old_staff_status', !empty($staffData['psnestado']) ? '1' : '0');
@@ -430,6 +454,12 @@ class PersonalController extends Controller
             'pertelefono2' => sessionFlash('old_staff_person_phone2') ?? '',
             'percorreo' => sessionFlash('old_staff_person_email') ?? '',
             'persexo' => sessionFlash('old_staff_person_gender') ?? '',
+            'perfechanacimiento' => sessionFlash('old_staff_person_birth_date') ?? '',
+            'eciid' => sessionFlash('old_staff_person_civil_status') ?? '',
+            'istid' => sessionFlash('old_staff_person_instruction') ?? '',
+            'perprofesion' => sessionFlash('old_staff_person_profession') ?? '',
+            'perocupacion' => sessionFlash('old_staff_person_occupation') ?? '',
+            'perhablaingles' => sessionFlash('old_staff_person_speaks_english') ?? '0',
             'psnfechacontratacion' => sessionFlash('old_staff_hire_date') ?? '',
             'psnfechasalida' => sessionFlash('old_staff_exit_date') ?? '',
             'psnestado' => sessionFlash('old_staff_status') ?? '1',
@@ -506,6 +536,10 @@ class PersonalController extends Controller
 
             if ($sqlState === '23514') {
                 return 'No se pudo actualizar el personal porque una validacion de fechas o estado fue rechazada por la base de datos.';
+            }
+
+            if ($sqlState === '23503') {
+                return 'No se pudo actualizar el personal porque uno de los datos relacionados no existe o ya no esta disponible.';
             }
         }
 

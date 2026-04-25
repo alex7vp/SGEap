@@ -91,7 +91,7 @@ require BASE_PATH . '/app/views/partials/header.php';
             </div>
         </div>
 
-        <div class="form-group form-group-full">
+        <div class="form-group">
             <div class="input-group">
                 <span class="input-addon">E-mail</span>
                 <input
@@ -99,6 +99,68 @@ require BASE_PATH . '/app/views/partials/header.php';
                     name="percorreo"
                     type="email"
                     value="<?= htmlspecialchars((string) ($old['percorreo'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>"
+                >
+            </div>
+        </div>
+
+        <div class="form-group">
+            <div class="input-group">
+                <span class="input-addon">Fecha de Nacimiento</span>
+                <input
+                    id="perfechanacimiento"
+                    name="perfechanacimiento"
+                    type="date"
+                    value="<?= htmlspecialchars((string) ($old['perfechanacimiento'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>"
+                >
+            </div>
+        </div>
+
+        <div class="form-group">
+            <div class="input-group">
+                <span class="input-addon">Estado civil</span>
+                <select id="eciid" name="eciid">
+                    <option value="">Seleccione una opcion</option>
+                    <?php foreach (($civilStatuses ?? []) as $civilStatus): ?>
+                        <option value="<?= htmlspecialchars((string) $civilStatus['eciid'], ENT_QUOTES, 'UTF-8'); ?>" <?= (string) ($old['eciid'] ?? '') === (string) $civilStatus['eciid'] ? 'selected' : ''; ?>>
+                            <?= htmlspecialchars((string) $civilStatus['ecinombre'], ENT_QUOTES, 'UTF-8'); ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <div class="input-group">
+                <span class="input-addon">Instruccion</span>
+                <select id="istid" name="istid">
+                    <option value="">Seleccione una opcion</option>
+                    <?php foreach (($instructionLevels ?? []) as $instructionLevel): ?>
+                        <option value="<?= htmlspecialchars((string) $instructionLevel['istid'], ENT_QUOTES, 'UTF-8'); ?>" <?= (string) ($old['istid'] ?? '') === (string) $instructionLevel['istid'] ? 'selected' : ''; ?>>
+                            <?= htmlspecialchars((string) $instructionLevel['istnombre'], ENT_QUOTES, 'UTF-8'); ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <div class="input-group">
+                <span class="input-addon">Profesion</span>
+                <input
+                    id="perprofesion"
+                    name="perprofesion"
+                    value="<?= htmlspecialchars((string) ($old['perprofesion'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>"
+                >
+            </div>
+        </div>
+
+        <div class="form-group">
+            <div class="input-group">
+                <span class="input-addon">Ocupacion</span>
+                <input
+                    id="perocupacion"
+                    name="perocupacion"
+                    value="<?= htmlspecialchars((string) ($old['perocupacion'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>"
                 >
             </div>
         </div>
@@ -148,6 +210,13 @@ require BASE_PATH . '/app/views/partials/header.php';
                     value="<?= htmlspecialchars((string) ($old['psnobservacion'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>"
                 >
             </div>
+        </div>
+
+        <div class="form-group form-group-full">
+            <label class="switch-card">
+                <span>Habla ingles</span>
+                <input type="checkbox" name="perhablaingles" value="1" <?= !empty($old['perhablaingles']) ? 'checked' : ''; ?>>
+            </label>
         </div>
     </div>
 

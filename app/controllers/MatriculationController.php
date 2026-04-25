@@ -141,6 +141,7 @@ class MatriculationController extends Controller
                 'percorreo' => (string) ($person['percorreo'] ?? ''),
                 'persexo' => (string) ($person['persexo'] ?? ''),
                 'perfechanacimiento' => (string) ($person['perfechanacimiento'] ?? ''),
+                'eciid' => (int) ($person['eciid'] ?? 0),
                 'istid' => (int) ($person['istid'] ?? 0),
                 'perprofesion' => (string) ($person['perprofesion'] ?? ''),
                 'perocupacion' => (string) ($person['perocupacion'] ?? ''),
@@ -182,6 +183,7 @@ class MatriculationController extends Controller
     private function formData(array $period, array $documents = []): array
     {
         $defaultMatricula = $this->defaultMatriculaData();
+        $defaultStudentCivilStatusId = $this->defaultStudentCivilStatusId();
         $acceptedDocumentIds = array_map('intval', array_keys((array) ($_POST['documents'] ?? [])));
 
         return [
@@ -195,10 +197,11 @@ class MatriculationController extends Controller
                 'percorreo' => trim($_POST['person']['percorreo'] ?? ''),
                 'persexo' => trim($_POST['person']['persexo'] ?? ''),
                 'perfechanacimiento' => trim($_POST['person']['perfechanacimiento'] ?? ''),
+                'eciid' => $defaultStudentCivilStatusId,
                 'istid' => (int) ($_POST['person']['istid'] ?? 0),
-                'perprofesion' => trim($_POST['person']['perprofesion'] ?? ''),
-                'perocupacion' => trim($_POST['person']['perocupacion'] ?? ''),
-                'perhablaingles' => isset($_POST['person']['perhablaingles']),
+                'perprofesion' => 'Estudiante',
+                'perocupacion' => 'Estudiante',
+                'perhablaingles' => false,
             ],
             'student' => [
                 'estlugarnacimiento' => trim($_POST['student']['estlugarnacimiento'] ?? ''),
@@ -206,7 +209,8 @@ class MatriculationController extends Controller
                 'estparroquia' => trim($_POST['student']['estparroquia'] ?? ''),
             ],
             'family_context' => [
-                'ecfconvivecon' => trim((string) ($_POST['family_context']['ecfconvivecon'] ?? '')),
+                'ecfconvivecon_pteids' => $this->cohabitationRelationshipIds((array) ($_POST['family_context']['ecfconvivecon_pteids'] ?? [])),
+                'ecfconvivecon' => $this->cohabitationValue((array) ($_POST['family_context']['ecfconvivecon_pteids'] ?? [])),
                 'ecfnumerohermanos' => trim((string) ($_POST['family_context']['ecfnumerohermanos'] ?? '')),
                 'ecfposicionhermanos' => trim((string) ($_POST['family_context']['ecfposicionhermanos'] ?? '')),
             ],
@@ -351,6 +355,7 @@ class MatriculationController extends Controller
                 'percorreo' => trim((string) ($_POST['representative_external']['percorreo'] ?? '')),
                 'persexo' => trim((string) ($_POST['representative_external']['persexo'] ?? '')),
                 'perfechanacimiento' => trim((string) ($_POST['representative_external']['perfechanacimiento'] ?? '')),
+                'eciid' => (int) ($_POST['representative_external']['eciid'] ?? 0),
                 'istid' => (int) ($_POST['representative_external']['istid'] ?? 0),
                 'perprofesion' => trim((string) ($_POST['representative_external']['perprofesion'] ?? '')),
                 'perocupacion' => trim((string) ($_POST['representative_external']['perocupacion'] ?? '')),
@@ -642,9 +647,10 @@ class MatriculationController extends Controller
                 'percorreo' => '',
                 'persexo' => '',
                 'perfechanacimiento' => '',
+                'eciid' => $this->defaultStudentCivilStatusId(),
                 'istid' => 0,
-                'perprofesion' => '',
-                'perocupacion' => '',
+                'perprofesion' => 'Estudiante',
+                'perocupacion' => 'Estudiante',
                 'perhablaingles' => false,
             ],
             'student' => $decoded['student'] ?? [
@@ -653,6 +659,7 @@ class MatriculationController extends Controller
                 'estparroquia' => '',
             ],
             'family_context' => $decoded['family_context'] ?? [
+                'ecfconvivecon_pteids' => [],
                 'ecfconvivecon' => '',
                 'ecfnumerohermanos' => '',
                 'ecfposicionhermanos' => '',
@@ -717,6 +724,7 @@ class MatriculationController extends Controller
                     'percorreo' => '',
                     'persexo' => '',
                     'perfechanacimiento' => '',
+                    'eciid' => 0,
                     'istid' => 0,
                     'perprofesion' => '',
                     'perocupacion' => '',
@@ -766,6 +774,61 @@ class MatriculationController extends Controller
             'emdnombre' => (string) ($defaultStatus['emdnombre'] ?? 'Inactivo'),
             'tmaid' => (int) (($matriculationModel->defaultEnrollmentType()['tmaid'] ?? 0)),
         ];
+    }
+
+    private function defaultStudentCivilStatusId(): int
+    {
+        $matriculationModel = new MatriculationModel();
+
+        foreach ($matriculationModel->allCivilStatuses() as $civilStatus) {
+            $name = mb_strtolower(trim((string) ($civilStatus['ecinombre'] ?? '')));
+
+            if ($name === 'soltero' || $name === 'soltera') {
+                return (int) ($civilStatus['eciid'] ?? 0);
+            }
+        }
+
+        return 0;
+    }
+
+    private function cohabitationRelationshipIds(array $values): array
+    {
+        $selected = [];
+
+        foreach ($values as $value) {
+            $id = (int) $value;
+
+            if ($id > 0 && !in_array($id, $selected, true)) {
+                $selected[] = $id;
+            }
+        }
+
+        return $selected;
+    }
+
+    private function cohabitationValue(array $values): string
+    {
+        $ids = $this->cohabitationRelationshipIds($values);
+
+        if ($ids === []) {
+            return '';
+        }
+
+        $matriculationModel = new MatriculationModel();
+        $relationships = $matriculationModel->allRelationships();
+        $names = [];
+
+        foreach ($relationships as $relationship) {
+            $id = (int) ($relationship['pteid'] ?? 0);
+
+            if (in_array($id, $ids, true)) {
+                $names[] = (string) ($relationship['ptenombre'] ?? '');
+            }
+        }
+
+        $selected = array_values(array_filter($names, static fn (string $name): bool => trim($name) !== ''));
+
+        return implode(', ', $selected);
     }
 
     private function flashMatriculaFormFeedback(string $type, string $message): void
