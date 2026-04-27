@@ -1014,9 +1014,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const healthConditionContainer = document.querySelector('[data-health-condition-rows]');
     const healthConditionTemplate = document.querySelector('[data-health-condition-template]');
     const healthConditionAddButton = document.querySelector('[data-health-condition-add]');
+    const disabilityToggleInput = document.querySelector('[data-disability-toggle]');
+    const disabilityDetailInput = document.querySelector('[data-disability-detail]');
     const imcWeightInput = document.querySelector('[data-imc-weight]');
     const imcHeightInput = document.querySelector('[data-imc-height]');
     const imcOutputInput = document.querySelector('[data-imc-output]');
+    const imcAlert = document.querySelector('[data-imc-alert]');
 
     if (
         familyContainer instanceof HTMLElement
@@ -1102,6 +1105,21 @@ document.addEventListener('DOMContentLoaded', () => {
             return row instanceof HTMLElement ? row : null;
         };
 
+        const draftHasHealthConditionData = (payload, index) => {
+            const prefix = 'health_conditions[' + index + ']';
+            const meaningfulFields = [
+                prefix + '[tcsid]',
+                prefix + '[ecsadescripcion]',
+                prefix + '[ecsamedicamentos]',
+                prefix + '[ecsaobservacion]',
+            ];
+
+            return meaningfulFields.some((name) => {
+                const value = payload[name];
+                return value !== undefined && String(value).trim() !== '' && String(value).trim() !== '0';
+            });
+        };
+
         const wireHealthConditionRow = (row) => {
             if (!(row instanceof HTMLElement) || row.dataset.healthConditionBound === 'true') {
                 return;
@@ -1114,19 +1132,20 @@ document.addEventListener('DOMContentLoaded', () => {
             if (removeButton instanceof HTMLButtonElement) {
                 removeButton.addEventListener('click', () => {
                     row.remove();
-
-                    if (
-                        healthConditionContainer instanceof HTMLElement
-                        && healthConditionContainer.querySelector('[data-health-condition-row]') === null
-                    ) {
-                        const fallbackRow = createHealthConditionRow(0);
-
-                        if (fallbackRow instanceof HTMLElement) {
-                            healthConditionContainer.appendChild(fallbackRow);
-                            wireHealthConditionRow(fallbackRow);
-                        }
-                    }
                 });
+            }
+        };
+
+        const syncDisabilityDetail = () => {
+            if (!(disabilityToggleInput instanceof HTMLInputElement) || !(disabilityDetailInput instanceof HTMLTextAreaElement)) {
+                return;
+            }
+
+            const enabled = disabilityToggleInput.checked;
+            disabilityDetailInput.disabled = !enabled;
+
+            if (!enabled) {
+                disabilityDetailInput.value = '';
             }
         };
 
@@ -1791,29 +1810,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 updateFamilyCardTitles();
                 clearRepresentativeExternalForm();
                 if (healthConditionContainer instanceof HTMLElement) {
-                    healthConditionContainer.querySelectorAll('[data-health-condition-row]').forEach((row, index) => {
+                    healthConditionContainer.querySelectorAll('[data-health-condition-row]').forEach((row) => {
                         if (!(row instanceof HTMLElement)) {
-                            return;
-                        }
-
-                        if (index === 0) {
-                            row.querySelectorAll('input, select, textarea').forEach((field) => {
-                                if (field instanceof HTMLInputElement) {
-                                    if (field.type === 'checkbox') {
-                                        field.checked = field.name.endsWith('[ecsavigente]');
-                                    } else {
-                                        field.value = '';
-                                    }
-                                }
-
-                                if (field instanceof HTMLSelectElement) {
-                                    field.selectedIndex = 0;
-                                }
-
-                                if (field instanceof HTMLTextAreaElement) {
-                                    field.value = '';
-                                }
-                            });
                             return;
                         }
 
@@ -1857,13 +1855,14 @@ document.addEventListener('DOMContentLoaded', () => {
                         wireFamilyRow(row);
                     });
 
-                    const requiredHealthConditionIndexes = Object.keys(draftPayload)
-                        .map((name) => {
-                            const match = name.match(/^health_conditions\[(\d+)\]\[/);
-                            return match ? Number.parseInt(match[1], 10) : -1;
-                        })
-                        .filter((index) => index >= 0)
-                        .sort((left, right) => left - right);
+                    const requiredHealthConditionIndexes = Array.from(new Set(
+                        Object.keys(draftPayload)
+                            .map((name) => {
+                                const match = name.match(/^health_conditions\[(\d+)\]\[/);
+                                return match ? Number.parseInt(match[1], 10) : -1;
+                            })
+                            .filter((index) => index >= 0 && draftHasHealthConditionData(draftPayload, index))
+                    )).sort((left, right) => left - right);
 
                     if (healthConditionContainer instanceof HTMLElement && requiredHealthConditionIndexes.length > 0) {
                         healthConditionContainer.querySelectorAll('[data-health-condition-row]').forEach((row) => {
@@ -1900,6 +1899,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
                     });
                     syncFixedFamilyVisibility();
+                    syncDisabilityDetail();
                 } catch (error) {
                     window.localStorage.removeItem('sgeap_matricula_draft');
                 }
@@ -1913,19 +1913,25 @@ document.addEventListener('DOMContentLoaded', () => {
         updateFamilyCardTitles();
         syncFixedFamilyVisibility();
         syncRepresentativeOptions();
-    }
 
-    if (healthConditionAddButton instanceof HTMLButtonElement && healthConditionContainer instanceof HTMLElement) {
-        healthConditionAddButton.addEventListener('click', () => {
-            const row = createHealthConditionRow(getNextHealthConditionIndex());
+        if (disabilityToggleInput instanceof HTMLInputElement) {
+            disabilityToggleInput.addEventListener('change', syncDisabilityDetail);
+        }
 
-            if (!(row instanceof HTMLElement)) {
-                return;
-            }
+        syncDisabilityDetail();
 
-            healthConditionContainer.appendChild(row);
-            wireHealthConditionRow(row);
-        });
+        if (healthConditionAddButton instanceof HTMLButtonElement && healthConditionContainer instanceof HTMLElement) {
+            healthConditionAddButton.addEventListener('click', () => {
+                const row = createHealthConditionRow(getNextHealthConditionIndex());
+
+                if (!(row instanceof HTMLElement)) {
+                    return;
+                }
+
+                healthConditionContainer.appendChild(row);
+                wireHealthConditionRow(row);
+            });
+        }
     }
 
     if (
@@ -1935,14 +1941,37 @@ document.addEventListener('DOMContentLoaded', () => {
     ) {
         const syncImc = () => {
             const peso = Number.parseFloat(imcWeightInput.value);
-            const talla = Number.parseFloat(imcHeightInput.value);
+            const tallaCm = Number.parseFloat(imcHeightInput.value);
 
-            if (!Number.isFinite(peso) || !Number.isFinite(talla) || talla <= 0) {
+            if (!Number.isFinite(peso) || !Number.isFinite(tallaCm) || tallaCm <= 0) {
                 imcOutputInput.value = '';
+                if (imcAlert instanceof HTMLElement) {
+                    imcAlert.hidden = true;
+                    imcAlert.textContent = '';
+                }
                 return;
             }
 
-            imcOutputInput.value = (peso / (talla * talla)).toFixed(2);
+            const tallaMetros = tallaCm / 100;
+            const imc = peso / (tallaMetros * tallaMetros);
+            let categoria = 'Peso normal';
+
+            if (imc < 18.5) {
+                categoria = 'Bajo peso';
+            } else if (imc < 25) {
+                categoria = 'Peso normal';
+            } else if (imc < 30) {
+                categoria = 'Sobrepeso';
+            } else {
+                categoria = 'Obesidad';
+            }
+
+            imcOutputInput.value = imc.toFixed(2);
+
+            if (imcAlert instanceof HTMLElement) {
+                imcAlert.textContent = 'Interpretacion del IMC: ' + categoria + '.';
+                imcAlert.hidden = false;
+            }
         };
 
         imcWeightInput.addEventListener('input', syncImc);

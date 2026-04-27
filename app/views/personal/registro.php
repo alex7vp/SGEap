@@ -152,7 +152,10 @@ $selectedTypeIds = array_map('intval', (array) ($old['type_ids'] ?? []));
         <div class="form-group form-group-full">
             <label class="switch-card">
                 <span>Habla ingles</span>
-                <input type="checkbox" name="perhablaingles" value="1" <?= !empty($old['perhablaingles']) ? 'checked' : ''; ?>>
+                <span class="switch-control">
+                    <input type="checkbox" name="perhablaingles" value="1" <?= !empty($old['perhablaingles']) ? 'checked' : ''; ?>>
+                    <span class="switch-slider" aria-hidden="true"></span>
+                </span>
             </label>
         </div>
 

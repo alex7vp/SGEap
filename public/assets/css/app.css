@@ -139,7 +139,8 @@ label {
 }
 
 input,
-select {
+select,
+textarea {
     width: 100%;
     padding: 6px 8px;
     border: 1px solid var(--border-strong);
@@ -149,10 +150,12 @@ select {
     color: var(--text);
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
     font-size: 0.9rem;
+    font-family: inherit;
 }
 
 input:focus,
-select:focus {
+select:focus,
+textarea:focus {
     border-color: var(--primary);
     box-shadow: 0 0 0 4px rgba(15, 76, 129, 0.12);
 }
@@ -191,15 +194,24 @@ input::placeholder {
 }
 
 .input-group input,
-.input-group select {
+.input-group select,
+.input-group textarea {
+    flex: 1 1 auto;
+    min-width: 0;
     border: 0;
     border-radius: 0;
     box-shadow: none;
 }
 
 .input-group input.is-invalid,
-.input-group select.is-invalid {
+.input-group select.is-invalid,
+.input-group textarea.is-invalid {
     background: #fff6f6;
+}
+
+.input-group textarea {
+    min-height: 34px;
+    resize: vertical;
 }
 
 .form-field-alert {
@@ -966,15 +978,18 @@ input::placeholder {
     transition: transform 0.2s ease;
 }
 
-.resource-option-switch input[type="checkbox"]:checked + .switch-slider {
+.resource-option-switch input[type="checkbox"]:checked + .switch-slider,
+.switch-card input[type="checkbox"]:checked + .switch-slider {
     background: #1f6aa5;
 }
 
-.resource-option-switch input[type="checkbox"]:checked + .switch-slider::after {
+.resource-option-switch input[type="checkbox"]:checked + .switch-slider::after,
+.switch-card input[type="checkbox"]:checked + .switch-slider::after {
     transform: translateX(16px);
 }
 
-.resource-option-switch input[type="checkbox"]:focus-visible + .switch-slider {
+.resource-option-switch input[type="checkbox"]:focus-visible + .switch-slider,
+.switch-card input[type="checkbox"]:focus-visible + .switch-slider {
     box-shadow: 0 0 0 4px rgba(15, 76, 129, 0.12);
 }
 
@@ -1039,6 +1054,7 @@ input::placeholder {
 .family-actions {
     display: flex;
     flex-wrap: wrap;
+    align-items: center;
     gap: 12px;
     margin-bottom: 16px;
 }
@@ -1048,6 +1064,12 @@ input::placeholder {
     min-width: 0;
     padding-left: 12px;
     padding-right: 12px;
+}
+
+.action-helper-text {
+    color: var(--muted);
+    font-size: 0.84rem;
+    line-height: 1.25;
 }
 
 .family-lookup-row {

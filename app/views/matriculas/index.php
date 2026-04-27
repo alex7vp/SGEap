@@ -60,6 +60,16 @@ $healthContextOld = array_merge([
     'amid' => 0,
 ], is_array($old['health_context'] ?? null) ? $old['health_context'] : []);
 $healthConditionsOld = is_array($old['health_conditions'] ?? null) ? $old['health_conditions'] : [];
+$healthConditionsOld = array_values(array_filter($healthConditionsOld, static function ($row): bool {
+    if (!is_array($row)) {
+        return false;
+    }
+
+    return (int) ($row['tcsid'] ?? 0) > 0
+        || trim((string) ($row['ecsadescripcion'] ?? '')) !== ''
+        || trim((string) ($row['ecsamedicamentos'] ?? '')) !== ''
+        || trim((string) ($row['ecsaobservacion'] ?? '')) !== '';
+}));
 $healthMeasurementOld = array_merge([
     'emspeso' => '',
     'emstalla' => '',
@@ -169,16 +179,6 @@ $emptyRepresentativeRow = static function (): array {
         'perocupacion' => '',
         'perhablaingles' => false,
         'pteid' => 0,
-    ];
-};
-
-$emptyHealthConditionRow = static function (): array {
-    return [
-        'tcsid' => 0,
-        'ecsadescripcion' => '',
-        'ecsamedicamentos' => '',
-        'ecsaobservacion' => '',
-        'ecsavigente' => true,
     ];
 };
 
@@ -320,10 +320,6 @@ $renderFamilyFields = static function (
 ob_start();
 $renderFamilyFields($emptyFamilyRow(), '__INDEX__', $civilStatuses, $instructionLevels, $relationships, null, $personLookupUrl);
 $dynamicFamilyTemplate = ob_get_clean();
-
-if ($healthConditionsOld === []) {
-    $healthConditionsOld[] = $emptyHealthConditionRow();
-}
 
 ob_start();
 ?>
@@ -511,14 +507,15 @@ $healthConditionTemplate = ob_get_clean();
                         <label class="resource-option resource-option-switch family-switch-inline">
                             <span>Tiene discapacidad</span>
                             <span class="switch-control">
-                                <input type="checkbox" name="health_context[ecstienediscapacidad]" value="1" <?= !empty($healthContextOld['ecstienediscapacidad']) ? 'checked' : ''; ?>>
+                                <input type="checkbox" name="health_context[ecstienediscapacidad]" value="1" <?= !empty($healthContextOld['ecstienediscapacidad']) ? 'checked' : ''; ?> data-disability-toggle>
                                 <span class="switch-slider" aria-hidden="true"></span>
                             </span>
                         </label>
-                        <div class="form-group form-group-full"><div class="input-group"><span class="input-addon">Detalle discapacidad</span><textarea name="health_context[ecsdetallediscapacidad]" rows="2"><?= htmlspecialchars((string) ($healthContextOld['ecsdetallediscapacidad'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></textarea></div></div>
+                        <div class="form-group form-group-full"><div class="input-group"><span class="input-addon">Detalle discapacidad</span><textarea name="health_context[ecsdetallediscapacidad]" rows="2" data-disability-detail><?= htmlspecialchars((string) ($healthContextOld['ecsdetallediscapacidad'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></textarea></div></div>
                     </div>
                     <div class="family-actions">
                         <button class="btn-secondary btn-inline" type="button" data-health-condition-add>Agregar condicion de salud</button>
+                        <span class="action-helper-text">Usa este boton si el estudiante tiene alergias, enfermedades, tratamientos u otra condicion medica.</span>
                     </div>
                     <div class="family-stack" data-health-condition-rows>
                         <?php foreach ($healthConditionsOld as $healthIndex => $healthCondition): ?>
@@ -546,9 +543,10 @@ $healthConditionTemplate = ob_get_clean();
                     <template data-health-condition-template><?= $healthConditionTemplate; ?></template>
                     <div class="form-grid">
                         <div class="form-group"><div class="input-group"><span class="input-addon">Peso (kg)</span><input name="health_measurement[emspeso]" type="number" step="0.01" min="0" value="<?= htmlspecialchars((string) ($healthMeasurementOld['emspeso'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" data-imc-weight></div></div>
-                        <div class="form-group"><div class="input-group"><span class="input-addon">Talla (m)</span><input name="health_measurement[emstalla]" type="number" step="0.01" min="0" value="<?= htmlspecialchars((string) ($healthMeasurementOld['emstalla'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" data-imc-height></div></div>
+                        <div class="form-group"><div class="input-group"><span class="input-addon">Talla (cm)</span><input name="health_measurement[emstalla]" type="number" step="0.1" min="0" value="<?= htmlspecialchars((string) ($healthMeasurementOld['emstalla'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" data-imc-height></div></div>
                         <div class="form-group"><div class="input-group"><span class="input-addon">IMC</span><input name="health_measurement[emsimc]" readonly value="<?= htmlspecialchars((string) ($healthMeasurementOld['emsimc'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" data-imc-output></div></div>
                         <div class="form-group"><div class="input-group"><span class="input-addon">Fecha medicion</span><input name="health_measurement[emsfecha_medicion]" type="date" value="<?= htmlspecialchars((string) ($healthMeasurementOld['emsfecha_medicion'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>"></div></div>
+                        <div class="form-group form-group-full"><div class="alert alert-success form-field-alert imc-alert" data-imc-alert hidden></div></div>
                         <div class="form-group form-group-full"><div class="input-group"><span class="input-addon">Obs. medicion</span><input name="health_measurement[emsobservacion]" value="<?= htmlspecialchars((string) ($healthMeasurementOld['emsobservacion'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>"></div></div>
                     </div>
                     <div class="form-grid">
