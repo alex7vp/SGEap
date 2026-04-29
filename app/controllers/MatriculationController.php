@@ -602,7 +602,25 @@ class MatriculationController extends Controller
         return trim((string) ($family['percedula'] ?? '')) !== ''
             && trim((string) ($family['pernombres'] ?? '')) !== ''
             && trim((string) ($family['perapellidos'] ?? '')) !== ''
-            && (int) ($family['pteid'] ?? 0) > 0;
+            && (int) ($family['pteid'] ?? 0) > 0
+            && $this->isAdultBirthDate((string) ($family['perfechanacimiento'] ?? ''));
+    }
+
+    private function isAdultBirthDate(string $birthDate): bool
+    {
+        $birthDate = trim($birthDate);
+
+        if ($birthDate === '') {
+            return false;
+        }
+
+        $date = \DateTimeImmutable::createFromFormat('!Y-m-d', $birthDate);
+
+        if ($date === false || $date->format('Y-m-d') !== $birthDate) {
+            return false;
+        }
+
+        return $date->diff(new \DateTimeImmutable('today'))->y >= 18;
     }
 
     private function flashOldFormData(array $data): void

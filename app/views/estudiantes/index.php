@@ -5,7 +5,7 @@ declare(strict_types=1);
 require BASE_PATH . '/app/views/partials/header.php';
 ?>
 <div class="toolbar">
-    <p>Estudiantes vinculados a personas existentes dentro del sistema.</p>
+    <p>Estudiantes registrados<?= !empty($currentPeriod['pledescripcion']) ? ' en el periodo ' . htmlspecialchars((string) $currentPeriod['pledescripcion'], ENT_QUOTES, 'UTF-8') : ''; ?>.</p>
     <a class="btn-primary btn-auto" href="<?= htmlspecialchars(baseUrl('estudiantes/crear'), ENT_QUOTES, 'UTF-8'); ?>">Nuevo estudiante</a>
 </div>
 
@@ -17,27 +17,23 @@ require BASE_PATH . '/app/views/partials/header.php';
             <thead>
                 <tr>
                     <th>Cedula</th>
-                    <th>Estudiante</th>
-                    <th>Ubicacion</th>
-                    <th>Estado</th>
+                    <th>Nombres</th>
+                    <th>Apellidos</th>
+                    <th>Curso</th>
+                    <th>Acciones</th>
                 </tr>
             </thead>
             <tbody>
                 <?php foreach ($students as $student): ?>
                     <tr>
                         <td><?= htmlspecialchars((string) $student['percedula'], ENT_QUOTES, 'UTF-8'); ?></td>
+                        <td><?= htmlspecialchars((string) $student['pernombres'], ENT_QUOTES, 'UTF-8'); ?></td>
+                        <td><?= htmlspecialchars((string) $student['perapellidos'], ENT_QUOTES, 'UTF-8'); ?></td>
+                        <td><?= htmlspecialchars((string) ($student['curso'] ?? 'Sin matricula'), ENT_QUOTES, 'UTF-8'); ?></td>
                         <td>
-                            <span class="cell-title"><?= htmlspecialchars((string) $student['perapellidos'], ENT_QUOTES, 'UTF-8'); ?></span>
-                            <span class="cell-subtitle"><?= htmlspecialchars((string) $student['pernombres'], ENT_QUOTES, 'UTF-8'); ?></span>
-                        </td>
-                        <td>
-                            <span class="cell-title"><?= htmlspecialchars((string) ($student['estdireccion'] ?: 'Sin direccion'), ENT_QUOTES, 'UTF-8'); ?></span>
-                            <span class="cell-subtitle"><?= htmlspecialchars((string) ($student['estparroquia'] ?: 'Sin parroquia'), ENT_QUOTES, 'UTF-8'); ?></span>
-                        </td>
-                        <td>
-                            <span class="state-pill <?= !empty($student['estestado']) ? 'state-pill-active' : 'state-pill-inactive'; ?>">
-                                <?= !empty($student['estestado']) ? 'Activo' : 'Inactivo'; ?>
-                            </span>
+                            <a class="icon-button icon-button-view" href="<?= htmlspecialchars(baseUrl('estudiantes/ver?id=' . (int) $student['estid']), ENT_QUOTES, 'UTF-8'); ?>" title="Ver ficha" aria-label="Ver ficha">
+                                <i class="fa fa-search" aria-hidden="true"></i>
+                            </a>
                         </td>
                     </tr>
                 <?php endforeach; ?>

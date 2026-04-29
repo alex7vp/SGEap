@@ -1016,6 +1016,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const healthConditionAddButton = document.querySelector('[data-health-condition-add]');
     const disabilityToggleInput = document.querySelector('[data-disability-toggle]');
     const disabilityDetailInput = document.querySelector('[data-disability-detail]');
+    const repeatedYearsToggleInput = document.querySelector('[data-repeated-years-toggle]');
+    const repeatedYearsDetailInput = document.querySelector('[data-repeated-years-detail]');
     const imcWeightInput = document.querySelector('[data-imc-weight]');
     const imcHeightInput = document.querySelector('[data-imc-height]');
     const imcOutputInput = document.querySelector('[data-imc-output]');
@@ -1146,6 +1148,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (!enabled) {
                 disabilityDetailInput.value = '';
+            }
+        };
+
+        const syncRepeatedYearsDetail = () => {
+            if (!(repeatedYearsToggleInput instanceof HTMLInputElement) || !(repeatedYearsDetailInput instanceof HTMLTextAreaElement)) {
+                return;
+            }
+
+            const enabled = repeatedYearsToggleInput.checked;
+            repeatedYearsDetailInput.disabled = !enabled;
+
+            if (!enabled) {
+                repeatedYearsDetailInput.value = '';
             }
         };
 
@@ -1330,6 +1345,50 @@ document.addEventListener('DOMContentLoaded', () => {
             return cedula !== '' || nombres !== '' || apellidos !== '';
         };
 
+        const getAgeFromBirthDate = (birthDateValue) => {
+            const match = String(birthDateValue || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+
+            if (!match) {
+                return null;
+            }
+
+            const year = Number.parseInt(match[1], 10);
+            const month = Number.parseInt(match[2], 10);
+            const day = Number.parseInt(match[3], 10);
+            const birthDate = new Date(year, month - 1, day);
+
+            if (
+                birthDate.getFullYear() !== year
+                || birthDate.getMonth() !== month - 1
+                || birthDate.getDate() !== day
+            ) {
+                return null;
+            }
+
+            const today = new Date();
+            let age = today.getFullYear() - birthDate.getFullYear();
+            const birthdayHasPassed =
+                today.getMonth() > birthDate.getMonth()
+                || (today.getMonth() === birthDate.getMonth() && today.getDate() >= birthDate.getDate());
+
+            if (!birthdayHasPassed) {
+                age -= 1;
+            }
+
+            return age;
+        };
+
+        const rowIsAdultFamily = (row) => {
+            if (!(row instanceof HTMLElement)) {
+                return false;
+            }
+
+            const birthDateInput = row.querySelector('input[name$="[perfechanacimiento]"]');
+            const age = birthDateInput instanceof HTMLInputElement ? getAgeFromBirthDate(birthDateInput.value) : null;
+
+            return age !== null && age >= 18;
+        };
+
         const setRepresentativeExternalAlert = (message) => {
             if (!(representativeExternalAlert instanceof HTMLElement)) {
                 return;
@@ -1394,7 +1453,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const syncRepresentativeOptions = () => {
             representativeOptions.innerHTML = '';
-            const rows = Array.from(familyContainer.querySelectorAll('[data-family-row]')).filter((row) => rowHasFamilyData(row));
+            const rows = Array.from(familyContainer.querySelectorAll('[data-family-row]')).filter((row) => (
+                rowHasFamilyData(row) && rowIsAdultFamily(row)
+            ));
 
             rows.forEach((row, index) => {
                 if (!(row instanceof HTMLElement)) {
@@ -1900,6 +1961,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     });
                     syncFixedFamilyVisibility();
                     syncDisabilityDetail();
+                    syncRepeatedYearsDetail();
                 } catch (error) {
                     window.localStorage.removeItem('sgeap_matricula_draft');
                 }
@@ -1919,6 +1981,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         syncDisabilityDetail();
+
+        if (repeatedYearsToggleInput instanceof HTMLInputElement) {
+            repeatedYearsToggleInput.addEventListener('change', syncRepeatedYearsDetail);
+        }
+
+        syncRepeatedYearsDetail();
 
         if (healthConditionAddButton instanceof HTMLButtonElement && healthConditionContainer instanceof HTMLElement) {
             healthConditionAddButton.addEventListener('click', () => {
@@ -1977,6 +2045,83 @@ document.addEventListener('DOMContentLoaded', () => {
         imcWeightInput.addEventListener('input', syncImc);
         imcHeightInput.addEventListener('input', syncImc);
         syncImc();
+    }
+
+    if (!(familyContainer instanceof HTMLElement)) {
+        if (disabilityToggleInput instanceof HTMLInputElement && disabilityDetailInput instanceof HTMLTextAreaElement) {
+            const syncStandaloneDisabilityDetail = () => {
+                disabilityDetailInput.disabled = !disabilityToggleInput.checked;
+
+                if (!disabilityToggleInput.checked) {
+                    disabilityDetailInput.value = '';
+                }
+            };
+
+            disabilityToggleInput.addEventListener('change', syncStandaloneDisabilityDetail);
+            syncStandaloneDisabilityDetail();
+        }
+
+        if (repeatedYearsToggleInput instanceof HTMLInputElement && repeatedYearsDetailInput instanceof HTMLTextAreaElement) {
+            const syncStandaloneRepeatedYearsDetail = () => {
+                repeatedYearsDetailInput.disabled = !repeatedYearsToggleInput.checked;
+
+                if (!repeatedYearsToggleInput.checked) {
+                    repeatedYearsDetailInput.value = '';
+                }
+            };
+
+            repeatedYearsToggleInput.addEventListener('change', syncStandaloneRepeatedYearsDetail);
+            syncStandaloneRepeatedYearsDetail();
+        }
+    }
+
+    if (
+        !(familyContainer instanceof HTMLElement)
+        && healthConditionContainer instanceof HTMLElement
+        && healthConditionTemplate instanceof HTMLTemplateElement
+    ) {
+        const nextStandaloneHealthConditionIndex = () => {
+            return Array.from(healthConditionContainer.querySelectorAll('[data-health-condition-row]')).reduce((max, row) => {
+                if (!(row instanceof HTMLElement)) {
+                    return max;
+                }
+
+                const rowIndex = Number.parseInt(row.dataset.healthConditionIndex || '-1', 10);
+                return Number.isNaN(rowIndex) ? max : Math.max(max, rowIndex);
+            }, -1) + 1;
+        };
+
+        const wireStandaloneHealthConditionRow = (row) => {
+            if (!(row instanceof HTMLElement) || row.dataset.healthConditionBound === 'true') {
+                return;
+            }
+
+            row.dataset.healthConditionBound = 'true';
+            const removeButton = row.querySelector('[data-health-condition-remove]');
+
+            if (removeButton instanceof HTMLButtonElement) {
+                removeButton.addEventListener('click', () => row.remove());
+            }
+        };
+
+        Array.from(healthConditionContainer.querySelectorAll('[data-health-condition-row]')).forEach(wireStandaloneHealthConditionRow);
+
+        if (healthConditionAddButton instanceof HTMLButtonElement) {
+            healthConditionAddButton.addEventListener('click', () => {
+                const wrapper = document.createElement('div');
+                wrapper.innerHTML = healthConditionTemplate.innerHTML
+                    .replace(/__INDEX__/g, String(nextStandaloneHealthConditionIndex()))
+                    .trim();
+                const row = wrapper.firstElementChild;
+
+                if (!(row instanceof HTMLElement)) {
+                    return;
+                }
+
+                healthConditionContainer.appendChild(row);
+                wireStandaloneHealthConditionRow(row);
+            });
+        }
     }
 
     if (matriculaForm instanceof HTMLFormElement) {

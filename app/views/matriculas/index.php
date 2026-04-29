@@ -586,13 +586,13 @@ $healthConditionTemplate = ob_get_clean();
                     <div class="form-grid">
                         <div class="form-group"><div class="input-group"><span class="input-addon">Ingreso institucion</span><input name="academic_context[ecafechaingresoinstitucion]" type="date" value="<?= htmlspecialchars((string) ($academicContextOld['ecafechaingresoinstitucion'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>"></div></div>
                         <label class="resource-option resource-option-switch family-switch-inline">
-                            <span>Ha repetido anios</span>
+                            <span>Ha repetido años</span>
                             <span class="switch-control">
-                                <input type="checkbox" name="academic_context[ecaharepetidoanios]" value="1" <?= !empty($academicContextOld['ecaharepetidoanios']) ? 'checked' : ''; ?>>
+                                <input type="checkbox" name="academic_context[ecaharepetidoanios]" value="1" <?= !empty($academicContextOld['ecaharepetidoanios']) ? 'checked' : ''; ?> data-repeated-years-toggle>
                                 <span class="switch-slider" aria-hidden="true"></span>
                             </span>
                         </label>
-                        <div class="form-group form-group-full"><div class="input-group"><span class="input-addon">Detalle repeticion</span><textarea name="academic_context[ecadetallerepeticion]" rows="2"><?= htmlspecialchars((string) ($academicContextOld['ecadetallerepeticion'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></textarea></div></div>
+                        <div class="form-group form-group-full"><div class="input-group"><span class="input-addon">Detalle repeticion</span><textarea name="academic_context[ecadetallerepeticion]" rows="2" data-repeated-years-detail <?= empty($academicContextOld['ecaharepetidoanios']) ? 'disabled' : ''; ?>><?= htmlspecialchars((string) ($academicContextOld['ecadetallerepeticion'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></textarea></div></div>
                         <div class="form-group form-group-full"><div class="input-group"><span class="input-addon">Asignaturas preferidas</span><textarea name="academic_context[ecaasignaturaspreferencia]" rows="2"><?= htmlspecialchars((string) ($academicContextOld['ecaasignaturaspreferencia'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></textarea></div></div>
                         <div class="form-group form-group-full"><div class="input-group"><span class="input-addon">Asignaturas dificultad</span><textarea name="academic_context[ecaasignaturasdificultad]" rows="2"><?= htmlspecialchars((string) ($academicContextOld['ecaasignaturasdificultad'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></textarea></div></div>
                         <div class="form-group form-group-full"><div class="input-group"><span class="input-addon">Actividades extras</span><textarea name="academic_context[ecaactividadesextras]" rows="2"><?= htmlspecialchars((string) ($academicContextOld['ecaactividadesextras'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></textarea></div></div>

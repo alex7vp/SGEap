@@ -85,6 +85,18 @@ class MatriculationModel extends Model
         return $this->simpleCatalog('estado_matricula', 'emdid', 'emdnombre');
     }
 
+    public function allEnrollmentTypes(): array
+    {
+        $statement = $this->db->query(
+            "SELECT tmaid, tmanombre
+             FROM tipo_matricula
+             WHERE tmaestado = true
+             ORDER BY tmanombre ASC"
+        );
+
+        return $statement->fetchAll();
+    }
+
     public function allActiveDocuments(): array
     {
         $statement = $this->db->query(
@@ -487,6 +499,7 @@ class MatriculationModel extends Model
             $persisted[$index] = [
                 'perid' => $personId,
                 'pteid' => (int) $family['pteid'],
+                'perfechanacimiento' => (string) ($family['perfechanacimiento'] ?? ''),
             ];
         }
 
@@ -545,7 +558,28 @@ class MatriculationModel extends Model
             throw new RuntimeException('El estudiante no puede registrarse como su propio representante.');
         }
 
+        if (!$this->isAdultBirthDate((string) ($familyRepresentatives[$familyIndex]['perfechanacimiento'] ?? ''))) {
+            throw new RuntimeException('El representante familiar debe tener 18 años o mas.');
+        }
+
         return $familyRepresentatives[$familyIndex];
+    }
+
+    private function isAdultBirthDate(string $birthDate): bool
+    {
+        $birthDate = trim($birthDate);
+
+        if ($birthDate === '') {
+            return false;
+        }
+
+        $date = \DateTimeImmutable::createFromFormat('!Y-m-d', $birthDate);
+
+        if ($date === false || $date->format('Y-m-d') !== $birthDate) {
+            return false;
+        }
+
+        return $date->diff(new \DateTimeImmutable('today'))->y >= 18;
     }
 
     private function upsertFamily(int $studentId, int $personId, array $family): void

@@ -95,5 +95,10 @@ return static function (Router $router): void {
 
     $router->get('/estudiantes', [StudentController::class, 'index']);
     $router->get('/estudiantes/crear', [StudentController::class, 'create']);
+    $router->get('/estudiantes/ver', [StudentController::class, 'show']);
+    $router->get('/estudiantes/modulo', [StudentController::class, 'module']);
+    $router->get('/estudiantes/editar', [StudentController::class, 'edit']);
     $router->post('/estudiantes', [StudentController::class, 'store']);
+    $router->post('/estudiantes/modulo/actualizar', [StudentController::class, 'updateModule']);
+    $router->post('/estudiantes/actualizar', [StudentController::class, 'update']);
 };
