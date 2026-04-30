@@ -112,6 +112,13 @@ require BASE_PATH . '/app/views/partials/header.php';
             </div>
         </div>
 
+        <div class="form-group">
+            <div class="input-group">
+                <span class="input-addon">Lugar de trabajo</span>
+                <input id="perlugardetrabajo" name="perlugardetrabajo" placeholder="Ingrese el lugar de trabajo" value="<?= htmlspecialchars((string) ($old['perlugardetrabajo'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>">
+            </div>
+        </div>
+
         <div class="form-group form-group-full">
             <div class="input-group">
                 <span class="input-addon">E-mail</span>

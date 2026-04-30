@@ -12,18 +12,46 @@ require BASE_PATH . '/app/views/partials/header.php';
 <?php if (empty($students)): ?>
     <div class="empty-state">Todavia no hay estudiantes registrados.</div>
 <?php else: ?>
-    <div class="table-wrap">
+    <div class="student-filter-bar">
+        <div class="form-group">
+            <div class="input-group">
+                <span class="input-addon">Buscar</span>
+                <input
+                    type="search"
+                    placeholder="Cedula, nombres, apellidos o curso"
+                    data-student-search
+                    data-student-search-url="<?= htmlspecialchars(baseUrl('estudiantes/buscar'), ENT_QUOTES, 'UTF-8'); ?>"
+                >
+            </div>
+        </div>
+        <div class="form-group">
+            <div class="input-group">
+                <span class="input-addon">Curso</span>
+                <select data-student-course-filter>
+                    <option value="">Todos</option>
+                    <?php foreach (($courses ?? []) as $course): ?>
+                        <option value="<?= htmlspecialchars((string) $course['curid'], ENT_QUOTES, 'UTF-8'); ?>">
+                            <?= htmlspecialchars((string) ($course['granombre'] . ' ' . $course['prlnombre']), ENT_QUOTES, 'UTF-8'); ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+        </div>
+        <span class="table-status" data-student-search-status><?= count($students); ?> registro(s)</span>
+    </div>
+
+    <div class="table-wrap" data-student-table-wrapper>
         <table class="data-table">
             <thead>
                 <tr>
-                    <th>Cedula</th>
-                    <th>Nombres</th>
-                    <th>Apellidos</th>
-                    <th>Curso</th>
+                    <th><button class="table-sort-button" type="button" data-student-sort="cedula">Cedula <i class="fa fa-sort" aria-hidden="true"></i></button></th>
+                    <th><button class="table-sort-button" type="button" data-student-sort="nombres">Nombres <i class="fa fa-sort" aria-hidden="true"></i></button></th>
+                    <th><button class="table-sort-button is-active" type="button" data-student-sort="apellidos" data-direction="asc">Apellidos <i class="fa fa-sort-asc" aria-hidden="true"></i></button></th>
+                    <th><button class="table-sort-button" type="button" data-student-sort="curso">Curso <i class="fa fa-sort" aria-hidden="true"></i></button></th>
                     <th>Acciones</th>
                 </tr>
             </thead>
-            <tbody>
+            <tbody data-student-table-body>
                 <?php foreach ($students as $student): ?>
                     <tr>
                         <td><?= htmlspecialchars((string) $student['percedula'], ENT_QUOTES, 'UTF-8'); ?></td>
@@ -40,5 +68,6 @@ require BASE_PATH . '/app/views/partials/header.php';
             </tbody>
         </table>
     </div>
+    <div data-student-list-wrapper hidden></div>
 <?php endif; ?>
 <?php require BASE_PATH . '/app/views/partials/footer.php'; ?>

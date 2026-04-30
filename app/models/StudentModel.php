@@ -11,9 +11,41 @@ class StudentModel extends Model
     protected string $table = 'estudiante';
     protected string $primaryKey = 'estid';
 
-    public function allWithPerson(?int $periodId = null): array
+    public function allWithPerson(?int $periodId = null, array $filters = []): array
     {
         $periodFilter = $periodId !== null ? 'AND c.pleid = :period_id' : '';
+        $search = trim((string) ($filters['q'] ?? ''));
+        $courseId = (int) ($filters['curid'] ?? 0);
+        $sort = (string) ($filters['sort'] ?? 'apellidos');
+        $direction = strtolower((string) ($filters['direction'] ?? 'asc')) === 'desc' ? 'DESC' : 'ASC';
+        $orderColumns = [
+            'cedula' => 'p.percedula',
+            'nombres' => 'p.pernombres',
+            'apellidos' => 'p.perapellidos',
+            'curso' => 'course_data.curso',
+        ];
+        $orderColumn = $orderColumns[$sort] ?? $orderColumns['apellidos'];
+        $where = [];
+        $params = [];
+
+        if ($periodId !== null) {
+            $params['period_id'] = $periodId;
+        }
+
+        if ($search !== '') {
+            $where[] = "(p.percedula ILIKE :search
+                OR p.pernombres ILIKE :search
+                OR p.perapellidos ILIKE :search
+                OR COALESCE(course_data.curso, '') ILIKE :search)";
+            $params['search'] = '%' . $search . '%';
+        }
+
+        if ($courseId > 0) {
+            $where[] = 'course_data.curid = :course_id';
+            $params['course_id'] = $courseId;
+        }
+
+        $whereSql = $where !== [] ? 'WHERE ' . implode(' AND ', $where) : '';
         $statement = $this->db->prepare(
             "SELECT
                 e.estid,
@@ -37,13 +69,10 @@ class StudentModel extends Model
                 ORDER BY m.matfecha DESC, m.matid DESC
                 LIMIT 1
              ) course_data ON true
-             ORDER BY p.perapellidos ASC, p.pernombres ASC"
+             {$whereSql}
+             ORDER BY {$orderColumn} {$direction} NULLS LAST, p.perapellidos ASC, p.pernombres ASC"
         );
-        if ($periodId !== null) {
-            $statement->execute(['period_id' => $periodId]);
-        } else {
-            $statement->execute();
-        }
+        $statement->execute($params);
 
         return $statement->fetchAll();
     }
@@ -121,6 +150,9 @@ class StudentModel extends Model
             'health_context' => $this->healthContextByStudent($studentId),
             'health_conditions' => $this->healthConditionsByStudent($studentId),
             'health_measurement' => $this->latestHealthMeasurementByStudent($studentId),
+            'health_measurements' => $this->healthMeasurementsByStudent($studentId),
+            'health_insurance' => $matriculationId > 0 ? $this->insuranceByMatriculation($matriculationId) : false,
+            'vital_history' => $this->vitalHistoryByStudent($studentId),
             'academic_context' => $this->academicContextByStudent($studentId),
             'resources' => $matriculationId > 0 ? $this->resourcesByMatriculation($matriculationId) : false,
             'billing' => $matriculationId > 0 ? $this->billingByMatriculation($matriculationId) : false,
@@ -169,7 +201,8 @@ class StudentModel extends Model
             "SELECT mr.mreid, mr.perid, mr.pteid,
                     p.percedula, p.pernombres, p.perapellidos, p.pertelefono1, p.pertelefono2,
                     p.percorreo, p.persexo, p.perfechanacimiento, p.eciid, p.istid,
-                    p.perprofesion, p.perocupacion, p.perhablaingles, pt.ptenombre
+                    p.perprofesion, p.perocupacion, p.perlugardetrabajo, p.perhablaingles,
+                    pt.ptenombre
              FROM matricula_representante mr
              INNER JOIN persona p ON p.perid = mr.perid
              INNER JOIN parentesco pt ON pt.pteid = mr.pteid
@@ -187,7 +220,8 @@ class StudentModel extends Model
             "SELECT f.famid, f.perid, f.pteid,
                     p.percedula, p.pernombres, p.perapellidos, p.pertelefono1, p.pertelefono2,
                     p.percorreo, p.persexo, p.perfechanacimiento, p.eciid, p.istid,
-                    p.perprofesion, p.perocupacion, p.perhablaingles, pt.ptenombre, f.famlugardetrabajo
+                    p.perprofesion, p.perocupacion, p.perlugardetrabajo, p.perhablaingles,
+                    pt.ptenombre
              FROM familiar f
              INNER JOIN persona p ON p.perid = f.perid
              INNER JOIN parentesco pt ON pt.pteid = f.pteid
@@ -232,13 +266,53 @@ class StudentModel extends Model
     private function latestHealthMeasurementByStudent(int $studentId): array|false
     {
         $statement = $this->db->prepare(
-            "SELECT emsid, emspeso, emstalla, emsimc, emsfecha_medicion, emsobservacion
+            "SELECT emsid, emspeso, (emstalla * 100) AS emstalla, emsimc, emsfecha_medicion, emsobservacion
              FROM estudiante_medicion_salud
              WHERE estid = :student_id
              ORDER BY emsfecha_medicion DESC, emsid DESC
              LIMIT 1"
         );
         $statement->execute(['student_id' => $studentId]);
+
+        return $statement->fetch();
+    }
+
+    private function healthMeasurementsByStudent(int $studentId): array
+    {
+        $statement = $this->db->prepare(
+            "SELECT emsid, emspeso, (emstalla * 100) AS emstalla, emsimc, emsfecha_medicion, emsobservacion
+             FROM estudiante_medicion_salud
+             WHERE estid = :student_id
+             ORDER BY emsfecha_medicion ASC, emsid ASC"
+        );
+        $statement->execute(['student_id' => $studentId]);
+
+        return $statement->fetchAll();
+    }
+
+    private function vitalHistoryByStudent(int $studentId): array|false
+    {
+        $statement = $this->db->prepare(
+            "SELECT *
+             FROM estudiante_historia_vital
+             WHERE estid = :student_id
+             LIMIT 1"
+        );
+        $statement->execute(['student_id' => $studentId]);
+
+        return $statement->fetch();
+    }
+
+    private function insuranceByMatriculation(int $matriculationId): array|false
+    {
+        $statement = $this->db->prepare(
+            "SELECT msm.*, sm.smnombre
+             FROM matricula_seguro_medico msm
+             INNER JOIN seguro_medico sm ON sm.smid = msm.smid
+             WHERE msm.matid = :matriculation_id
+             LIMIT 1"
+        );
+        $statement->execute(['matriculation_id' => $matriculationId]);
 
         return $statement->fetch();
     }
@@ -458,7 +532,7 @@ class StudentModel extends Model
             } elseif ($section === 'familiares') {
                 $this->updateFamiliesModule($studentId, (int) $student['perid'], $data['families'] ?? []);
             } elseif ($section === 'salud') {
-                $this->upsertHealthModule($studentId, $data);
+                $this->updateHealthPanelModule($studentId, $matriculationId, $data);
             } elseif ($section === 'academico') {
                 $this->upsertAcademicModule($studentId, $data);
             } elseif ($section === 'recursos') {
@@ -550,12 +624,12 @@ class StudentModel extends Model
                 throw new \RuntimeException('El estudiante no puede registrarse como su propio familiar.');
             }
 
+            $family['perhablaingles'] = !empty($family['perhablaingles']);
             $this->updatePerson($personId, $family);
 
             $statement = $this->db->prepare(
                 "UPDATE familiar
-                 SET pteid = :pteid,
-                     famlugardetrabajo = :workplace
+                 SET pteid = :pteid
                  WHERE famid = :famid
                    AND estid = :student_id"
             );
@@ -563,7 +637,6 @@ class StudentModel extends Model
                 'famid' => $familyId,
                 'student_id' => $studentId,
                 'pteid' => $relationshipId,
-                'workplace' => trim((string) ($family['famlugardetrabajo'] ?? '')) !== '' ? trim((string) $family['famlugardetrabajo']) : null,
             ]);
         }
     }
@@ -597,6 +670,7 @@ class StudentModel extends Model
                  istid = :instruction_level,
                  perprofesion = :profession,
                  perocupacion = :occupation,
+                 perlugardetrabajo = :workplace,
                  perhablaingles = :speaks_english
              WHERE perid = :person_id"
         );
@@ -614,6 +688,7 @@ class StudentModel extends Model
             'instruction_level' => (int) ($data['istid'] ?? $existing['istid'] ?? 0) > 0 ? (int) ($data['istid'] ?? $existing['istid']) : null,
             'profession' => trim((string) ($data['perprofesion'] ?? $existing['perprofesion'] ?? '')) !== '' ? trim((string) ($data['perprofesion'] ?? $existing['perprofesion'])) : null,
             'occupation' => trim((string) ($data['perocupacion'] ?? $existing['perocupacion'] ?? '')) !== '' ? trim((string) ($data['perocupacion'] ?? $existing['perocupacion'])) : null,
+            'workplace' => trim((string) ($data['perlugardetrabajo'] ?? $existing['perlugardetrabajo'] ?? '')) !== '' ? trim((string) ($data['perlugardetrabajo'] ?? $existing['perlugardetrabajo'])) : null,
             'speaks_english' => $this->dbBool(array_key_exists('perhablaingles', $data) ? !empty($data['perhablaingles']) : !empty($existing['perhablaingles'])),
         ]);
     }
@@ -640,6 +715,89 @@ class StudentModel extends Model
 
         $this->replaceHealthConditionsModule($studentId, $data['health_conditions'] ?? []);
         $this->insertHealthMeasurementModule($studentId, $data['health_measurement'] ?? []);
+    }
+
+    private function updateHealthPanelModule(int $studentId, int $matriculationId, array $data): void
+    {
+        $panel = (string) ($data['health_panel'] ?? '');
+
+        if ($panel === 'general') {
+            $this->upsertHealthGeneralModule($studentId, $data);
+            $this->upsertInsuranceModule($matriculationId, $data['insurance'] ?? []);
+            return;
+        }
+
+        if ($panel === 'condiciones') {
+            $this->replaceHealthConditionsModule($studentId, $data['health_conditions'] ?? []);
+            return;
+        }
+
+        if ($panel === 'historia-vital') {
+            $this->upsertVitalHistoryModule($studentId, $data['vital_history'] ?? []);
+            return;
+        }
+
+        if ($panel === 'mediciones') {
+            $this->insertHealthMeasurementModule($studentId, $data['health_measurement'] ?? []);
+            return;
+        }
+
+        $this->upsertHealthModule($studentId, $data);
+    }
+
+    private function upsertHealthGeneralModule(int $studentId, array $data): void
+    {
+        $statement = $this->db->prepare(
+            "INSERT INTO estudiante_contexto_salud (estid, gsid, ecstienediscapacidad, ecsdetallediscapacidad, amid)
+             VALUES (:student_id, :blood_group, :has_disability, :disability_detail, :medical_care)
+             ON CONFLICT (estid) DO UPDATE
+             SET gsid = EXCLUDED.gsid,
+                 ecstienediscapacidad = EXCLUDED.ecstienediscapacidad,
+                 ecsdetallediscapacidad = EXCLUDED.ecsdetallediscapacidad,
+                 amid = EXCLUDED.amid,
+                 ecsfecha_modificacion = CURRENT_TIMESTAMP"
+        );
+        $statement->execute([
+            'student_id' => $studentId,
+            'blood_group' => (int) ($data['gsid'] ?? 0) > 0 ? (int) $data['gsid'] : null,
+            'has_disability' => $this->dbBool(!empty($data['ecstienediscapacidad'])),
+            'disability_detail' => trim((string) ($data['ecsdetallediscapacidad'] ?? '')) !== '' ? trim((string) $data['ecsdetallediscapacidad']) : null,
+            'medical_care' => (int) ($data['amid'] ?? 0) > 0 ? (int) $data['amid'] : null,
+        ]);
+    }
+
+    private function upsertInsuranceModule(int $matriculationId, array $insurance): void
+    {
+        if ($matriculationId <= 0) {
+            return;
+        }
+
+        $insuranceId = (int) ($insurance['smid'] ?? 0);
+
+        if ($insuranceId <= 0) {
+            $deleteStatement = $this->db->prepare(
+                "DELETE FROM matricula_seguro_medico
+                 WHERE matid = :matriculation_id"
+            );
+            $deleteStatement->execute(['matriculation_id' => $matriculationId]);
+            return;
+        }
+
+        $statement = $this->db->prepare(
+            "INSERT INTO matricula_seguro_medico (matid, smid, msmtelefono, msmobservacion)
+             VALUES (:matid, :insurance_id, :phone, :observation)
+             ON CONFLICT (matid) DO UPDATE
+             SET smid = EXCLUDED.smid,
+                 msmtelefono = EXCLUDED.msmtelefono,
+                 msmobservacion = EXCLUDED.msmobservacion,
+                 msmfecha_modificacion = CURRENT_TIMESTAMP"
+        );
+        $statement->execute([
+            'matid' => $matriculationId,
+            'insurance_id' => $insuranceId,
+            'phone' => trim((string) ($insurance['msmtelefono'] ?? '')) !== '' ? trim((string) $insurance['msmtelefono']) : null,
+            'observation' => trim((string) ($insurance['msmobservacion'] ?? '')) !== '' ? trim((string) $insurance['msmobservacion']) : null,
+        ]);
     }
 
     private function replaceHealthConditionsModule(int $studentId, array $conditions): void
@@ -693,10 +851,10 @@ class StudentModel extends Model
 
         $weightValue = (float) $weight;
         $heightValue = (float) $height;
+        $heightMeters = $heightValue / 100;
         $imc = trim((string) ($measurement['emsimc'] ?? ''));
 
         if ($imc === '' && $heightValue > 0) {
-            $heightMeters = $heightValue / 100;
             $imc = number_format($weightValue / ($heightMeters * $heightMeters), 2, '.', '');
         }
 
@@ -710,10 +868,56 @@ class StudentModel extends Model
         $statement->execute([
             'student_id' => $studentId,
             'weight' => $weightValue,
-            'height' => $heightValue,
+            'height' => $heightMeters,
             'imc' => (float) $imc,
             'measurement_date' => $date,
             'observation' => trim((string) ($measurement['emsobservacion'] ?? '')) !== '' ? trim((string) $measurement['emsobservacion']) : null,
+        ]);
+    }
+
+    private function upsertVitalHistoryModule(int $studentId, array $history): void
+    {
+        $statement = $this->db->prepare(
+            "INSERT INTO estudiante_historia_vital (
+                estid, ehvedadmadre, ehvcomplicacionesembarazo, ehvmedicacionembarazo, teid, tpid,
+                ehvdetalleembarazo, ehvpesonacer, ehvtallanacer, ehvedadcaminar, ehvedadhablar,
+                ehvperiodolactancia, ehvedadbiberon, ehvedadcontrolesfinteres
+             ) VALUES (
+                :student_id, :mother_age, :pregnancy_complications, :pregnancy_medication, :pregnancy_type, :birth_type,
+                :pregnancy_detail, :birth_weight, :birth_height, :walk_age, :speak_age,
+                :lactation_period, :bottle_age, :sphincter_age
+             )
+             ON CONFLICT (estid) DO UPDATE
+             SET ehvedadmadre = EXCLUDED.ehvedadmadre,
+                 ehvcomplicacionesembarazo = EXCLUDED.ehvcomplicacionesembarazo,
+                 ehvmedicacionembarazo = EXCLUDED.ehvmedicacionembarazo,
+                 teid = EXCLUDED.teid,
+                 tpid = EXCLUDED.tpid,
+                 ehvdetalleembarazo = EXCLUDED.ehvdetalleembarazo,
+                 ehvpesonacer = EXCLUDED.ehvpesonacer,
+                 ehvtallanacer = EXCLUDED.ehvtallanacer,
+                 ehvedadcaminar = EXCLUDED.ehvedadcaminar,
+                 ehvedadhablar = EXCLUDED.ehvedadhablar,
+                 ehvperiodolactancia = EXCLUDED.ehvperiodolactancia,
+                 ehvedadbiberon = EXCLUDED.ehvedadbiberon,
+                 ehvedadcontrolesfinteres = EXCLUDED.ehvedadcontrolesfinteres,
+                 ehvfecha_modificacion = CURRENT_TIMESTAMP"
+        );
+        $statement->execute([
+            'student_id' => $studentId,
+            'mother_age' => trim((string) ($history['ehvedadmadre'] ?? '')) !== '' ? (int) $history['ehvedadmadre'] : null,
+            'pregnancy_complications' => trim((string) ($history['ehvcomplicacionesembarazo'] ?? '')) !== '' ? trim((string) $history['ehvcomplicacionesembarazo']) : null,
+            'pregnancy_medication' => trim((string) ($history['ehvmedicacionembarazo'] ?? '')) !== '' ? trim((string) $history['ehvmedicacionembarazo']) : null,
+            'pregnancy_type' => (int) ($history['teid'] ?? 0) > 0 ? (int) $history['teid'] : null,
+            'birth_type' => (int) ($history['tpid'] ?? 0) > 0 ? (int) $history['tpid'] : null,
+            'pregnancy_detail' => trim((string) ($history['ehvdetalleembarazo'] ?? '')) !== '' ? trim((string) $history['ehvdetalleembarazo']) : null,
+            'birth_weight' => trim((string) ($history['ehvpesonacer'] ?? '')) !== '' ? trim((string) $history['ehvpesonacer']) : null,
+            'birth_height' => trim((string) ($history['ehvtallanacer'] ?? '')) !== '' ? trim((string) $history['ehvtallanacer']) : null,
+            'walk_age' => trim((string) ($history['ehvedadcaminar'] ?? '')) !== '' ? trim((string) $history['ehvedadcaminar']) : null,
+            'speak_age' => trim((string) ($history['ehvedadhablar'] ?? '')) !== '' ? trim((string) $history['ehvedadhablar']) : null,
+            'lactation_period' => trim((string) ($history['ehvperiodolactancia'] ?? '')) !== '' ? trim((string) $history['ehvperiodolactancia']) : null,
+            'bottle_age' => trim((string) ($history['ehvedadbiberon'] ?? '')) !== '' ? trim((string) $history['ehvedadbiberon']) : null,
+            'sphincter_age' => trim((string) ($history['ehvedadcontrolesfinteres'] ?? '')) !== '' ? trim((string) $history['ehvedadcontrolesfinteres']) : null,
         ]);
     }
 

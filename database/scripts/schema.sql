@@ -257,6 +257,7 @@ CREATE TABLE persona (
     istid integer,
     perprofesion varchar(150),
     perocupacion varchar(150),
+    perlugardetrabajo varchar(150),
     perhablaingles boolean NOT NULL DEFAULT false,
     CONSTRAINT pk_persona PRIMARY KEY (perid),
     CONSTRAINT uq_persona_percedula UNIQUE (percedula),
@@ -654,7 +655,6 @@ CREATE TABLE familiar (
     estid integer NOT NULL,
     perid integer NOT NULL,
     pteid integer NOT NULL,
-    famlugardetrabajo varchar(150),
     CONSTRAINT pk_familiar PRIMARY KEY (famid),
     CONSTRAINT fk_familiar_estudiante FOREIGN KEY (estid)
         REFERENCES estudiante (estid),

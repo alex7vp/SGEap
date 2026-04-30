@@ -845,6 +845,7 @@ function upsertPerson(PDO $db, array $person): int
                  istid = :instruction_level,
                  perprofesion = :profession,
                  perocupacion = :occupation,
+                 perlugardetrabajo = :workplace,
                  perhablaingles = :speaks_english
              WHERE perid = :id"
         );
@@ -856,10 +857,10 @@ function upsertPerson(PDO $db, array $person): int
     $statement = $db->prepare(
         "INSERT INTO persona (
             percedula, pernombres, perapellidos, pertelefono1, pertelefono2, percorreo, persexo,
-            perfechanacimiento, eciid, istid, perprofesion, perocupacion, perhablaingles
+            perfechanacimiento, eciid, istid, perprofesion, perocupacion, perlugardetrabajo, perhablaingles
          ) VALUES (
             :cedula, :names, :lastnames, :phone1, :phone2, :email, :sex,
-            :birth_date, :civil_status, :instruction_level, :profession, :occupation, :speaks_english
+            :birth_date, :civil_status, :instruction_level, :profession, :occupation, :workplace, :speaks_english
          ) RETURNING perid"
     );
     $statement->execute(bindPerson($person));
@@ -881,6 +882,7 @@ function bindPerson(array $person, bool $includeCedula = true): array
         'instruction_level' => $person['istid'],
         'profession' => strLimit($person['perprofesion'], 150),
         'occupation' => strLimit($person['perocupacion'], 150),
+        'workplace' => strLimit($person['perlugardetrabajo'] ?? '', 150),
         'speaks_english' => !empty($person['perhablaingles']) ? 'true' : 'false',
     ];
 
@@ -1079,16 +1081,15 @@ function insertHealthCondition(PDO $db, int $studentId, int $conditionTypeId, st
 function upsertFamily(PDO $db, int $studentId, int $personId, int $relationshipId, ?string $workplace): void
 {
     $statement = $db->prepare(
-        "INSERT INTO familiar (estid, perid, pteid, famlugardetrabajo)
-         VALUES (:student_id, :person_id, :relationship_id, :workplace)
+        "INSERT INTO familiar (estid, perid, pteid)
+         VALUES (:student_id, :person_id, :relationship_id)
          ON CONFLICT (estid, perid, pteid) DO UPDATE
-         SET famlugardetrabajo = EXCLUDED.famlugardetrabajo"
+         SET pteid = EXCLUDED.pteid"
     );
     $statement->execute([
         'student_id' => $studentId,
         'person_id' => $personId,
         'relationship_id' => $relationshipId,
-        'workplace' => strLimit($workplace, 150),
     ]);
 }
 

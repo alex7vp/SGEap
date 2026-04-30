@@ -55,6 +55,7 @@ class PersonModel extends Model
                 istid,
                 perprofesion,
                 perocupacion,
+                perlugardetrabajo,
                 perhablaingles
             ) VALUES (
                 :cedula,
@@ -69,6 +70,7 @@ class PersonModel extends Model
                 :instruccion,
                 :profesion,
                 :ocupacion,
+                :lugar_trabajo,
                 :habla_ingles
             )
             RETURNING perid"
@@ -87,6 +89,7 @@ class PersonModel extends Model
             'instruccion' => (int) ($data['istid'] ?? 0) > 0 ? (int) $data['istid'] : null,
             'profesion' => ($data['perprofesion'] ?? '') !== '' ? $data['perprofesion'] : null,
             'ocupacion' => ($data['perocupacion'] ?? '') !== '' ? $data['perocupacion'] : null,
+            'lugar_trabajo' => ($data['perlugardetrabajo'] ?? '') !== '' ? $data['perlugardetrabajo'] : null,
             'habla_ingles' => $this->booleanSqlValue($data['perhablaingles'] ?? false),
         ]);
 
@@ -127,7 +130,7 @@ class PersonModel extends Model
     {
         $statement = $this->db->prepare(
             "SELECT perid, percedula, pernombres, perapellidos, pertelefono1, pertelefono2,
-                    percorreo, persexo, perfechanacimiento, eciid, istid, perprofesion, perocupacion, perhablaingles
+                    percorreo, persexo, perfechanacimiento, eciid, istid, perprofesion, perocupacion, perlugardetrabajo, perhablaingles
              FROM {$this->table}
              WHERE percedula = :cedula
              LIMIT 1"
@@ -144,7 +147,7 @@ class PersonModel extends Model
         if ($normalizedTerm === '') {
             $statement = $this->db->query(
                 "SELECT perid, percedula, pernombres, perapellidos, pertelefono1, pertelefono2,
-                        percorreo, persexo, perfechanacimiento, eciid, istid, perprofesion, perocupacion, perhablaingles
+                        percorreo, persexo, perfechanacimiento, eciid, istid, perprofesion, perocupacion, perlugardetrabajo, perhablaingles
                  FROM {$this->table}
                  ORDER BY perapellidos ASC, pernombres ASC"
             );
@@ -154,7 +157,7 @@ class PersonModel extends Model
 
         $statement = $this->db->prepare(
             "SELECT perid, percedula, pernombres, perapellidos, pertelefono1, pertelefono2,
-                    percorreo, persexo, perfechanacimiento, eciid, istid, perprofesion, perocupacion, perhablaingles
+                    percorreo, persexo, perfechanacimiento, eciid, istid, perprofesion, perocupacion, perlugardetrabajo, perhablaingles
              FROM {$this->table}
              WHERE percedula ILIKE :term
                 OR pernombres ILIKE :term
@@ -185,6 +188,7 @@ class PersonModel extends Model
                  istid = :instruccion,
                  perprofesion = :profesion,
                  perocupacion = :ocupacion,
+                 perlugardetrabajo = :lugar_trabajo,
                  perhablaingles = :habla_ingles
              WHERE perid = :perid"
         );
@@ -203,6 +207,7 @@ class PersonModel extends Model
             'instruccion' => (int) ($data['istid'] ?? 0) > 0 ? (int) $data['istid'] : null,
             'profesion' => ($data['perprofesion'] ?? '') !== '' ? $data['perprofesion'] : null,
             'ocupacion' => ($data['perocupacion'] ?? '') !== '' ? $data['perocupacion'] : null,
+            'lugar_trabajo' => ($data['perlugardetrabajo'] ?? '') !== '' ? $data['perlugardetrabajo'] : null,
             'habla_ingles' => $this->booleanSqlValue($data['perhablaingles'] ?? false),
         ]);
     }
@@ -223,6 +228,7 @@ class PersonModel extends Model
                  istid = :instruccion,
                  perprofesion = :profesion,
                  perocupacion = :ocupacion,
+                 perlugardetrabajo = :lugar_trabajo,
                  perhablaingles = :habla_ingles
              WHERE perid = :perid"
         );
@@ -241,6 +247,7 @@ class PersonModel extends Model
             'instruccion' => (int) ($data['istid'] ?? 0) > 0 ? (int) $data['istid'] : null,
             'profesion' => ($data['perprofesion'] ?? '') !== '' ? $data['perprofesion'] : null,
             'ocupacion' => ($data['perocupacion'] ?? '') !== '' ? $data['perocupacion'] : null,
+            'lugar_trabajo' => ($data['perlugardetrabajo'] ?? '') !== '' ? $data['perlugardetrabajo'] : null,
             'habla_ingles' => $this->booleanSqlValue($data['perhablaingles'] ?? false),
         ]);
     }

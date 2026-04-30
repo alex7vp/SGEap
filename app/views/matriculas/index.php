@@ -157,8 +157,8 @@ $emptyFamilyRow = static function (): array {
         'istid' => 0,
         'perprofesion' => '',
         'perocupacion' => '',
+        'perlugardetrabajo' => '',
         'perhablaingles' => false,
-        'famlugardetrabajo' => '',
     ];
 };
 
@@ -177,6 +177,7 @@ $emptyRepresentativeRow = static function (): array {
         'istid' => 0,
         'perprofesion' => '',
         'perocupacion' => '',
+        'perlugardetrabajo' => '',
         'perhablaingles' => false,
         'pteid' => 0,
     ];
@@ -305,7 +306,7 @@ $renderFamilyFields = static function (
         <div class="form-group"><div class="input-group"><span class="input-addon">Correo</span><input name="family[<?= htmlspecialchars((string) $index, ENT_QUOTES, 'UTF-8'); ?>][percorreo]" type="email" value="<?= htmlspecialchars((string) ($family['percorreo'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" data-family-dependent data-family-person-field data-submit-enable <?= $personDisabledAttribute; ?>></div></div>
         <div class="form-group"><div class="input-group"><span class="input-addon">Profesion</span><input name="family[<?= htmlspecialchars((string) $index, ENT_QUOTES, 'UTF-8'); ?>][perprofesion]" value="<?= htmlspecialchars((string) ($family['perprofesion'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" data-family-dependent data-family-person-field data-submit-enable <?= $personDisabledAttribute; ?>></div></div>
         <div class="form-group"><div class="input-group"><span class="input-addon">Ocupacion</span><input name="family[<?= htmlspecialchars((string) $index, ENT_QUOTES, 'UTF-8'); ?>][perocupacion]" value="<?= htmlspecialchars((string) ($family['perocupacion'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" data-family-dependent data-family-person-field data-submit-enable <?= $personDisabledAttribute; ?>></div></div>
-        <div class="form-group"><div class="input-group"><span class="input-addon">Trabajo</span><input name="family[<?= htmlspecialchars((string) $index, ENT_QUOTES, 'UTF-8'); ?>][famlugardetrabajo]" value="<?= htmlspecialchars((string) ($family['famlugardetrabajo'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" data-family-dependent data-submit-enable <?= $familyDisabledAttribute; ?>></div></div>
+        <div class="form-group"><div class="input-group"><span class="input-addon">Lugar de trabajo</span><input name="family[<?= htmlspecialchars((string) $index, ENT_QUOTES, 'UTF-8'); ?>][perlugardetrabajo]" value="<?= htmlspecialchars((string) ($family['perlugardetrabajo'] ?? $family['famlugardetrabajo'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" data-family-dependent data-family-person-field data-submit-enable <?= $personDisabledAttribute; ?>></div></div>
         <label class="resource-option resource-option-switch family-switch-inline">
             <span>Habla ingles</span>
             <span class="switch-control">
@@ -648,6 +649,7 @@ $healthConditionTemplate = ob_get_clean();
                             <div class="form-group"><div class="input-group"><span class="input-addon">Fijo</span><input name="representative_external[pertelefono2]" value="<?= htmlspecialchars((string) ($externalRepresentative['pertelefono2'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" data-representative-external-detail-field></div></div>
                             <div class="form-group"><div class="input-group"><span class="input-addon">Profesion</span><input name="representative_external[perprofesion]" value="<?= htmlspecialchars((string) ($externalRepresentative['perprofesion'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" data-representative-external-person-field></div></div>
                             <div class="form-group"><div class="input-group"><span class="input-addon">Ocupacion</span><input name="representative_external[perocupacion]" value="<?= htmlspecialchars((string) ($externalRepresentative['perocupacion'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" data-representative-external-person-field></div></div>
+                            <div class="form-group"><div class="input-group"><span class="input-addon">Lugar de trabajo</span><input name="representative_external[perlugardetrabajo]" value="<?= htmlspecialchars((string) ($externalRepresentative['perlugardetrabajo'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" data-representative-external-person-field></div></div>
                             <div class="form-group form-group-full"><div class="input-group"><span class="input-addon">Correo</span><input name="representative_external[percorreo]" type="email" value="<?= htmlspecialchars((string) ($externalRepresentative['percorreo'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" data-representative-external-person-field></div></div>
                             <label class="resource-option resource-option-switch family-switch-inline">
                                 <span>Habla ingles</span>

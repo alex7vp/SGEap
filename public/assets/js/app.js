@@ -1021,6 +1021,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const imcWeightInput = document.querySelector('[data-imc-weight]');
     const imcHeightInput = document.querySelector('[data-imc-height]');
     const imcOutputInput = document.querySelector('[data-imc-output]');
+    const imcCategoryInput = document.querySelector('[data-imc-category]');
+    const measurementDateInput = document.querySelector('[data-measurement-date]');
+    const whoBmiReferenceElement = document.querySelector('[data-who-bmi-reference]');
     const imcAlert = document.querySelector('[data-imc-alert]');
 
     if (
@@ -1629,7 +1632,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             return;
                         }
 
-                        const match = field.name.match(/\[(persexo|pernombres|perapellidos|pertelefono1|pertelefono2|percorreo|perfechanacimiento|eciid|istid|perprofesion|perocupacion|perhablaingles)\]$/);
+                        const match = field.name.match(/\[(persexo|pernombres|perapellidos|pertelefono1|pertelefono2|percorreo|perfechanacimiento|eciid|istid|perprofesion|perocupacion|perlugardetrabajo|perhablaingles)\]$/);
 
                         if (!match) {
                             return;
@@ -1805,7 +1808,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             return;
                         }
 
-                        const match = field.name.match(/\[(persexo|pernombres|perapellidos|pertelefono1|percorreo|pertelefono2|perfechanacimiento|eciid|istid|perprofesion|perocupacion|perhablaingles)\]$/);
+                        const match = field.name.match(/\[(persexo|pernombres|perapellidos|pertelefono1|percorreo|pertelefono2|perfechanacimiento|eciid|istid|perprofesion|perocupacion|perlugardetrabajo|perhablaingles)\]$/);
 
                         if (!match) {
                             return;
@@ -2013,6 +2016,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (!Number.isFinite(peso) || !Number.isFinite(tallaCm) || tallaCm <= 0) {
                 imcOutputInput.value = '';
+                if (imcCategoryInput instanceof HTMLInputElement) {
+                    imcCategoryInput.value = '';
+                }
                 if (imcAlert instanceof HTMLElement) {
                     imcAlert.hidden = true;
                     imcAlert.textContent = '';
@@ -2023,8 +2029,66 @@ document.addEventListener('DOMContentLoaded', () => {
             const tallaMetros = tallaCm / 100;
             const imc = peso / (tallaMetros * tallaMetros);
             let categoria = 'Peso normal';
+            let whoBmiReference = null;
+            const birthDateValue = imcCategoryInput instanceof HTMLInputElement ? imcCategoryInput.dataset.studentBirthDate || '' : '';
+            const sexValue = imcCategoryInput instanceof HTMLInputElement ? imcCategoryInput.dataset.studentSex || 'sexo no registrado' : 'sexo no registrado';
+            const measurementDateValue = measurementDateInput instanceof HTMLInputElement ? measurementDateInput.value : '';
+            const birthDate = birthDateValue !== '' ? new Date(birthDateValue + 'T00:00:00') : null;
+            const measurementDate = measurementDateValue !== '' ? new Date(measurementDateValue + 'T00:00:00') : new Date();
+            let ageMonths = null;
 
-            if (imc < 18.5) {
+            if (whoBmiReferenceElement instanceof HTMLElement) {
+                try {
+                    whoBmiReference = JSON.parse(whoBmiReferenceElement.textContent || '{}');
+                } catch (error) {
+                    whoBmiReference = null;
+                }
+            }
+
+            if (birthDate instanceof Date && !Number.isNaN(birthDate.getTime())) {
+                let ageYears = measurementDate.getFullYear() - birthDate.getFullYear();
+                const monthDelta = measurementDate.getMonth() - birthDate.getMonth();
+                let monthRemainder = monthDelta;
+
+                if (monthDelta < 0 || (monthDelta === 0 && measurementDate.getDate() < birthDate.getDate())) {
+                    ageYears -= 1;
+                    monthRemainder += 12;
+                }
+
+                if (measurementDate.getDate() < birthDate.getDate()) {
+                    monthRemainder -= 1;
+                }
+
+                ageMonths = (ageYears * 12) + Math.max(0, monthRemainder);
+            }
+
+            const normalizedSex = String(sexValue).toLowerCase();
+            const sexKey = normalizedSex === 'femenino' ? 'F' : (normalizedSex === 'masculino' ? 'M' : '');
+
+            if (ageMonths !== null && ageMonths < 61) {
+                categoria = 'Requiere curva OMS menor de 5 años';
+            } else if (
+                ageMonths !== null
+                && ageMonths <= 228
+                && sexKey !== ''
+                && whoBmiReference
+                && whoBmiReference[sexKey]
+                && whoBmiReference[sexKey][String(Math.max(61, Math.min(228, ageMonths)))]
+            ) {
+                const reference = whoBmiReference[sexKey][String(Math.max(61, Math.min(228, ageMonths)))];
+
+                if (imc < Number.parseFloat(reference.sd3neg)) {
+                    categoria = 'Delgadez severa';
+                } else if (imc < Number.parseFloat(reference.sd2neg)) {
+                    categoria = 'Delgadez';
+                } else if (imc <= Number.parseFloat(reference.sd1)) {
+                    categoria = 'Peso normal';
+                } else if (imc <= Number.parseFloat(reference.sd2)) {
+                    categoria = 'Sobrepeso';
+                } else {
+                    categoria = 'Obesidad';
+                }
+            } else if (imc < 18.5) {
                 categoria = 'Bajo peso';
             } else if (imc < 25) {
                 categoria = 'Peso normal';
@@ -2035,6 +2099,9 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             imcOutputInput.value = imc.toFixed(2);
+            if (imcCategoryInput instanceof HTMLInputElement) {
+                imcCategoryInput.value = categoria;
+            }
 
             if (imcAlert instanceof HTMLElement) {
                 imcAlert.textContent = 'Interpretacion del IMC: ' + categoria + '.';
@@ -2044,6 +2111,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         imcWeightInput.addEventListener('input', syncImc);
         imcHeightInput.addEventListener('input', syncImc);
+        if (measurementDateInput instanceof HTMLInputElement) {
+            measurementDateInput.addEventListener('input', syncImc);
+            measurementDateInput.addEventListener('change', syncImc);
+        }
         syncImc();
     }
 
@@ -2203,6 +2274,270 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         updateGradeStatus();
+    }
+
+    document.querySelectorAll('[data-health-growth-chart]').forEach((canvas) => {
+        if (!(canvas instanceof HTMLCanvasElement) || typeof window.Chart === 'undefined') {
+            return;
+        }
+
+        let measurements = [];
+
+        try {
+            measurements = JSON.parse(canvas.dataset.measurements || '[]');
+        } catch (error) {
+            measurements = [];
+        }
+
+        let referencePoints = [];
+
+        try {
+            referencePoints = JSON.parse(canvas.dataset.reference || '[]');
+        } catch (error) {
+            referencePoints = [];
+        }
+
+        if (!Array.isArray(measurements) || measurements.length === 0) {
+            return;
+        }
+
+        if (!Array.isArray(referencePoints)) {
+            referencePoints = [];
+        }
+
+        const referenceByDate = new Map(referencePoints.map((point) => [String(point.fecha || ''), point]));
+        const referenceValue = (measurement, key) => {
+            const point = referenceByDate.get(String(measurement.fecha || ''));
+
+            if (!point || point[key] === null || point[key] === undefined || point[key] === '') {
+                return null;
+            }
+
+            const value = Number.parseFloat(point[key]);
+            return Number.isFinite(value) ? value : null;
+        };
+        const numericValue = (measurement, key) => {
+            const value = Number.parseFloat(measurement[key]);
+            return Number.isFinite(value) ? value : null;
+        };
+
+        new window.Chart(canvas, {
+            type: 'line',
+            data: {
+                labels: measurements.map((measurement) => String(measurement.fecha || '')),
+                datasets: [
+                    {
+                        label: 'Peso (kg)',
+                        data: measurements.map((measurement) => numericValue(measurement, 'peso')),
+                        borderColor: '#0f4c81',
+                        backgroundColor: 'rgba(15, 76, 129, 0.12)',
+                        tension: 0.25,
+                        yAxisID: 'weight',
+                    },
+                    {
+                        label: 'Talla (cm)',
+                        data: measurements.map((measurement) => numericValue(measurement, 'talla')),
+                        borderColor: '#1f9d55',
+                        backgroundColor: 'rgba(31, 157, 85, 0.12)',
+                        tension: 0.25,
+                        yAxisID: 'height',
+                    },
+                    {
+                        label: 'IMC',
+                        data: measurements.map((measurement) => numericValue(measurement, 'imc')),
+                        borderColor: '#7c3aed',
+                        backgroundColor: 'rgba(124, 58, 237, 0.1)',
+                        tension: 0.25,
+                        yAxisID: 'bmi',
+                    },
+                    {
+                        label: 'OMS delgadez (-2 DE)',
+                        data: measurements.map((measurement) => referenceValue(measurement, 'sd2neg')),
+                        borderColor: 'rgba(251, 191, 36, 0.75)',
+                        borderWidth: 1.75,
+                        borderDash: [6, 4],
+                        pointRadius: 0,
+                        tension: 0.2,
+                        spanGaps: true,
+                        yAxisID: 'bmi',
+                    },
+                    {
+                        label: 'OMS sobrepeso (+1 DE)',
+                        data: measurements.map((measurement) => referenceValue(measurement, 'sd1')),
+                        borderColor: 'rgba(248, 113, 113, 0.7)',
+                        borderWidth: 1.75,
+                        borderDash: [6, 4],
+                        pointRadius: 0,
+                        tension: 0.2,
+                        spanGaps: true,
+                        yAxisID: 'bmi',
+                    },
+                    {
+                        label: 'OMS obesidad (+2 DE)',
+                        data: measurements.map((measurement) => referenceValue(measurement, 'sd2')),
+                        borderColor: 'rgba(252, 165, 165, 0.7)',
+                        borderWidth: 1.75,
+                        borderDash: [3, 4],
+                        pointRadius: 0,
+                        tension: 0.2,
+                        spanGaps: true,
+                        yAxisID: 'bmi',
+                    },
+                ],
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false,
+                },
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                    },
+                },
+                scales: {
+                    weight: {
+                        type: 'linear',
+                        position: 'left',
+                        title: {
+                            display: true,
+                            text: 'Peso kg',
+                        },
+                    },
+                    height: {
+                        type: 'linear',
+                        position: 'right',
+                        grid: {
+                            drawOnChartArea: false,
+                        },
+                        title: {
+                            display: true,
+                            text: 'Talla cm',
+                        },
+                    },
+                    bmi: {
+                        type: 'linear',
+                        position: 'right',
+                        grid: {
+                            drawOnChartArea: false,
+                        },
+                        title: {
+                            display: true,
+                            text: 'IMC OMS',
+                        },
+                    },
+                },
+            },
+        });
+    });
+
+    const studentSearchInput = document.querySelector('[data-student-search]');
+    const studentCourseFilter = document.querySelector('[data-student-course-filter]');
+    const studentTableBody = document.querySelector('[data-student-table-body]');
+    const studentTableWrapper = document.querySelector('[data-student-table-wrapper]');
+    const studentEmptyWrapper = document.querySelector('[data-student-list-wrapper]');
+    const studentStatus = document.querySelector('[data-student-search-status]');
+    const studentSortButtons = document.querySelectorAll('[data-student-sort]');
+
+    if (
+        studentSearchInput instanceof HTMLInputElement
+        && studentCourseFilter instanceof HTMLSelectElement
+        && studentTableBody instanceof HTMLTableSectionElement
+        && studentTableWrapper instanceof HTMLElement
+        && studentEmptyWrapper instanceof HTMLElement
+        && studentStatus instanceof HTMLElement
+    ) {
+        let studentDebounceTimer = null;
+        let studentSort = 'apellidos';
+        let studentDirection = 'asc';
+
+        const updateStudentSortButtons = () => {
+            studentSortButtons.forEach((button) => {
+                if (!(button instanceof HTMLButtonElement)) {
+                    return;
+                }
+
+                const icon = button.querySelector('.fa');
+                const isActive = button.dataset.studentSort === studentSort;
+                button.classList.toggle('is-active', isActive);
+                button.dataset.direction = isActive ? studentDirection : '';
+
+                if (icon instanceof HTMLElement) {
+                    icon.className = 'fa ' + (isActive ? (studentDirection === 'asc' ? 'fa-sort-asc' : 'fa-sort-desc') : 'fa-sort');
+                }
+            });
+        };
+
+        const runStudentSearch = async () => {
+            const baseUrl = studentSearchInput.dataset.studentSearchUrl || '';
+
+            if (baseUrl === '') {
+                return;
+            }
+
+            const url = new URL(baseUrl, window.location.origin);
+            url.searchParams.set('q', studentSearchInput.value.trim());
+            url.searchParams.set('curid', studentCourseFilter.value);
+            url.searchParams.set('sort', studentSort);
+            url.searchParams.set('direction', studentDirection);
+            studentStatus.textContent = 'Buscando...';
+
+            try {
+                const response = await fetch(url.toString(), {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                });
+
+                if (!response.ok) {
+                    throw new Error('Student search request failed');
+                }
+
+                const payload = await response.json();
+                studentTableBody.innerHTML = payload.html || '';
+                studentTableWrapper.hidden = !!payload.isEmpty;
+                studentEmptyWrapper.hidden = !payload.isEmpty;
+                studentEmptyWrapper.innerHTML = payload.isEmpty ? (payload.emptyHtml || '<div class="empty-state">No se encontraron estudiantes.</div>') : '';
+                studentStatus.textContent = String(payload.count || 0) + ' registro(s)';
+            } catch (error) {
+                studentStatus.textContent = 'Error al filtrar';
+            }
+        };
+
+        const queueStudentSearch = () => {
+            if (studentDebounceTimer !== null) {
+                window.clearTimeout(studentDebounceTimer);
+            }
+
+            studentDebounceTimer = window.setTimeout(runStudentSearch, 250);
+        };
+
+        studentSearchInput.addEventListener('input', queueStudentSearch);
+        studentCourseFilter.addEventListener('change', runStudentSearch);
+
+        studentSortButtons.forEach((button) => {
+            if (!(button instanceof HTMLButtonElement)) {
+                return;
+            }
+
+            button.addEventListener('click', () => {
+                const nextSort = button.dataset.studentSort || 'apellidos';
+
+                if (nextSort === studentSort) {
+                    studentDirection = studentDirection === 'asc' ? 'desc' : 'asc';
+                } else {
+                    studentSort = nextSort;
+                    studentDirection = 'asc';
+                }
+
+                updateStudentSortButtons();
+                runStudentSearch();
+            });
+        });
+
+        updateStudentSortButtons();
     }
 
     const searchInput = document.querySelector('[data-person-search]');

@@ -145,6 +145,7 @@ class MatriculationController extends Controller
                 'istid' => (int) ($person['istid'] ?? 0),
                 'perprofesion' => (string) ($person['perprofesion'] ?? ''),
                 'perocupacion' => (string) ($person['perocupacion'] ?? ''),
+                'perlugardetrabajo' => (string) ($person['perlugardetrabajo'] ?? ''),
                 'perhablaingles' => !empty($person['perhablaingles']),
             ],
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
@@ -316,7 +317,7 @@ class MatriculationController extends Controller
                 'perprofesion' => trim((string) ($row['perprofesion'] ?? '')),
                 'perocupacion' => trim((string) ($row['perocupacion'] ?? '')),
                 'perhablaingles' => isset($row['perhablaingles']),
-                'famlugardetrabajo' => trim((string) ($row['famlugardetrabajo'] ?? '')),
+                'perlugardetrabajo' => trim((string) ($row['perlugardetrabajo'] ?? $row['famlugardetrabajo'] ?? '')),
             ];
         }
 
@@ -359,6 +360,7 @@ class MatriculationController extends Controller
                 'istid' => (int) ($_POST['representative_external']['istid'] ?? 0),
                 'perprofesion' => trim((string) ($_POST['representative_external']['perprofesion'] ?? '')),
                 'perocupacion' => trim((string) ($_POST['representative_external']['perocupacion'] ?? '')),
+                'perlugardetrabajo' => trim((string) ($_POST['representative_external']['perlugardetrabajo'] ?? '')),
                 'perhablaingles' => isset($_POST['representative_external']['perhablaingles']),
                 'pteid' => (int) ($_POST['representative_external']['pteid'] ?? 0),
             ],
@@ -669,6 +671,7 @@ class MatriculationController extends Controller
                 'istid' => 0,
                 'perprofesion' => 'Estudiante',
                 'perocupacion' => 'Estudiante',
+                'perlugardetrabajo' => '',
                 'perhablaingles' => false,
             ],
             'student' => $decoded['student'] ?? [
@@ -746,6 +749,7 @@ class MatriculationController extends Controller
                     'istid' => 0,
                     'perprofesion' => '',
                     'perocupacion' => '',
+                    'perlugardetrabajo' => '',
                     'perhablaingles' => false,
                     'pteid' => 0,
                 ],

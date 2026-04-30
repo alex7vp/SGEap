@@ -94,6 +94,7 @@ return static function (Router $router): void {
     $router->post('/personas/eliminar', [PersonController::class, 'destroy']);
 
     $router->get('/estudiantes', [StudentController::class, 'index']);
+    $router->get('/estudiantes/buscar', [StudentController::class, 'search']);
     $router->get('/estudiantes/crear', [StudentController::class, 'create']);
     $router->get('/estudiantes/ver', [StudentController::class, 'show']);
     $router->get('/estudiantes/modulo', [StudentController::class, 'module']);

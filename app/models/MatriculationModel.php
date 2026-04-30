@@ -295,6 +295,7 @@ class MatriculationModel extends Model
                      istid = :instruction_level,
                      perprofesion = :profession,
                      perocupacion = :occupation,
+                     perlugardetrabajo = :workplace,
                      perhablaingles = :speaks_english
                  WHERE perid = :id"
             );
@@ -311,6 +312,7 @@ class MatriculationModel extends Model
                 'instruction_level' => (int) ($person['istid'] ?? 0) > 0 ? (int) $person['istid'] : null,
                 'profession' => ($person['perprofesion'] ?? '') !== '' ? $person['perprofesion'] : null,
                 'occupation' => ($person['perocupacion'] ?? '') !== '' ? $person['perocupacion'] : null,
+                'workplace' => ($person['perlugardetrabajo'] ?? '') !== '' ? $person['perlugardetrabajo'] : null,
                 'speaks_english' => !empty($person['perhablaingles']),
             ]);
 
@@ -320,10 +322,10 @@ class MatriculationModel extends Model
         $statement = $this->db->prepare(
             "INSERT INTO persona (
                 percedula, pernombres, perapellidos, pertelefono1, pertelefono2, percorreo, persexo,
-                perfechanacimiento, eciid, istid, perprofesion, perocupacion, perhablaingles
+                perfechanacimiento, eciid, istid, perprofesion, perocupacion, perlugardetrabajo, perhablaingles
              ) VALUES (
                 :cedula, :nombres, :apellidos, :telefono1, :telefono2, :correo, :sexo,
-                :birth_date, :civil_status, :instruction_level, :profession, :occupation, :speaks_english
+                :birth_date, :civil_status, :instruction_level, :profession, :occupation, :workplace, :speaks_english
              ) RETURNING perid"
         );
         $statement->execute([
@@ -339,6 +341,7 @@ class MatriculationModel extends Model
             'instruction_level' => (int) ($person['istid'] ?? 0) > 0 ? (int) $person['istid'] : null,
             'profession' => ($person['perprofesion'] ?? '') !== '' ? $person['perprofesion'] : null,
             'occupation' => ($person['perocupacion'] ?? '') !== '' ? $person['perocupacion'] : null,
+            'workplace' => ($person['perlugardetrabajo'] ?? '') !== '' ? $person['perlugardetrabajo'] : null,
             'speaks_english' => !empty($person['perhablaingles']),
         ]);
 
@@ -487,6 +490,7 @@ class MatriculationModel extends Model
                 'istid' => $family['istid'] ?? 0,
                 'perprofesion' => $family['perprofesion'] ?? '',
                 'perocupacion' => $family['perocupacion'] ?? '',
+                'perlugardetrabajo' => $family['perlugardetrabajo'] ?? '',
                 'perhablaingles' => !empty($family['perhablaingles']),
             ]);
 
@@ -535,6 +539,7 @@ class MatriculationModel extends Model
                 'istid' => $external['istid'] ?? 0,
                 'perprofesion' => $external['perprofesion'] ?? '',
                 'perocupacion' => $external['perocupacion'] ?? '',
+                'perlugardetrabajo' => $external['perlugardetrabajo'] ?? '',
                 'perhablaingles' => !empty($external['perhablaingles']),
             ]);
 
@@ -587,31 +592,20 @@ class MatriculationModel extends Model
         $existing = $this->findFamily($studentId, $personId, (int) $family['pteid']);
 
         if ($existing !== false) {
-            $statement = $this->db->prepare(
-                "UPDATE familiar
-                 SET famlugardetrabajo = :workplace
-                 WHERE famid = :id"
-            );
-            $statement->execute([
-                'id' => $existing['famid'],
-                'workplace' => ($family['famlugardetrabajo'] ?? '') !== '' ? $family['famlugardetrabajo'] : null,
-            ]);
-
             return;
         }
 
         $statement = $this->db->prepare(
             "INSERT INTO familiar (
-                estid, perid, pteid, famlugardetrabajo
+                estid, perid, pteid
              ) VALUES (
-                :student_id, :person_id, :relationship_id, :workplace
+                :student_id, :person_id, :relationship_id
              )"
         );
         $statement->execute([
             'student_id' => $studentId,
             'person_id' => $personId,
             'relationship_id' => $family['pteid'],
-            'workplace' => ($family['famlugardetrabajo'] ?? '') !== '' ? $family['famlugardetrabajo'] : null,
         ]);
     }
 

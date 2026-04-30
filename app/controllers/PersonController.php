@@ -53,6 +53,7 @@ class PersonController extends Controller
                 'istid' => sessionFlash('old_istid') ?? '',
                 'perprofesion' => sessionFlash('old_perprofesion') ?? '',
                 'perocupacion' => sessionFlash('old_perocupacion') ?? '',
+                'perlugardetrabajo' => sessionFlash('old_perlugardetrabajo') ?? '',
                 'perhablaingles' => sessionFlash('old_perhablaingles') ?? '0',
             ],
         ]);
@@ -94,6 +95,7 @@ class PersonController extends Controller
                 'istid' => sessionFlash('old_istid') ?? (string) ($person['istid'] ?? ''),
                 'perprofesion' => sessionFlash('old_perprofesion') ?? (string) ($person['perprofesion'] ?? ''),
                 'perocupacion' => sessionFlash('old_perocupacion') ?? (string) ($person['perocupacion'] ?? ''),
+                'perlugardetrabajo' => sessionFlash('old_perlugardetrabajo') ?? (string) ($person['perlugardetrabajo'] ?? ''),
                 'perhablaingles' => sessionFlash('old_perhablaingles') ?? (!empty($person['perhablaingles']) ? '1' : '0'),
             ],
         ]);
@@ -226,6 +228,7 @@ class PersonController extends Controller
             'istid' => (int) ($_POST['istid'] ?? 0),
             'perprofesion' => trim($_POST['perprofesion'] ?? ''),
             'perocupacion' => trim($_POST['perocupacion'] ?? ''),
+            'perlugardetrabajo' => trim($_POST['perlugardetrabajo'] ?? ''),
             'perhablaingles' => isset($_POST['perhablaingles']),
         ];
     }
