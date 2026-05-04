@@ -1307,6 +1307,10 @@ a.btn-primary.btn-icon-only.btn-icon-small:hover {
     flex: 1 1 auto;
 }
 
+.filter-box-compact {
+    flex: 0 0 180px;
+}
+
 .filter-status {
     color: var(--muted);
     font-size: 0.92rem;

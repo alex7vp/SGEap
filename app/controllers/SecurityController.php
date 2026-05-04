@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Core\Controller;
+use App\Models\PersonalModel;
 use App\Models\RolePermissionModel;
 use App\Models\SecurityCatalogModel;
+use App\Models\StudentModel;
 use App\Models\UserModel;
 
 class SecurityController extends Controller
@@ -39,7 +41,7 @@ class SecurityController extends Controller
             'currentModule' => 'seguridad',
             'currentSection' => 'seguridad_usuarios',
             'user' => $user,
-            'users' => $userModel->allDetailed(),
+            'users' => [],
             'availablePersons' => $userModel->allWithoutUser(),
             'success' => sessionFlash('success'),
             'error' => sessionFlash('error'),
@@ -58,14 +60,34 @@ class SecurityController extends Controller
         $this->requireAuth();
 
         $term = trim($_GET['q'] ?? '');
+        $statusFilter = trim((string) ($_GET['estado'] ?? ''));
         $userModel = new UserModel();
-        $users = $userModel->allDetailed($term);
+        $status = match ($statusFilter) {
+            'activo' => true,
+            'inactivo' => false,
+            default => null,
+        };
+
+        if (mb_strlen($term) < 2 && $status === null) {
+            header('Content-Type: application/json; charset=UTF-8');
+            echo json_encode([
+                'html' => '',
+                'isEmpty' => true,
+                'emptyHtml' => '<div class="empty-state">Escriba al menos 2 caracteres o seleccione un estado para consultar usuarios.</div>',
+                'count' => 0,
+            ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            return;
+        }
+
+        $users = $userModel->allDetailed($term, $status, 50);
 
         header('Content-Type: application/json; charset=UTF-8');
         echo json_encode([
             'html' => $this->renderUserRows($users),
             'isEmpty' => empty($users),
             'emptyHtml' => '<div class="empty-state">No se encontraron usuarios con ese filtro.</div>',
+            'count' => count($users),
+            'limited' => count($users) >= 50,
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     }
 
@@ -117,7 +139,20 @@ class SecurityController extends Controller
             $this->redirect('/seguridad/usuarios');
         }
 
-        $userModel->create($data);
+        $userId = $userModel->createAndReturnId($data);
+
+        $personalModel = new PersonalModel();
+
+        if ($personalModel->personHasActiveStaffType($data['perid'], 'Docente')) {
+            $userModel->assignRoleToUser($userId, 'Docente');
+        }
+
+        $studentModel = new StudentModel();
+
+        if ($studentModel->personIsStudent($data['perid'])) {
+            $userModel->assignRoleToUser($userId, 'Estudiante');
+        }
+
         sessionFlash('success', 'Usuario asignado correctamente.');
         $this->redirect('/seguridad/usuarios');
     }

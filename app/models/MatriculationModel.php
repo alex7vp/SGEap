@@ -353,6 +353,9 @@ class MatriculationModel extends Model
         $existing = $this->findStudentByPersonId($personId);
 
         if ($existing !== false) {
+            $userModel = new UserModel();
+            $userModel->assignRoleByPerson($personId, 'Estudiante');
+
             $statement = $this->db->prepare(
                 "UPDATE estudiante
                  SET estlugarnacimiento = :origen,
@@ -383,7 +386,11 @@ class MatriculationModel extends Model
         $statement->bindValue(':estado', false, PDO::PARAM_BOOL);
         $statement->execute();
 
-        return (int) $statement->fetchColumn();
+        $studentId = (int) $statement->fetchColumn();
+        $userModel = new UserModel();
+        $userModel->assignRoleByPerson($personId, 'Estudiante');
+
+        return $studentId;
     }
 
     private function existsStudentInPeriod(int $studentId, int $periodId): bool

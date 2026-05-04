@@ -136,6 +136,7 @@ class AuthController extends Controller
             'catalogos.gestionar' => '/configuracion/catalogos',
             'cursos.gestionar' => '/cursos',
             'matriculas.documentos' => '/configuracion/matricula/documentos',
+            'usuarios_temporales.gestionar' => '/seguridad/usuarios-temporales',
             'seguridad.usuarios' => '/seguridad/usuarios',
             'seguridad.roles_permisos' => '/seguridad/roles-permisos',
         ];

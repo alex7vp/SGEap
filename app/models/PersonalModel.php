@@ -10,6 +10,9 @@ use RuntimeException;
 
 class PersonalModel extends Model
 {
+    private const TEACHER_TYPE_NAME = 'Docente';
+    private const TEACHER_ROLE_NAME = 'Docente';
+
     protected string $table = 'personal';
     protected string $primaryKey = 'psnid';
 
@@ -290,6 +293,8 @@ class PersonalModel extends Model
                 }
             }
 
+            $this->syncTeacherRoleForStaff($staffId, $this->typeIdsContainName($validTypeIds, self::TEACHER_TYPE_NAME));
+
             if ($manageTransaction) {
                 $this->db->commit();
             }
@@ -339,5 +344,63 @@ class PersonalModel extends Model
         );
 
         return (int) $statement->fetchColumn();
+    }
+
+    public function personHasActiveStaffType(int $personId, string $typeName): bool
+    {
+        $statement = $this->db->prepare(
+            "SELECT 1
+             FROM {$this->table} ps
+             INNER JOIN asignacion_tipo_personal atp ON atp.psnid = ps.psnid
+             INNER JOIN tipo_personal tp ON tp.tpid = atp.tpid
+             WHERE ps.perid = :person_id
+               AND atp.atpestado = true
+               AND tp.tpnombre = :type_name
+             LIMIT 1"
+        );
+        $statement->execute([
+            'person_id' => $personId,
+            'type_name' => $typeName,
+        ]);
+
+        return $statement->fetchColumn() !== false;
+    }
+
+    private function typeIdsContainName(array $typeIds, string $typeName): bool
+    {
+        if ($typeIds === []) {
+            return false;
+        }
+
+        $placeholders = implode(', ', array_fill(0, count($typeIds), '?'));
+        $statement = $this->db->prepare(
+            "SELECT 1
+             FROM tipo_personal
+             WHERE tpid IN ({$placeholders})
+               AND tpnombre = ?
+             LIMIT 1"
+        );
+        $statement->execute([...$typeIds, $typeName]);
+
+        return $statement->fetchColumn() !== false;
+    }
+
+    private function syncTeacherRoleForStaff(int $staffId, bool $assign): void
+    {
+        $statement = $this->db->prepare(
+            "SELECT perid
+             FROM {$this->table}
+             WHERE psnid = :staff_id
+             LIMIT 1"
+        );
+        $statement->execute(['staff_id' => $staffId]);
+        $personId = $statement->fetchColumn();
+
+        if ($personId === false) {
+            return;
+        }
+
+        $userModel = new UserModel();
+        $userModel->syncRoleByPerson((int) $personId, self::TEACHER_ROLE_NAME, $assign);
     }
 }

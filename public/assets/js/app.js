@@ -597,6 +597,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const securityUserSearchInput = document.querySelector('[data-security-user-search]');
+    const securityUserStatusFilter = document.querySelector('[data-security-user-status-filter]');
     const securityUserTableBody = document.querySelector('[data-security-user-table-body]');
     const securityUserTableWrapper = document.querySelector('[data-security-user-table-wrapper]');
     const securityUserEmptyWrapper = document.querySelector('[data-security-user-list-wrapper]');
@@ -604,6 +605,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (
         securityUserSearchInput instanceof HTMLInputElement
+        && securityUserStatusFilter instanceof HTMLSelectElement
         && securityUserTableBody instanceof HTMLTableSectionElement
         && securityUserTableWrapper instanceof HTMLElement
         && securityUserEmptyWrapper instanceof HTMLElement
@@ -623,8 +625,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
+            const term = securityUserSearchInput.value.trim();
+            const status = securityUserStatusFilter.value;
+
+            if (term.length < 2 && status === '') {
+                securityUserTableBody.innerHTML = '';
+                securityUserTableWrapper.hidden = true;
+                securityUserEmptyWrapper.hidden = false;
+                securityUserEmptyWrapper.innerHTML = '<div class="empty-state">Escriba al menos 2 caracteres o seleccione un estado para consultar usuarios.</div>';
+                securityUserStatus.textContent = 'Escriba al menos 2 caracteres';
+                return;
+            }
+
             const url = new URL(baseUrl, window.location.origin);
-            url.searchParams.set('q', securityUserSearchInput.value.trim());
+            url.searchParams.set('q', term);
+            url.searchParams.set('estado', status);
 
             securityUserStatus.textContent = 'Buscando...';
 
@@ -650,7 +665,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     return;
                 }
 
-                updateSecurityUserStatus();
+                const count = typeof payload.count === 'number' ? payload.count : securityUserTableBody.querySelectorAll('tr').length;
+                securityUserStatus.textContent = count + ' registro(s)' + (payload.limited ? ' | refine el filtro' : '');
             } catch (error) {
                 securityUserStatus.textContent = 'Error al filtrar';
             }
@@ -664,7 +680,7 @@ document.addEventListener('DOMContentLoaded', () => {
             securityUserDebounceTimer = window.setTimeout(runSecurityUserSearch, 250);
         });
 
-        updateSecurityUserStatus();
+        securityUserStatusFilter.addEventListener('change', runSecurityUserSearch);
     }
 
     const personPickerSearch = document.querySelector('[data-person-picker-search]');

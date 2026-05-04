@@ -151,6 +151,46 @@ Soporte actual:
 - `usuario.perid -> persona.perid`
 - `UNIQUE (perid)` en `usuario`
 
+### Roles De Acceso Base
+
+Los roles de seguridad no reemplazan los perfiles operativos. Una persona puede existir como `estudiante` o `personal` y, adicionalmente, tener un `usuario` con uno o varios roles de acceso.
+
+Roles base recomendados:
+
+- `Administrador`: administracion completa del sistema.
+- `Secretaria`: gestion operativa de personas, estudiantes, matriculas y accesos temporales.
+- `Estudiante`: acceso a su propia matricula.
+- `Docente`: acceso base para personal docente. Sus permisos academicos especificos deben definirse cuando se implemente el modulo docente.
+- `Representante temporal`: acceso limitado para completar una solicitud de matricula de alumno nuevo.
+
+## Automatizacion De Rol Docente
+
+Cuando una persona recibe el tipo de personal `Docente`, el sistema debe asignarle automaticamente el rol de seguridad `Docente` si ya tiene usuario.
+
+Si la persona todavia no tiene usuario, la asignacion se realiza cuando se cree su cuenta de acceso.
+
+Reglas aplicadas:
+
+- Al asignar tipo de personal `Docente`: agregar rol `Docente` al usuario de esa persona, si existe.
+- Al quitar tipo de personal `Docente`: quitar rol `Docente` del usuario de esa persona.
+- Al crear un usuario: si la persona ya tiene tipo de personal `Docente`, asignar rol `Docente`.
+
+Nota: en esta version no se distingue si el rol fue asignado manual o automaticamente. Si se requiere conservar roles manuales aunque se quite el tipo `Docente`, se debe agregar trazabilidad de origen en `usuario_rol`.
+
+## Automatizacion De Rol Estudiante
+
+Cuando una persona recibe perfil `estudiante`, el sistema debe asignarle automaticamente el rol de seguridad `Estudiante` si ya tiene usuario.
+
+Si la persona todavia no tiene usuario, la asignacion se realiza cuando se cree su cuenta de acceso.
+
+Reglas aplicadas:
+
+- Al crear un registro en `estudiante`: agregar rol `Estudiante` al usuario de esa persona, si existe.
+- Al crear una matricula que convierte a la persona en estudiante: agregar rol `Estudiante` al usuario de esa persona, si existe.
+- Al crear un usuario: si la persona ya tiene perfil `estudiante`, asignar rol `Estudiante`.
+
+En esta version no se elimina automaticamente el rol `Estudiante`, porque el sistema no tiene un flujo ordinario para quitar el perfil historico de estudiante; el estado activo/inactivo se controla con `estudiante.estestado` y la matricula.
+
 ## Diagrama
 
 ```mermaid

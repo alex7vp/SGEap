@@ -8,6 +8,8 @@ use App\Core\Model;
 
 class StudentModel extends Model
 {
+    private const STUDENT_ROLE_NAME = 'Estudiante';
+
     protected string $table = 'estudiante';
     protected string $primaryKey = 'estid';
 
@@ -429,7 +431,11 @@ class StudentModel extends Model
             'estado' => $data['estestado'],
         ]);
 
-        return (int) $statement->fetchColumn();
+        $studentId = (int) $statement->fetchColumn();
+        $userModel = new UserModel();
+        $userModel->assignRoleByPerson((int) $data['perid'], self::STUDENT_ROLE_NAME);
+
+        return $studentId;
     }
 
     public function existsByPersonId(int $personId): bool
@@ -443,6 +449,11 @@ class StudentModel extends Model
         $statement->execute(['perid' => $personId]);
 
         return $statement->fetchColumn() !== false;
+    }
+
+    public function personIsStudent(int $personId): bool
+    {
+        return $this->existsByPersonId($personId);
     }
 
     public function updateDetailed(array $data): void

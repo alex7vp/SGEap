@@ -163,3 +163,21 @@ Revisar en el sistema:
 - Dashboard: cantidad de matriculas del periodo.
 - Modulo Matriculas: gestion de matriculas del periodo `2025 2026`.
 - Reporte CSV: filas omitidas, cedulas artificiales y grupos sanguineos no importados.
+
+## Regularizar usuarios de estudiantes importados
+
+Si la importacion se ejecuto antes de crear la regla de usuarios/roles, ejecutar:
+
+```sql
+database/scripts/14_regularizar_usuarios_estudiantes_importados.sql
+```
+
+Este script:
+
+- crea usuarios inactivos para estudiantes sin cuenta;
+- genera el usuario con las dos primeras letras de cada nombre y apellido;
+- corrige usuarios inactivos que hayan quedado con la cedula como nombre;
+- asigna el rol `Estudiante`;
+- no activa las cuentas ni entrega una clave utilizable.
+
+Secretaria debe restablecer la clave y activar cada usuario antes de entregarlo.

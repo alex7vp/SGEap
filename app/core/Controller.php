@@ -73,6 +73,7 @@ abstract class Controller
             '/cursos' => 'cursos.gestionar',
             '/seguridad/catalogos' => 'seguridad.roles_permisos',
             '/seguridad/usuarios' => 'seguridad.usuarios',
+            '/seguridad/usuarios-temporales' => 'usuarios_temporales.gestionar',
             '/seguridad/usuarios/buscar' => 'seguridad.usuarios',
             '/seguridad/personas-disponibles/buscar' => 'seguridad.usuarios',
             '/seguridad/roles-permisos' => 'seguridad.roles_permisos',
@@ -100,6 +101,7 @@ abstract class Controller
             '/configuracion/matricula' => 'configuracion.gestionar',
             '/seguridad/usuarios/clave' => 'seguridad.usuarios',
             '/seguridad/usuarios/estado' => 'seguridad.usuarios',
+            '/seguridad/usuarios-temporales/' => 'usuarios_temporales.gestionar',
             '/seguridad/catalogos/' => 'seguridad.roles_permisos',
         ];
 

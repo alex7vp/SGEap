@@ -144,14 +144,22 @@ if (!empty($old['perid'])) {
                 autocomplete="off"
             >
         </div>
-        <span class="filter-status" data-security-user-search-status><?= count($users); ?> registro(s)</span>
+        <div class="filter-box filter-box-compact">
+            <label class="sr-only" for="security-user-status-filter">Estado</label>
+            <select id="security-user-status-filter" data-security-user-status-filter>
+                <option value="">Todos los estados</option>
+                <option value="activo">Activos</option>
+                <option value="inactivo">Inactivos</option>
+            </select>
+        </div>
+        <span class="filter-status" data-security-user-search-status>Escriba al menos 2 caracteres</span>
     </div>
 
-    <div data-security-user-list-wrapper <?= empty($users) ? '' : 'hidden'; ?>>
-        <div class="empty-state">Todavia no hay usuarios asignados.</div>
+    <div data-security-user-list-wrapper>
+        <div class="empty-state">Escriba al menos 2 caracteres o seleccione un estado para consultar usuarios.</div>
     </div>
 
-    <div class="table-wrap" data-security-user-table-wrapper <?= empty($users) ? 'hidden' : ''; ?>>
+    <div class="table-wrap" data-security-user-table-wrapper hidden>
         <table class="data-table">
             <thead>
                 <tr>

@@ -924,6 +924,8 @@ function ensureStudent(PDO $db, int $personId, array $student): int
             'parish' => $student['estparroquia'] !== '' ? strLimit($student['estparroquia'], 100) : null,
         ]);
 
+        assignStudentRoleByPerson($db, $personId);
+
         return (int) $existing;
     }
 
@@ -939,7 +941,28 @@ function ensureStudent(PDO $db, int $personId, array $student): int
         'parish' => $student['estparroquia'] !== '' ? strLimit($student['estparroquia'], 100) : null,
     ]);
 
-    return (int) $insert->fetchColumn();
+    $studentId = (int) $insert->fetchColumn();
+    assignStudentRoleByPerson($db, $personId);
+
+    return $studentId;
+}
+
+function assignStudentRoleByPerson(PDO $db, int $personId): void
+{
+    $statement = $db->prepare(
+        "INSERT INTO usuario_rol (usuid, rolid, usrestado)
+         SELECT u.usuid, r.rolid, true
+         FROM usuario u
+         INNER JOIN rol r ON r.rolnombre = 'Estudiante'
+         WHERE u.perid = :person_id
+           AND NOT EXISTS (
+               SELECT 1
+               FROM usuario_rol ur
+               WHERE ur.usuid = u.usuid
+                 AND ur.rolid = r.rolid
+           )"
+    );
+    $statement->execute(['person_id' => $personId]);
 }
 
 function studentHasMatriculationInPeriod(PDO $db, int $studentId, int $periodId): bool
