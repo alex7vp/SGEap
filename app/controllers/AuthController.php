@@ -11,6 +11,7 @@ use App\Models\MatriculationModel;
 use App\Models\PersonalModel;
 use App\Models\PeriodModel;
 use App\Models\PersonModel;
+use App\Models\RolePermissionModel;
 use App\Models\StudentModel;
 use App\Models\UserModel;
 
@@ -50,12 +51,16 @@ class AuthController extends Controller
             $this->redirect('/login');
         }
 
+        $rolePermissionModel = new RolePermissionModel();
+        $permissionCodes = $rolePermissionModel->permissionCodesByUser((int) $user['usuid']);
+
         $_SESSION['auth'] = [
             'usuid' => (int) $user['usuid'],
             'perid' => (int) $user['perid'],
             'username' => (string) $user['usunombre'],
             'first_name' => trim((string) ($user['pernombres'] ?? '')),
             'last_name' => trim((string) ($user['perapellidos'] ?? '')),
+            'permissions' => $permissionCodes,
         ];
 
         $periodModel = new PeriodModel();
@@ -63,7 +68,7 @@ class AuthController extends Controller
         setCurrentAcademicPeriod($activePeriod !== false ? $activePeriod : null);
 
         $userModel->updateLastAccess((int) $user['usuid']);
-        $this->redirect('/dashboard');
+        $this->redirect($this->landingPathForPermissions($permissionCodes));
     }
 
     public function dashboard(): void
@@ -117,5 +122,30 @@ class AuthController extends Controller
         setCurrentAcademicPeriod(null);
         sessionFlash('success', 'Sesion cerrada correctamente.');
         $this->redirect('/login');
+    }
+
+    private function landingPathForPermissions(array $permissions): string
+    {
+        $targets = [
+            'dashboard.ver' => '/dashboard',
+            'estudiante.mi_matricula' => '/mi-matricula',
+            'estudiantes.gestionar' => '/estudiantes',
+            'matriculas.gestionar' => '/matriculas',
+            'personas.gestionar' => '/personas',
+            'configuracion.gestionar' => '/configuracion',
+            'catalogos.gestionar' => '/configuracion/catalogos',
+            'cursos.gestionar' => '/cursos',
+            'matriculas.documentos' => '/configuracion/matricula/documentos',
+            'seguridad.usuarios' => '/seguridad/usuarios',
+            'seguridad.roles_permisos' => '/seguridad/roles-permisos',
+        ];
+
+        foreach ($targets as $permission => $path) {
+            if (in_array($permission, $permissions, true)) {
+                return $path;
+            }
+        }
+
+        return '/dashboard';
     }
 }

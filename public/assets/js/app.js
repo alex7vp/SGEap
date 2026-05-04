@@ -804,6 +804,34 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    document.querySelectorAll('[data-password-toggle]').forEach((button) => {
+        if (!(button instanceof HTMLButtonElement)) {
+            return;
+        }
+
+        const targetSelector = button.dataset.passwordTarget || '';
+        const previousInput = button.previousElementSibling;
+        const input = targetSelector === 'previous'
+            ? previousInput
+            : (targetSelector !== '' ? document.querySelector(targetSelector) : null);
+        const icon = button.querySelector('.fa');
+
+        if (!(input instanceof HTMLInputElement)) {
+            return;
+        }
+
+        button.addEventListener('click', () => {
+            const shouldShow = input.type === 'password';
+            input.type = shouldShow ? 'text' : 'password';
+            button.title = shouldShow ? 'Ocultar clave' : 'Mostrar clave';
+            button.setAttribute('aria-label', shouldShow ? 'Ocultar clave' : 'Mostrar clave');
+
+            if (icon instanceof HTMLElement) {
+                icon.className = 'fa ' + (shouldShow ? 'fa-eye-slash' : 'fa-eye');
+            }
+        });
+    });
+
     const wizardTabs = document.querySelectorAll('[data-wizard-tab]');
     const wizardPanels = document.querySelectorAll('[data-wizard-panel]');
     const matriculaForm = document.querySelector('[data-matricula-form]');

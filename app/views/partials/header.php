@@ -34,14 +34,17 @@ $topModules = [
 
 $sectionModuleMap = [
     'dashboard' => 'inicio',
+    'mi_matricula' => 'inicio',
     'academico_home' => 'academico',
     'personas' => 'academico',
     'estudiantes' => 'academico',
+    'matriculas' => 'academico',
     'personal' => 'academico',
     'personal_register' => 'academico',
     'personal_assignment' => 'academico',
     'personal_listing' => 'academico',
     'configuracion_home' => 'configuracion',
+    'catalogos' => 'configuracion',
     'grados' => 'configuracion',
     'institucion' => 'configuracion',
     'periodos' => 'configuracion',
@@ -65,6 +68,12 @@ $sidebarModules = [
                 'label' => 'Dashboard',
                 'url' => baseUrl('dashboard'),
                 'icon' => 'fa-home',
+            ],
+            [
+                'key' => 'mi_matricula',
+                'label' => 'Mi matricula',
+                'url' => baseUrl('mi-matricula'),
+                'icon' => 'fa-address-card-o',
             ],
         ],
     ],
@@ -238,8 +247,95 @@ if (in_array((string) ($currentSection ?? ''), ['personal', 'personal_register',
     ];
 }
 
+$permissionMap = [
+    'dashboard' => 'dashboard.ver',
+    'mi_matricula' => 'estudiante.mi_matricula',
+    'academico_home' => ['estudiantes.gestionar', 'personas.gestionar', 'matriculas.gestionar'],
+    'estudiantes' => 'estudiantes.gestionar',
+    'personal' => 'personas.gestionar',
+    'personal_register' => 'personas.gestionar',
+    'personal_assignment' => 'personas.gestionar',
+    'personal_listing' => 'personas.gestionar',
+    'matriculas' => 'matriculas.gestionar',
+    'configuracion_home' => ['configuracion.gestionar', 'catalogos.gestionar', 'cursos.gestionar', 'matriculas.documentos'],
+    'catalogos' => 'catalogos.gestionar',
+    'institucion' => 'configuracion.gestionar',
+    'periodos' => 'configuracion.gestionar',
+    'configuracion_matricula' => 'configuracion.gestionar',
+    'configuracion_matricula_documentos' => 'matriculas.documentos',
+    'grados' => 'catalogos.gestionar',
+    'cursos' => 'cursos.gestionar',
+    'seguridad_home' => ['seguridad.usuarios', 'seguridad.roles_permisos'],
+    'seguridad_catalogos' => 'seguridad.roles_permisos',
+    'seguridad_usuarios' => 'seguridad.usuarios',
+    'seguridad_roles_permisos' => 'seguridad.roles_permisos',
+    'seguridad_usuarios_roles' => 'seguridad.roles_permisos',
+];
+$userPermissions = (array) ($user['permissions'] ?? []);
+$canAccess = static function (string $key) use ($permissionMap, $userPermissions): bool {
+    $required = $permissionMap[$key] ?? null;
+
+    if ($required === null) {
+        return true;
+    }
+
+    foreach ((array) $required as $permission) {
+        if (in_array((string) $permission, $userPermissions, true)) {
+            return true;
+        }
+    }
+
+    return false;
+};
+$modulePermissions = [
+    'inicio' => ['dashboard.ver', 'estudiante.mi_matricula'],
+    'academico' => ['estudiantes.gestionar', 'personas.gestionar', 'matriculas.gestionar'],
+    'configuracion' => ['configuracion.gestionar', 'catalogos.gestionar', 'cursos.gestionar', 'matriculas.documentos'],
+    'reportes' => ['dashboard.ver'],
+    'seguridad' => ['seguridad.usuarios', 'seguridad.roles_permisos'],
+];
+$canAccessModule = static function (string $moduleKey) use ($modulePermissions, $userPermissions): bool {
+    foreach (($modulePermissions[$moduleKey] ?? []) as $permission) {
+        if (in_array((string) $permission, $userPermissions, true)) {
+            return true;
+        }
+    }
+
+    return false;
+};
+
+if (!in_array('dashboard.ver', $userPermissions, true) && in_array('estudiante.mi_matricula', $userPermissions, true)) {
+    $topModules['inicio']['url'] = baseUrl('mi-matricula');
+}
+
+$topModules = array_filter($topModules, static fn (array $module, string $moduleKey): bool => $canAccessModule($moduleKey), ARRAY_FILTER_USE_BOTH);
+
+foreach ($sidebarModules as $moduleKey => $module) {
+    if (!$canAccessModule((string) $moduleKey)) {
+        unset($sidebarModules[$moduleKey]);
+        continue;
+    }
+
+    if (isset($module['groups'])) {
+        foreach ($module['groups'] as $groupIndex => $group) {
+            $items = array_values(array_filter($group['items'] ?? [], static fn (array $item): bool => $canAccess((string) ($item['key'] ?? ''))));
+
+            if ($items === []) {
+                unset($sidebarModules[$moduleKey]['groups'][$groupIndex]);
+                continue;
+            }
+
+            $sidebarModules[$moduleKey]['groups'][$groupIndex]['items'] = $items;
+        }
+
+        $sidebarModules[$moduleKey]['groups'] = array_values($sidebarModules[$moduleKey]['groups']);
+    } elseif (isset($module['items'])) {
+        $sidebarModules[$moduleKey]['items'] = array_values(array_filter($module['items'], static fn (array $item): bool => $canAccess((string) ($item['key'] ?? ''))));
+    }
+}
+
 $currentModule = $currentModule ?? ($sectionModuleMap[$currentSection ?? ''] ?? 'inicio');
-$activeSidebar = $sidebarModules[$currentModule] ?? $sidebarModules['inicio'];
+$activeSidebar = $sidebarModules[$currentModule] ?? ($sidebarModules['inicio'] ?? reset($sidebarModules));
 $activeSidebarGroups = $activeSidebar['groups'] ?? [[
     'title' => $activeSidebar['title'],
     'items' => $activeSidebar['items'] ?? [],

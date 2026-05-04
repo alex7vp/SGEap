@@ -12,6 +12,79 @@ use App\Models\StudentModel;
 
 class StudentController extends Controller
 {
+    public function myMatriculation(): void
+    {
+        $user = $this->requireAuth();
+        $studentProfile = $this->currentUserStudentProfile($user);
+
+        if ($studentProfile === false) {
+            return;
+        }
+
+        $this->view('estudiantes.show', [
+            'appName' => config('app')['name'] ?? 'SGEap',
+            'pageTitle' => 'Mi matricula',
+            'currentSection' => 'mi_matricula',
+            'user' => $user,
+            'currentPeriod' => currentAcademicPeriod(),
+            'profile' => $studentProfile,
+            'isOwnProfile' => true,
+            'success' => sessionFlash('success'),
+            'error' => sessionFlash('error'),
+        ]);
+    }
+
+    public function myMatriculationModule(): void
+    {
+        $user = $this->requireAuth();
+        $section = trim((string) ($_GET['seccion'] ?? ''));
+        $panel = trim((string) ($_GET['panel'] ?? ''));
+        $sections = $this->studentProfileSections();
+
+        if (!isset($sections[$section])) {
+            sessionFlash('error', 'El modulo solicitado no es valido.');
+            $this->redirect('/mi-matricula');
+        }
+
+        $profile = $this->currentUserStudentProfile($user);
+
+        if ($profile === false) {
+            return;
+        }
+
+        $matriculationModel = new MatriculationModel();
+        $currentPeriod = currentAcademicPeriod();
+
+        $this->view('estudiantes.module', [
+            'appName' => config('app')['name'] ?? 'SGEap',
+            'pageTitle' => $sections[$section],
+            'currentSection' => 'mi_matricula',
+            'user' => $user,
+            'currentPeriod' => $currentPeriod,
+            'profile' => $profile,
+            'section' => $section,
+            'panel' => $section === 'salud' ? $this->healthPanel($panel) : '',
+            'sectionTitle' => $sections[$section],
+            'courses' => is_array($currentPeriod) ? $matriculationModel->allCoursesByPeriod((int) $currentPeriod['pleid']) : [],
+            'relationships' => $matriculationModel->allRelationships(),
+            'civilStatuses' => $matriculationModel->allCivilStatuses(),
+            'instructionLevels' => $matriculationModel->allInstructionLevels(),
+            'bloodGroups' => $matriculationModel->allBloodGroups(),
+            'medicalCareTypes' => $matriculationModel->allMedicalCareTypes(),
+            'healthConditionTypes' => $matriculationModel->allHealthConditionTypes(),
+            'insuranceProviders' => $matriculationModel->allInsuranceProviders(),
+            'pregnancyTypes' => $matriculationModel->allPregnancyTypes(),
+            'birthTypes' => $matriculationModel->allBirthTypes(),
+            'enrollmentStatuses' => $matriculationModel->allEnrollmentStatuses(),
+            'enrollmentTypes' => $matriculationModel->allEnrollmentTypes(),
+            'documentsCatalog' => $matriculationModel->allActiveDocuments(),
+            'isOwnProfile' => true,
+            'readOnly' => true,
+            'success' => sessionFlash('success'),
+            'error' => sessionFlash('error'),
+        ]);
+    }
+
     public function index(): void
     {
         $user = $this->requireAuth();
@@ -490,6 +563,27 @@ class StudentController extends Controller
         }
 
         return $html;
+    }
+
+    private function currentUserStudentProfile(array $user): array|false
+    {
+        $studentModel = new StudentModel();
+        $student = $studentModel->findByPersonId((int) ($user['perid'] ?? 0));
+
+        if ($student === false) {
+            sessionFlash('error', 'Tu usuario no tiene un registro de estudiante asociado.');
+            $this->redirect('/dashboard');
+        }
+
+        $currentPeriod = currentAcademicPeriod();
+        $profile = $studentModel->profile((int) $student['estid'], is_array($currentPeriod) ? (int) $currentPeriod['pleid'] : null);
+
+        if ($profile === false) {
+            sessionFlash('error', 'No se pudo cargar la informacion de tu matricula.');
+            $this->redirect('/dashboard');
+        }
+
+        return $profile;
     }
 
     private function studentProfileSections(): array

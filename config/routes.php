@@ -19,6 +19,8 @@ return static function (Router $router): void {
     $router->get('/login', [AuthController::class, 'index']);
     $router->post('/login', [AuthController::class, 'authenticate']);
     $router->get('/dashboard', [AuthController::class, 'dashboard']);
+    $router->get('/mi-matricula', [StudentController::class, 'myMatriculation']);
+    $router->get('/mi-matricula/modulo', [StudentController::class, 'myMatriculationModule']);
     $router->get('/academico', [ModuleController::class, 'academic']);
     $router->get('/configuracion', [ModuleController::class, 'configuration']);
     $router->get('/reportes', [ModuleController::class, 'reports']);
@@ -58,6 +60,7 @@ return static function (Router $router): void {
     $router->get('/seguridad/usuarios-roles/buscar', [SecurityController::class, 'searchUserRoles']);
     $router->post('/seguridad/usuarios', [SecurityController::class, 'storeUser']);
     $router->post('/seguridad/usuarios/estado', [SecurityController::class, 'toggleUserStatus']);
+    $router->post('/seguridad/usuarios/clave', [SecurityController::class, 'resetUserPassword']);
     $router->post('/seguridad/roles-permisos', [SecurityController::class, 'updateRolePermissions']);
     $router->post('/seguridad/usuarios-roles', [SecurityController::class, 'updateUserRoles']);
 

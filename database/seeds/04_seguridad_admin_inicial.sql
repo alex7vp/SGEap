@@ -101,6 +101,7 @@ FROM (
         ('Cursos', 'cursos.gestionar', 'Creacion y mantenimiento de cursos por periodo', true),
         ('Matriculas', 'matriculas.gestionar', 'Registro y gestion de matriculas', true),
         ('Documentos de matricula', 'matriculas.documentos', 'Administracion de documentos del proceso de matricula', true),
+        ('Mi matricula', 'estudiante.mi_matricula', 'Consulta de la matricula propia del estudiante', true),
         ('Usuarios', 'seguridad.usuarios', 'Asignacion y control de usuarios', true),
         ('Roles y permisos', 'seguridad.roles_permisos', 'Gestion de roles y permisos de seguridad', true)
 ) AS source (prmnombre, prmcodigo, prmdescripcion, prmestado)

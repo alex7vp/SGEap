@@ -195,6 +195,25 @@ input[type="search"]::-webkit-search-cancel-button {
     border-left: 1px solid #b7c7d7;
 }
 
+.input-action-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 38px;
+    min-width: 38px;
+    border: 0;
+    border-left: 1px solid #b7c7d7;
+    background: #f4f8fb;
+    color: #4d6173;
+    cursor: pointer;
+}
+
+.input-action-button:hover,
+.input-action-button:focus-visible {
+    background: #e6eef6;
+    color: var(--primary);
+}
+
 input::placeholder {
     color: #7b8b99;
 }
@@ -2029,6 +2048,21 @@ a.btn-primary.btn-icon-only.btn-icon-small:hover {
     margin-left: auto;
 }
 
+.security-password-reset-form {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin: 0;
+}
+
+.security-password-reset-input {
+    width: 118px;
+    min-width: 0;
+    padding: 4px 6px;
+    font-size: 0.8rem;
+    line-height: 1.1;
+}
+
 .security-table [data-security-edit-actions][hidden] {
     display: none !important;
 }
@@ -2567,6 +2601,93 @@ a.btn-primary.btn-icon-only.btn-icon-small:hover {
     margin: 0;
     color: var(--muted);
     line-height: 1.5;
+}
+
+.forbidden-page {
+    display: grid;
+    justify-items: center;
+    gap: 18px;
+    max-width: 720px;
+    margin: 28px auto 12px;
+    padding: 34px 28px;
+    border: 1px solid #d7e3ef;
+    border-radius: 8px;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.94) 0%, rgba(247, 251, 254, 0.98) 100%);
+    text-align: center;
+}
+
+.forbidden-identity {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 112px;
+    height: 112px;
+    padding: 10px;
+    border: 1px solid rgba(15, 76, 129, 0.14);
+    border-radius: 8px;
+    background: #ffffff;
+    box-shadow: 0 12px 28px rgba(15, 76, 129, 0.1);
+    color: var(--primary);
+    font-size: 1.3rem;
+    font-weight: 800;
+}
+
+.forbidden-identity img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+}
+
+.forbidden-content {
+    display: grid;
+    justify-items: center;
+    gap: 10px;
+}
+
+.forbidden-content h3 {
+    margin: 0;
+    color: var(--text);
+    font-size: 1.85rem;
+}
+
+.forbidden-content p {
+    max-width: 460px;
+    margin: 0;
+    color: var(--muted);
+    line-height: 1.55;
+}
+
+.forbidden-path {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    max-width: 100%;
+    padding: 8px 12px;
+    border: 1px solid rgba(15, 76, 129, 0.12);
+    background: var(--primary-soft);
+    color: var(--primary);
+    font-size: 0.86rem;
+    font-weight: 700;
+}
+
+.forbidden-path span {
+    overflow-wrap: anywhere;
+}
+
+.forbidden-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+}
+
+.forbidden-actions .btn-primary,
+.forbidden-actions .btn-secondary {
+    gap: 8px;
+    min-height: 36px;
+    padding: 7px 14px;
 }
 
 @media (max-width: 960px) {

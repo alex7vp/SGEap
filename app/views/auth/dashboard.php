@@ -8,6 +8,67 @@ $stats = is_array($stats ?? null) ? $stats : [];
 $currentPeriod = is_array($currentPeriod ?? null) ? $currentPeriod : null;
 $canCreateMatricula = !empty($canCreateMatricula);
 $newMatriculaLabel = (string) ($newMatriculaLabel ?? 'Nueva matricula');
+$userPermissions = (array) ($user['permissions'] ?? []);
+$can = static fn (string $permission): bool => in_array($permission, $userPermissions, true);
+$canMatriculas = $can('matriculas.gestionar');
+$canPersonas = $can('personas.gestionar');
+$canEstudiantes = $can('estudiantes.gestionar');
+$canCursos = $can('cursos.gestionar');
+$canConfiguracion = $can('configuracion.gestionar');
+$canCatalogos = $can('catalogos.gestionar');
+$canDocumentos = $can('matriculas.documentos');
+$canUsuarios = $can('seguridad.usuarios');
+$canRolesPermisos = $can('seguridad.roles_permisos');
+$canOwnMatriculation = $can('estudiante.mi_matricula');
+
+$metricCards = [
+    [
+        'visible' => $canPersonas,
+        'label' => 'Personal',
+        'value' => $stats['personal'] ?? 0,
+        'detail' => 'Activos: ' . (string) ($stats['personal_activo'] ?? 0),
+        'url' => baseUrl('personal'),
+        'link' => 'Ir a personal',
+    ],
+    [
+        'visible' => $canEstudiantes,
+        'label' => 'Estudiantes',
+        'value' => $stats['estudiantes'] ?? 0,
+        'detail' => 'Activos: ' . (string) ($stats['estudiantes_activos'] ?? 0),
+        'url' => baseUrl('estudiantes'),
+        'link' => 'Ir a estudiantes',
+    ],
+    [
+        'visible' => $canCursos,
+        'label' => 'Cursos del periodo',
+        'value' => $stats['cursos_periodo'] ?? 0,
+        'detail' => 'Activos: ' . (string) ($stats['cursos_activos'] ?? 0),
+        'url' => baseUrl('cursos'),
+        'link' => 'Ir a cursos',
+    ],
+    [
+        'visible' => $canMatriculas,
+        'label' => 'Matriculas del periodo',
+        'value' => $stats['matriculas_periodo'] ?? 0,
+        'detail' => 'Control central de inscripciones y habilitacion de estudiantes en el periodo activo.',
+        'url' => baseUrl('matriculas?panel=gestion'),
+        'link' => 'Gestionar matriculas',
+    ],
+];
+$metricCards = array_values(array_filter($metricCards, static fn (array $card): bool => !empty($card['visible'])));
+
+$quickLinks = [
+    ['visible' => $canOwnMatriculation, 'label' => 'Mi matricula', 'url' => baseUrl('mi-matricula')],
+    ['visible' => $canPersonas, 'label' => 'Ver personal', 'url' => baseUrl('personal')],
+    ['visible' => $canEstudiantes, 'label' => 'Registrar estudiante', 'url' => baseUrl('estudiantes/crear')],
+    ['visible' => $canMatriculas && $canCreateMatricula, 'label' => $newMatriculaLabel, 'url' => baseUrl('matriculas?panel=nueva')],
+    ['visible' => $canCatalogos, 'label' => 'Configurar catalogos', 'url' => baseUrl('configuracion/catalogos')],
+    ['visible' => $canConfiguracion, 'label' => 'Gestionar periodos', 'url' => baseUrl('configuracion/periodos')],
+    ['visible' => $canDocumentos, 'label' => 'Documentos de matricula', 'url' => baseUrl('configuracion/matricula/documentos')],
+    ['visible' => $canUsuarios, 'label' => 'Usuarios del sistema', 'url' => baseUrl('seguridad/usuarios')],
+    ['visible' => $canRolesPermisos, 'label' => 'Roles y permisos', 'url' => baseUrl('seguridad/roles-permisos')],
+];
+$quickLinks = array_values(array_filter($quickLinks, static fn (array $link): bool => !empty($link['visible'])));
 ?>
 <section class="dashboard-hero">
     <div>
@@ -23,74 +84,51 @@ $newMatriculaLabel = (string) ($newMatriculaLabel ?? 'Nueva matricula');
         </p>
     </div>
     <div class="dashboard-hero-actions">
-        <?php if ($canCreateMatricula): ?>
+        <?php if ($canMatriculas && $canCreateMatricula): ?>
             <a class="btn-primary btn-auto" href="<?= htmlspecialchars(baseUrl('matriculas'), ENT_QUOTES, 'UTF-8'); ?>"><?= htmlspecialchars($newMatriculaLabel, ENT_QUOTES, 'UTF-8'); ?></a>
         <?php endif; ?>
-        <a class="btn-secondary btn-auto dashboard-periods-button" href="<?= htmlspecialchars(baseUrl('configuracion/periodos'), ENT_QUOTES, 'UTF-8'); ?>">Gestionar periodos</a>
+        <?php if ($canConfiguracion): ?>
+            <a class="btn-secondary btn-auto dashboard-periods-button" href="<?= htmlspecialchars(baseUrl('configuracion/periodos'), ENT_QUOTES, 'UTF-8'); ?>">Gestionar periodos</a>
+        <?php endif; ?>
     </div>
 </section>
 
-<section class="dashboard-grid dashboard-metrics-grid">
-    <article class="summary-card">
-        <span class="summary-label">Personal</span>
-        <strong class="dashboard-metric-value"><?= htmlspecialchars((string) ($stats['personal'] ?? 0), ENT_QUOTES, 'UTF-8'); ?></strong>
-        <p>
-            Activos:
-            <strong><?= htmlspecialchars((string) ($stats['personal_activo'] ?? 0), ENT_QUOTES, 'UTF-8'); ?></strong>
-        </p>
-        <a class="text-link" href="<?= htmlspecialchars(baseUrl('personal'), ENT_QUOTES, 'UTF-8'); ?>">Ir a personal</a>
-    </article>
-
-    <article class="summary-card">
-        <span class="summary-label">Estudiantes</span>
-        <strong class="dashboard-metric-value"><?= htmlspecialchars((string) ($stats['estudiantes'] ?? 0), ENT_QUOTES, 'UTF-8'); ?></strong>
-        <p>
-            Activos:
-            <strong><?= htmlspecialchars((string) ($stats['estudiantes_activos'] ?? 0), ENT_QUOTES, 'UTF-8'); ?></strong>
-        </p>
-        <a class="text-link" href="<?= htmlspecialchars(baseUrl('estudiantes'), ENT_QUOTES, 'UTF-8'); ?>">Ir a estudiantes</a>
-    </article>
-
-    <article class="summary-card">
-        <span class="summary-label">Cursos del periodo</span>
-        <strong class="dashboard-metric-value"><?= htmlspecialchars((string) ($stats['cursos_periodo'] ?? 0), ENT_QUOTES, 'UTF-8'); ?></strong>
-        <p>
-            Activos:
-            <strong><?= htmlspecialchars((string) ($stats['cursos_activos'] ?? 0), ENT_QUOTES, 'UTF-8'); ?></strong>
-        </p>
-        <a class="text-link" href="<?= htmlspecialchars(baseUrl('cursos'), ENT_QUOTES, 'UTF-8'); ?>">Ir a cursos</a>
-    </article>
-
-    <article class="summary-card">
-        <span class="summary-label">Matriculas del periodo</span>
-        <strong class="dashboard-metric-value"><?= htmlspecialchars((string) ($stats['matriculas_periodo'] ?? 0), ENT_QUOTES, 'UTF-8'); ?></strong>
-        <p>Control central de inscripciones y habilitacion de estudiantes en el periodo activo.</p>
-        <a class="text-link" href="<?= htmlspecialchars(baseUrl('matriculas?panel=gestion'), ENT_QUOTES, 'UTF-8'); ?>">Gestionar matriculas</a>
-    </article>
-</section>
+<?php if ($metricCards !== []): ?>
+    <section class="dashboard-grid dashboard-metrics-grid">
+        <?php foreach ($metricCards as $card): ?>
+            <article class="summary-card">
+                <span class="summary-label"><?= htmlspecialchars((string) $card['label'], ENT_QUOTES, 'UTF-8'); ?></span>
+                <strong class="dashboard-metric-value"><?= htmlspecialchars((string) $card['value'], ENT_QUOTES, 'UTF-8'); ?></strong>
+                <p><?= htmlspecialchars((string) $card['detail'], ENT_QUOTES, 'UTF-8'); ?></p>
+                <a class="text-link" href="<?= htmlspecialchars((string) $card['url'], ENT_QUOTES, 'UTF-8'); ?>"><?= htmlspecialchars((string) $card['link'], ENT_QUOTES, 'UTF-8'); ?></a>
+            </article>
+        <?php endforeach; ?>
+    </section>
+<?php endif; ?>
 
 <section class="dashboard-grid">
-    <article class="summary-card">
-        <span class="summary-label">Accesos rapidos</span>
-        <strong>Operaciones frecuentes</strong>
-        <div class="dashboard-link-list">
-            <a class="text-link" href="<?= htmlspecialchars(baseUrl('personal'), ENT_QUOTES, 'UTF-8'); ?>">Ver personal</a>
-            <a class="text-link" href="<?= htmlspecialchars(baseUrl('estudiantes/crear'), ENT_QUOTES, 'UTF-8'); ?>">Registrar estudiante</a>
-            <?php if ($canCreateMatricula): ?>
-                <a class="text-link" href="<?= htmlspecialchars(baseUrl('matriculas?panel=nueva'), ENT_QUOTES, 'UTF-8'); ?>"><?= htmlspecialchars($newMatriculaLabel, ENT_QUOTES, 'UTF-8'); ?></a>
-            <?php endif; ?>
-            <a class="text-link" href="<?= htmlspecialchars(baseUrl('configuracion/catalogos'), ENT_QUOTES, 'UTF-8'); ?>">Configurar catalogos</a>
-        </div>
-    </article>
+    <?php if ($quickLinks !== []): ?>
+        <article class="summary-card">
+            <span class="summary-label">Accesos rapidos</span>
+            <strong>Operaciones disponibles</strong>
+            <div class="dashboard-link-list">
+                <?php foreach ($quickLinks as $link): ?>
+                    <a class="text-link" href="<?= htmlspecialchars((string) $link['url'], ENT_QUOTES, 'UTF-8'); ?>"><?= htmlspecialchars((string) $link['label'], ENT_QUOTES, 'UTF-8'); ?></a>
+                <?php endforeach; ?>
+            </div>
+        </article>
+    <?php endif; ?>
 
     <article class="summary-card">
         <span class="summary-label">Estado del sistema</span>
-        <strong>Base operativa</strong>
-        <p>Autenticacion, catalogos, personal, estudiantes, cursos y matriculas ya trabajan sobre PostgreSQL.</p>
+        <strong>Sesion operativa</strong>
+        <p>El panel muestra unicamente las secciones habilitadas para tu usuario.</p>
         <div class="dashboard-status-list">
             <span class="permission-option-state is-active">Login activo</span>
             <span class="permission-option-state is-active">Periodo seleccionado</span>
-            <span class="permission-option-state is-active">Matriculacion operativa</span>
+            <?php if ($canMatriculas && $canCreateMatricula): ?>
+                <span class="permission-option-state is-active">Matriculacion operativa</span>
+            <?php endif; ?>
         </div>
     </article>
 </section>

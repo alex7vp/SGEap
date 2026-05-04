@@ -104,6 +104,26 @@ class RolePermissionModel extends Model
         return $map;
     }
 
+    public function permissionCodesByUser(int $userId): array
+    {
+        $statement = $this->db->prepare(
+            'SELECT DISTINCT p.prmcodigo
+             FROM usuario_rol ur
+             INNER JOIN rol r ON r.rolid = ur.rolid
+             INNER JOIN rol_permiso rp ON rp.rolid = r.rolid
+             INNER JOIN permiso p ON p.prmid = rp.prmid
+             WHERE ur.usuid = :user_id
+               AND ur.usrestado = true
+               AND r.rolestado = true
+               AND rp.rpeestado = true
+               AND p.prmestado = true
+             ORDER BY p.prmcodigo ASC'
+        );
+        $statement->execute(['user_id' => $userId]);
+
+        return array_map('strval', $statement->fetchAll(PDO::FETCH_COLUMN));
+    }
+
     public function roleExists(int $roleId): bool
     {
         $statement = $this->db->prepare(

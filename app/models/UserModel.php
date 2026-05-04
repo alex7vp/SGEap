@@ -180,6 +180,25 @@ class UserModel extends Model
         $statement->execute();
     }
 
+    public function resetPassword(int $userId, string $temporaryPassword): void
+    {
+        $passwordHash = password_hash($temporaryPassword, PASSWORD_DEFAULT);
+
+        if ($passwordHash === false) {
+            throw new \RuntimeException('No se pudo proteger la nueva clave del usuario.');
+        }
+
+        $statement = $this->db->prepare(
+            "UPDATE {$this->table}
+             SET usuclave = :password,
+                 usufecha_modificacion = CURRENT_TIMESTAMP
+             WHERE {$this->primaryKey} = :id"
+        );
+        $statement->bindValue(':id', $userId, \PDO::PARAM_INT);
+        $statement->bindValue(':password', $passwordHash, \PDO::PARAM_STR);
+        $statement->execute();
+    }
+
     public function userWithPerson(int $userId): array|false
     {
         $statement = $this->db->prepare(

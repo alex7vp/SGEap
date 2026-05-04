@@ -145,6 +145,39 @@ class SecurityController extends Controller
         $this->redirect('/seguridad/usuarios#usuarios-asignados');
     }
 
+    public function resetUserPassword(): void
+    {
+        $this->requireAuth();
+
+        $userId = (int) ($_POST['usuid'] ?? 0);
+        $temporaryPassword = trim((string) ($_POST['usuclave_temporal'] ?? ''));
+        $userModel = new UserModel();
+
+        if ($userId <= 0) {
+            $this->flashUserListFeedback('error', 'El usuario seleccionado no es valido.');
+            $this->redirect('/seguridad/usuarios#usuarios-asignados');
+        }
+
+        if ($temporaryPassword === '') {
+            $this->flashUserListFeedback('error', 'Ingrese una clave temporal para restablecer el acceso.');
+            $this->redirect('/seguridad/usuarios#usuarios-asignados');
+        }
+
+        if (mb_strlen($temporaryPassword) < 6) {
+            $this->flashUserListFeedback('error', 'La clave temporal debe tener al menos 6 caracteres.');
+            $this->redirect('/seguridad/usuarios#usuarios-asignados');
+        }
+
+        if ($userModel->userWithPerson($userId) === false) {
+            $this->flashUserListFeedback('error', 'El usuario solicitado no existe.');
+            $this->redirect('/seguridad/usuarios#usuarios-asignados');
+        }
+
+        $userModel->resetPassword($userId, $temporaryPassword);
+        $this->flashUserListFeedback('success', 'Clave temporal restablecida. Indiquela al usuario y solicite que la cambie al ingresar.');
+        $this->redirect('/seguridad/usuarios#usuarios-asignados');
+    }
+
     public function rolePermissions(): void
     {
         $user = $this->requireAuth();

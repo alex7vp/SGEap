@@ -131,6 +131,19 @@ class StudentModel extends Model
         return $statement->fetch();
     }
 
+    public function findByPersonId(int $personId): array|false
+    {
+        $statement = $this->db->prepare(
+            "SELECT estid, perid, estestado
+             FROM {$this->table}
+             WHERE perid = :person_id
+             LIMIT 1"
+        );
+        $statement->execute(['person_id' => $personId]);
+
+        return $statement->fetch();
+    }
+
     public function profile(int $studentId, ?int $periodId = null): array|false
     {
         $student = $this->findDetailed($studentId, $periodId);

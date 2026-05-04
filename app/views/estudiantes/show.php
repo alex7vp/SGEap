@@ -22,8 +22,11 @@ $yesNo = static fn (bool $value): string => $value ? 'Si' : 'No';
 $studentName = trim((string) (($student['perapellidos'] ?? '') . ' ' . ($student['pernombres'] ?? '')));
 $courseName = (string) ($matriculation['curso'] ?? 'Sin matricula en el periodo');
 $studentId = (int) ($student['estid'] ?? 0);
+$isOwnProfile = !empty($isOwnProfile);
 $studentEditUrl = baseUrl('estudiantes/editar?id=' . $studentId);
-$moduleUrl = static fn (string $section): string => baseUrl('estudiantes/modulo?id=' . $studentId . '&seccion=' . $section);
+$moduleUrl = static fn (string $section): string => $isOwnProfile
+    ? baseUrl('mi-matricula/modulo?seccion=' . $section)
+    : baseUrl('estudiantes/modulo?id=' . $studentId . '&seccion=' . $section);
 
 $representativeName = $representative === null
     ? 'Pendiente'
@@ -83,8 +86,10 @@ $cards = [
 ];
 ?>
 <div class="toolbar">
-    <p>Ficha operativa del estudiante y su matricula asociada.</p>
-    <a class="text-link" href="<?= $h(baseUrl('estudiantes')); ?>">Volver al listado</a>
+    <p><?= $isOwnProfile ? 'Consulta de tu informacion academica y de matricula.' : 'Ficha operativa del estudiante y su matricula asociada.'; ?></p>
+    <?php if (!$isOwnProfile): ?>
+        <a class="text-link" href="<?= $h(baseUrl('estudiantes')); ?>">Volver al listado</a>
+    <?php endif; ?>
 </div>
 
 <section class="student-profile-hero">
@@ -101,7 +106,9 @@ $cards = [
         <span class="state-pill <?= !empty($student['estestado']) ? 'state-pill-active' : 'state-pill-inactive'; ?>">
             <?= !empty($student['estestado']) ? 'Activo' : 'Inactivo'; ?>
         </span>
-        <a class="btn-secondary btn-auto" href="<?= $h($studentEditUrl); ?>">Editar datos</a>
+        <?php if (!$isOwnProfile): ?>
+            <a class="btn-secondary btn-auto" href="<?= $h($studentEditUrl); ?>">Editar datos</a>
+        <?php endif; ?>
     </div>
 </section>
 

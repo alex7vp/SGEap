@@ -23,6 +23,8 @@ $academicContext = is_array($profile['academic_context'] ?? null) ? $profile['ac
 $resources = is_array($profile['resources'] ?? null) ? $profile['resources'] : [];
 $billing = is_array($profile['billing'] ?? null) ? $profile['billing'] : [];
 $documents = is_array($profile['documents'] ?? null) ? $profile['documents'] : [];
+$isOwnProfile = !empty($isOwnProfile);
+$readOnly = !empty($readOnly);
 
 $h = static fn (mixed $value): string => htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
 $whoBmiReference = require BASE_PATH . '/app/support/who_bmi_for_age.php';
@@ -93,6 +95,10 @@ $imcDescription = static function (mixed $value, mixed $birthDate = null, mixed 
 };
 $studentId = (int) ($student['estid'] ?? 0);
 $studentName = trim((string) (($student['perapellidos'] ?? '') . ' ' . ($student['pernombres'] ?? '')));
+$profileUrl = $isOwnProfile ? baseUrl('mi-matricula') : baseUrl('estudiantes/ver?id=' . $studentId);
+$moduleBaseUrl = static fn (string $section, string $panel = ''): string => $isOwnProfile
+    ? baseUrl('mi-matricula/modulo?seccion=' . $section . ($panel !== '' ? '&panel=' . $panel : ''))
+    : baseUrl('estudiantes/modulo?id=' . $studentId . '&seccion=' . $section . ($panel !== '' ? '&panel=' . $panel : ''));
 $acceptedDocuments = [];
 
 foreach ($documents as $document) {
@@ -158,7 +164,7 @@ $healthConditionTemplate .= '</select></div></div>'
 ?>
 <div class="toolbar">
     <p><?= $h($studentName !== '' ? $studentName : 'Estudiante sin nombre'); ?></p>
-    <a class="text-link" href="<?= $h(baseUrl('estudiantes/ver?id=' . $studentId)); ?>">Volver a la ficha</a>
+    <a class="text-link" href="<?= $h($profileUrl); ?>">Volver a la ficha</a>
 </div>
 
 <?php if (!($section === 'salud' && $panel === 'mediciones')): ?>
@@ -174,7 +180,11 @@ $healthConditionTemplate .= '</select></div></div>'
         </div>
     </div>
 
-    <form class="data-form student-module-form" method="POST" action="<?= $h(baseUrl('estudiantes/modulo/actualizar')); ?>">
+    <?php if ($readOnly): ?>
+        <div class="alert alert-success">Vista de consulta. Los cambios deben solicitarse a secretaria o administracion.</div>
+    <?php endif; ?>
+
+    <form class="data-form student-module-form <?= $readOnly ? 'is-readonly' : ''; ?>" method="POST" action="<?= $h(baseUrl('estudiantes/modulo/actualizar')); ?>">
         <input type="hidden" name="estid" value="<?= $h($studentId); ?>">
         <input type="hidden" name="section" value="<?= $h($section); ?>">
         <?php if ($section === 'salud' && $panel !== ''): ?>
@@ -183,6 +193,8 @@ $healthConditionTemplate .= '</select></div></div>'
         <?php if ($section === 'salud' && $panel === 'mediciones'): ?>
             <script type="application/json" data-who-bmi-reference><?= $h(json_encode($whoBmiReference, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)); ?></script>
         <?php endif; ?>
+
+        <?php if ($readOnly): ?><fieldset class="student-readonly-fieldset" disabled><?php endif; ?>
 
         <?php if ($section === 'estudiante'): ?>
             <div class="form-grid">
@@ -276,7 +288,7 @@ $healthConditionTemplate .= '</select></div></div>'
                 ?>
                 <div class="student-profile-index-grid">
                     <?php foreach ($healthCards as $card): ?>
-                        <a class="summary-card student-profile-card student-card-link student-compact-card" href="<?= $h(baseUrl('estudiantes/modulo?id=' . $studentId . '&seccion=salud&panel=' . $card['panel'])); ?>">
+                        <a class="summary-card student-profile-card student-card-link student-compact-card" href="<?= $h($moduleBaseUrl('salud', (string) $card['panel'])); ?>">
                             <span class="summary-label"><?= $h($card['label']); ?></span>
                             <strong><?= $h($card['value']); ?></strong>
                         </a>
@@ -343,8 +355,8 @@ $healthConditionTemplate .= '</select></div></div>'
                         <div class="form-group form-group-full"><div class="input-group"><span class="input-addon">Obs. medicion</span><input name="health_measurement[emsobservacion]" value=""></div></div>
                     </div>
                     <div class="form-actions health-measurement-actions">
-                        <a class="btn-secondary btn-auto" href="<?= $h(baseUrl('estudiantes/modulo?id=' . $studentId . '&seccion=salud')); ?>">Volver a salud</a>
-                        <button type="submit" class="btn-primary btn-auto">Agregar medicion</button>
+                        <a class="btn-secondary btn-auto" href="<?= $h($moduleBaseUrl('salud')); ?>">Volver a salud</a>
+                        <?php if (!$readOnly): ?><button type="submit" class="btn-primary btn-auto">Agregar medicion</button><?php endif; ?>
                     </div>
                     <?php if ($moduleSuccess): ?><div class="alert alert-success health-measurement-feedback"><?= $h($moduleSuccess); ?></div><?php endif; ?>
                     <?php if ($moduleError): ?><div class="alert alert-error health-measurement-feedback"><?= $h($moduleError); ?></div><?php endif; ?>
@@ -395,14 +407,16 @@ $healthConditionTemplate .= '</select></div></div>'
             </div>
         <?php endif; ?>
 
+        <?php if ($readOnly): ?></fieldset><?php endif; ?>
+
         <div class="form-actions">
             <?php if ($section === 'salud' && $panel === 'mediciones'): ?>
             <?php elseif ($section === 'salud' && $panel !== ''): ?>
-                <a class="btn-secondary btn-auto" href="<?= $h(baseUrl('estudiantes/modulo?id=' . $studentId . '&seccion=salud')); ?>">Volver a salud</a>
-                <button type="submit" class="btn-primary btn-auto">Guardar cambios</button>
+                <a class="btn-secondary btn-auto" href="<?= $h($moduleBaseUrl('salud')); ?>">Volver a salud</a>
+                <?php if (!$readOnly): ?><button type="submit" class="btn-primary btn-auto">Guardar cambios</button><?php endif; ?>
             <?php elseif (!($section === 'salud' && $panel === '')): ?>
-                <a class="btn-secondary btn-auto" href="<?= $h(baseUrl('estudiantes/ver?id=' . $studentId)); ?>">Cancelar</a>
-                <button type="submit" class="btn-primary btn-auto">Guardar cambios</button>
+                <a class="btn-secondary btn-auto" href="<?= $h($profileUrl); ?>"><?= $readOnly ? 'Volver a la ficha' : 'Cancelar'; ?></a>
+                <?php if (!$readOnly): ?><button type="submit" class="btn-primary btn-auto">Guardar cambios</button><?php endif; ?>
             <?php endif; ?>
         </div>
     </form>
