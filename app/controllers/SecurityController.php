@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Core\Controller;
+use App\Core\Database;
 use App\Models\PersonalModel;
 use App\Models\RolePermissionModel;
 use App\Models\SecurityCatalogModel;
 use App\Models\StudentModel;
+use App\Models\TemporaryUserModel;
 use App\Models\UserModel;
 
 class SecurityController extends Controller
@@ -114,6 +116,177 @@ class SecurityController extends Controller
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     }
 
+    public function temporaryUsers(): void
+    {
+        $user = $this->requireAuth();
+        $userModel = new UserModel();
+        $temporaryUserModel = new TemporaryUserModel();
+        $defaultExpiration = (new \DateTimeImmutable('+30 days'))->format('Y-m-d\TH:i');
+
+        $this->view('seguridad.usuarios_temporales', [
+            'appName' => config('app')['name'] ?? 'SGEap',
+            'pageTitle' => 'Usuarios temporales',
+            'currentModule' => 'seguridad',
+            'currentSection' => 'seguridad_usuarios_temporales',
+            'user' => $user,
+            'availablePersons' => $userModel->allWithoutUser(),
+            'temporaryUsers' => $temporaryUserModel->allDetailed(),
+            'feedback' => $this->temporaryUserFeedback(),
+            'old' => [
+                'perid' => sessionFlash('old_temp_user_perid') ?? '',
+                'usunombre' => sessionFlash('old_temp_user_usunombre') ?? '',
+                'usuclave' => '',
+                'utfecha_expiracion' => sessionFlash('old_temp_user_expiration') ?? $defaultExpiration,
+            ],
+        ]);
+    }
+
+    public function storeTemporaryUser(): void
+    {
+        $this->requireAuth();
+
+        $data = $this->temporaryUserFormData();
+        $userModel = new UserModel();
+
+        if ($data['perid'] <= 0 || $data['usunombre'] === '' || $data['usuclave'] === '' || $data['utfecha_expiracion'] === '') {
+            $this->flashTemporaryUserFormData($data);
+            $this->flashTemporaryUserFeedback('error', 'Persona, usuario, clave y fecha de expiracion son obligatorios.');
+            $this->redirect('/seguridad/usuarios-temporales');
+        }
+
+        if (mb_strlen($data['usuclave']) < 6) {
+            $this->flashTemporaryUserFormData($data);
+            $this->flashTemporaryUserFeedback('error', 'La clave temporal debe tener al menos 6 caracteres.');
+            $this->redirect('/seguridad/usuarios-temporales');
+        }
+
+        $expiration = $this->parseTemporaryExpiration($data['utfecha_expiracion']);
+
+        if ($expiration === null || $expiration <= new \DateTimeImmutable()) {
+            $this->flashTemporaryUserFormData($data);
+            $this->flashTemporaryUserFeedback('error', 'La fecha de expiracion debe ser posterior a la fecha actual.');
+            $this->redirect('/seguridad/usuarios-temporales');
+        }
+
+        if ($userModel->existsByPerson($data['perid'])) {
+            $this->flashTemporaryUserFormData($data);
+            $this->flashTemporaryUserFeedback('error', 'La persona seleccionada ya tiene un usuario asignado.');
+            $this->redirect('/seguridad/usuarios-temporales');
+        }
+
+        if ($userModel->existsByUsername($data['usunombre'])) {
+            $this->flashTemporaryUserFormData($data);
+            $this->flashTemporaryUserFeedback('error', 'El nombre de usuario ya esta registrado.');
+            $this->redirect('/seguridad/usuarios-temporales');
+        }
+
+        $db = Database::connection();
+        $db->beginTransaction();
+
+        try {
+            $userId = $userModel->createAndReturnId([
+                'perid' => $data['perid'],
+                'usunombre' => $data['usunombre'],
+                'usuclave' => $data['usuclave'],
+                'usuestado' => true,
+            ]);
+
+            $temporaryUserModel = new TemporaryUserModel();
+            $temporaryUserModel->create($userId, $expiration);
+            $userModel->assignRoleToUser($userId, 'Representante temporal');
+
+            $db->commit();
+        } catch (\Throwable $exception) {
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
+
+            $this->flashTemporaryUserFormData($data);
+            $this->flashTemporaryUserFeedback('error', 'No se pudo crear el usuario temporal.');
+            $this->redirect('/seguridad/usuarios-temporales');
+            return;
+        }
+
+        $this->flashTemporaryUserFeedback('success', 'Usuario temporal creado correctamente.');
+        $this->redirect('/seguridad/usuarios-temporales');
+    }
+
+    public function resetTemporaryUserPassword(): void
+    {
+        $this->requireAuth();
+
+        $userId = (int) ($_POST['usuid'] ?? 0);
+        $temporaryPassword = trim((string) ($_POST['usuclave_temporal'] ?? ''));
+
+        if ($userId <= 0 || $temporaryPassword === '') {
+            $this->flashTemporaryUserFeedback('error', 'Seleccione un usuario temporal e ingrese una clave.');
+            $this->redirect('/seguridad/usuarios-temporales#usuarios-temporales-listado');
+        }
+
+        if (mb_strlen($temporaryPassword) < 6) {
+            $this->flashTemporaryUserFeedback('error', 'La clave temporal debe tener al menos 6 caracteres.');
+            $this->redirect('/seguridad/usuarios-temporales#usuarios-temporales-listado');
+        }
+
+        $temporaryUserModel = new TemporaryUserModel();
+
+        if (!$temporaryUserModel->existsByUser($userId, ['ACTIVO', 'EXPIRADO'])) {
+            $this->flashTemporaryUserFeedback('error', 'El usuario temporal seleccionado no existe o ya no puede administrarse.');
+            $this->redirect('/seguridad/usuarios-temporales#usuarios-temporales-listado');
+        }
+
+        $userModel = new UserModel();
+        $userModel->resetPassword($userId, $temporaryPassword);
+        $this->flashTemporaryUserFeedback('success', 'Clave temporal restablecida correctamente.');
+        $this->redirect('/seguridad/usuarios-temporales#usuarios-temporales-listado');
+    }
+
+    public function extendTemporaryUser(): void
+    {
+        $this->requireAuth();
+
+        $userId = (int) ($_POST['usuid'] ?? 0);
+        $expiration = $this->parseTemporaryExpiration(trim((string) ($_POST['utfecha_expiracion'] ?? '')));
+
+        if ($userId <= 0 || $expiration === null || $expiration <= new \DateTimeImmutable()) {
+            $this->flashTemporaryUserFeedback('error', 'Seleccione un usuario temporal y una fecha de expiracion futura.');
+            $this->redirect('/seguridad/usuarios-temporales#usuarios-temporales-listado');
+        }
+
+        $temporaryUserModel = new TemporaryUserModel();
+        if (!$temporaryUserModel->existsByUser($userId, ['ACTIVO', 'EXPIRADO'])) {
+            $this->flashTemporaryUserFeedback('error', 'El usuario temporal seleccionado no existe o ya no puede administrarse.');
+            $this->redirect('/seguridad/usuarios-temporales#usuarios-temporales-listado');
+        }
+
+        $temporaryUserModel->updateExpiration($userId, $expiration);
+        $this->flashTemporaryUserFeedback('success', 'Vigencia del usuario temporal actualizada correctamente.');
+        $this->redirect('/seguridad/usuarios-temporales#usuarios-temporales-listado');
+    }
+
+    public function deleteTemporaryUser(): void
+    {
+        $this->requireAuth();
+
+        $userId = (int) ($_POST['usuid'] ?? 0);
+        $reason = trim((string) ($_POST['utmotivo_eliminacion'] ?? ''));
+
+        if ($userId <= 0) {
+            $this->flashTemporaryUserFeedback('error', 'El usuario temporal seleccionado no es valido.');
+            $this->redirect('/seguridad/usuarios-temporales#usuarios-temporales-listado');
+        }
+
+        $temporaryUserModel = new TemporaryUserModel();
+        if (!$temporaryUserModel->existsByUser($userId, ['ACTIVO', 'EXPIRADO'])) {
+            $this->flashTemporaryUserFeedback('error', 'El usuario temporal seleccionado no existe o ya no puede administrarse.');
+            $this->redirect('/seguridad/usuarios-temporales#usuarios-temporales-listado');
+        }
+
+        $temporaryUserModel->deleteAccess($userId, $reason);
+        $this->flashTemporaryUserFeedback('success', 'Acceso temporal anulado correctamente.');
+        $this->redirect('/seguridad/usuarios-temporales#usuarios-temporales-listado');
+    }
+
     public function storeUser(): void
     {
         $this->requireAuth();
@@ -143,8 +316,8 @@ class SecurityController extends Controller
 
         $personalModel = new PersonalModel();
 
-        if ($personalModel->personHasActiveStaffType($data['perid'], 'Docente')) {
-            $userModel->assignRoleToUser($userId, 'Docente');
+        foreach ($personalModel->roleNamesForPersonStaffTypes($data['perid']) as $roleName) {
+            $userModel->assignRoleToUser($userId, $roleName);
         }
 
         $studentModel = new StudentModel();
@@ -235,6 +408,7 @@ class SecurityController extends Controller
     {
         $user = $this->requireAuth();
         $rolePermissionModel = new RolePermissionModel();
+        $selectedRole = trim((string) ($_GET['rol'] ?? ''));
 
         $this->view('seguridad.roles_usuarios', [
             'appName' => config('app')['name'] ?? 'SGEap',
@@ -243,8 +417,10 @@ class SecurityController extends Controller
             'currentSection' => 'seguridad_usuarios_roles',
             'user' => $user,
             'roles' => $rolePermissionModel->allRoles(),
-            'users' => $rolePermissionModel->allUsers(),
+            'users' => $rolePermissionModel->allUsers('', $selectedRole !== '' ? $selectedRole : null),
             'assignedRoles' => $rolePermissionModel->assignedRoleIdsByUser(),
+            'staffManagedRoleNames' => $rolePermissionModel->staffManagedRoleNames(),
+            'selectedRole' => $selectedRole,
             'userRoleFeedback' => $this->userRoleFeedback(),
         ]);
     }
@@ -254,15 +430,17 @@ class SecurityController extends Controller
         $this->requireAuth();
 
         $term = trim($_GET['q'] ?? '');
+        $selectedRole = trim((string) ($_GET['rol'] ?? ''));
         $rolePermissionModel = new RolePermissionModel();
         $roles = $rolePermissionModel->allRoles();
-        $users = $rolePermissionModel->allUsers($term);
+        $users = $rolePermissionModel->allUsers($term, $selectedRole !== '' ? $selectedRole : null);
 
         header('Content-Type: application/json; charset=UTF-8');
         echo json_encode([
-            'html' => $this->renderUserRoleRows($users, $roles, $rolePermissionModel->assignedRoleIdsByUser()),
+            'html' => $this->renderUserRoleRows($users, $roles, $rolePermissionModel->assignedRoleIdsByUser(), $rolePermissionModel->staffManagedRoleNames()),
             'isEmpty' => empty($users),
             'emptyHtml' => '<div class="empty-state">No se encontraron usuarios con ese filtro.</div>',
+            'count' => count($users),
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     }
 
@@ -518,7 +696,7 @@ class SecurityController extends Controller
         $this->redirect($path);
     }
 
-    private function renderUserRoleRows(array $users, array $roles, array $assignedRoles): string
+    private function renderUserRoleRows(array $users, array $roles, array $assignedRoles, array $staffManagedRoleNames = []): string
     {
         ob_start();
         require BASE_PATH . '/app/views/seguridad/_user_role_rows.php';
@@ -530,6 +708,57 @@ class SecurityController extends Controller
         ob_start();
         require BASE_PATH . '/app/views/seguridad/_users_rows.php';
         return (string) ob_get_clean();
+    }
+
+    private function temporaryUserFormData(): array
+    {
+        return [
+            'perid' => (int) ($_POST['perid'] ?? 0),
+            'usunombre' => trim((string) ($_POST['usunombre'] ?? '')),
+            'usuclave' => trim((string) ($_POST['usuclave'] ?? '')),
+            'utfecha_expiracion' => trim((string) ($_POST['utfecha_expiracion'] ?? '')),
+        ];
+    }
+
+    private function flashTemporaryUserFormData(array $data): void
+    {
+        sessionFlash('old_temp_user_perid', (string) $data['perid']);
+        sessionFlash('old_temp_user_usunombre', (string) $data['usunombre']);
+        sessionFlash('old_temp_user_expiration', (string) $data['utfecha_expiracion']);
+    }
+
+    private function parseTemporaryExpiration(string $value): ?\DateTimeImmutable
+    {
+        if ($value === '') {
+            return null;
+        }
+
+        try {
+            return new \DateTimeImmutable(str_replace('T', ' ', $value));
+        } catch (\Exception) {
+            return null;
+        }
+    }
+
+    private function flashTemporaryUserFeedback(string $type, string $message): void
+    {
+        sessionFlash('temporary_user_feedback_type', $type);
+        sessionFlash('temporary_user_feedback_message', $message);
+    }
+
+    private function temporaryUserFeedback(): ?array
+    {
+        $type = sessionFlash('temporary_user_feedback_type');
+        $message = sessionFlash('temporary_user_feedback_message');
+
+        if ($type === null || $message === null) {
+            return null;
+        }
+
+        return [
+            'type' => $type,
+            'message' => $message,
+        ];
     }
 
     private function userFormData(): array

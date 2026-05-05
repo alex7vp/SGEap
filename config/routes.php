@@ -50,6 +50,7 @@ return static function (Router $router): void {
 
     $router->get('/seguridad/catalogos', [SecurityController::class, 'catalogs']);
     $router->get('/seguridad/usuarios', [SecurityController::class, 'users']);
+    $router->get('/seguridad/usuarios-temporales', [SecurityController::class, 'temporaryUsers']);
     $router->get('/seguridad/usuarios/buscar', [SecurityController::class, 'searchUsers']);
     $router->get('/seguridad/personas-disponibles/buscar', [SecurityController::class, 'searchAvailablePersons']);
     $router->post('/seguridad/catalogos', [SecurityController::class, 'storeCatalogItem']);
@@ -59,6 +60,10 @@ return static function (Router $router): void {
     $router->get('/seguridad/usuarios-roles', [SecurityController::class, 'userRoles']);
     $router->get('/seguridad/usuarios-roles/buscar', [SecurityController::class, 'searchUserRoles']);
     $router->post('/seguridad/usuarios', [SecurityController::class, 'storeUser']);
+    $router->post('/seguridad/usuarios-temporales', [SecurityController::class, 'storeTemporaryUser']);
+    $router->post('/seguridad/usuarios-temporales/clave', [SecurityController::class, 'resetTemporaryUserPassword']);
+    $router->post('/seguridad/usuarios-temporales/extender', [SecurityController::class, 'extendTemporaryUser']);
+    $router->post('/seguridad/usuarios-temporales/eliminar', [SecurityController::class, 'deleteTemporaryUser']);
     $router->post('/seguridad/usuarios/estado', [SecurityController::class, 'toggleUserStatus']);
     $router->post('/seguridad/usuarios/clave', [SecurityController::class, 'resetUserPassword']);
     $router->post('/seguridad/roles-permisos', [SecurityController::class, 'updateRolePermissions']);

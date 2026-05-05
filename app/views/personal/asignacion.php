@@ -8,7 +8,7 @@ $staffAssignments = is_array($staffAssignments ?? null) ? $staffAssignments : []
 $staffTypes = is_array($staffTypes ?? null) ? $staffTypes : [];
 $assignedTypes = is_array($assignedTypes ?? null) ? $assignedTypes : [];
 ?>
-<p class="module-note">Asigna uno o varios tipos al personal institucional. Un mismo registro puede pertenecer a Docente, Inspeccion, DECE u otras categorias al mismo tiempo.</p>
+<p class="module-note">Asigna uno o varios tipos al personal institucional. Los tipos con rol operativo crean o actualizan el usuario automaticamente.</p>
 
 <section class="security-assignment-block">
     <header class="security-assignment-header">

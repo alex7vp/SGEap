@@ -3,8 +3,15 @@
 declare(strict_types=1);
 
 require BASE_PATH . '/app/views/partials/header.php';
+
+$staffManagedRoleNames = is_array($staffManagedRoleNames ?? null) ? $staffManagedRoleNames : [];
+$selectedRole = trim((string) ($selectedRole ?? ''));
+$roleNoteText = 'Esta pagina concentra roles especiales de seguridad. Los roles institucionales se sincronizan desde Asignacion de personal. ';
+$roleNoteText .= $selectedRole !== ''
+    ? 'Mostrando usuarios con rol: ' . $selectedRole . '.'
+    : 'Mostrando usuarios activos de todos los roles.';
 ?>
-<p class="module-note">Esta pagina concentra la asignacion de roles a usuarios del sistema para controlar su acceso operativo.</p>
+<p class="module-note" data-security-user-role-note><?= htmlspecialchars($roleNoteText, ENT_QUOTES, 'UTF-8'); ?></p>
 
 <section class="security-assignment-block">
     <header class="security-assignment-header">
@@ -30,6 +37,39 @@ require BASE_PATH . '/app/views/partials/header.php';
             </div>
         <?php endif; ?>
 
+        <div class="alert alert-success security-feedback-global">
+            <span>Los roles Rector, Vicerrector, Secretaria, Coordinador, Docente, DECE e Inspector son de solo lectura aqui y se administran desde Gestion academica &gt; Personal &gt; Asignacion del personal.</span>
+        </div>
+
+        <div class="toolbar toolbar-filter">
+            <div
+                class="dashboard-link-list personal-type-radio-group"
+                data-security-user-role-filter
+            >
+                <label class="role-toggle">
+                    <input
+                        type="radio"
+                        name="security_user_role_filter"
+                        value=""
+                        <?= $selectedRole === '' ? 'checked' : ''; ?>
+                    >
+                    <span>Todos</span>
+                </label>
+                <?php foreach ($roles as $role): ?>
+                    <?php $roleName = (string) ($role['rolnombre'] ?? ''); ?>
+                    <label class="role-toggle">
+                        <input
+                            type="radio"
+                            name="security_user_role_filter"
+                            value="<?= htmlspecialchars($roleName, ENT_QUOTES, 'UTF-8'); ?>"
+                            <?= $selectedRole === $roleName ? 'checked' : ''; ?>
+                        >
+                        <span><?= htmlspecialchars($roleName, ENT_QUOTES, 'UTF-8'); ?></span>
+                    </label>
+                <?php endforeach; ?>
+            </div>
+        </div>
+
         <div class="toolbar toolbar-filter">
             <div class="filter-box">
                 <label class="sr-only" for="security-user-role-search">Buscar usuarios</label>
@@ -49,16 +89,20 @@ require BASE_PATH . '/app/views/partials/header.php';
             <div class="empty-state">No se encontraron usuarios para asignar roles.</div>
         </div>
 
-        <div class="table-wrap" data-security-user-role-table-wrapper <?= empty($users) ? 'hidden' : ''; ?>>
-            <table class="data-table role-matrix-table">
+        <div class="table-wrap role-user-matrix-wrap" data-security-user-role-table-wrapper <?= empty($users) ? 'hidden' : ''; ?>>
+            <table class="data-table role-matrix-table role-user-matrix-table">
                 <thead>
                     <tr>
-                        <th>Usuario</th>
-                        <th>Persona</th>
-                        <th>Cedula</th>
+                        <th class="role-user-sticky role-user-sticky-username">Usuario</th>
+                        <th class="role-user-sticky role-user-sticky-person">Persona</th>
+                        <th class="role-user-sticky role-user-sticky-id">Cedula</th>
                         <?php foreach ($roles as $role): ?>
-                            <th class="role-matrix-head" title="<?= htmlspecialchars((string) ($role['roldescripcion'] ?: $role['rolnombre']), ENT_QUOTES, 'UTF-8'); ?>">
-                                <?= htmlspecialchars((string) $role['rolnombre'], ENT_QUOTES, 'UTF-8'); ?>
+                            <?php $isStaffManagedRole = in_array((string) $role['rolnombre'], $staffManagedRoleNames, true); ?>
+                            <th
+                                class="role-matrix-head role-matrix-head-vertical <?= $isStaffManagedRole ? 'is-readonly-role' : ''; ?>"
+                                title="<?= htmlspecialchars($isStaffManagedRole ? 'Rol sincronizado desde Asignacion de personal' : (string) ($role['roldescripcion'] ?: $role['rolnombre']), ENT_QUOTES, 'UTF-8'); ?>"
+                            >
+                                <span><?= htmlspecialchars((string) $role['rolnombre'], ENT_QUOTES, 'UTF-8'); ?></span>
                             </th>
                         <?php endforeach; ?>
                         <th>Guardar</th>

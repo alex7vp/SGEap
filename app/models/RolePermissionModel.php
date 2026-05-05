@@ -10,6 +10,16 @@ use RuntimeException;
 
 class RolePermissionModel extends Model
 {
+    private const STAFF_MANAGED_ROLE_NAMES = [
+        'Rector',
+        'Vicerrector',
+        'Secretaria',
+        'Coordinador',
+        'Docente',
+        'DECE',
+        'Inspector',
+    ];
+
     public function allRoles(): array
     {
         $statement = $this->db->query(
@@ -51,36 +61,45 @@ class RolePermissionModel extends Model
         return $map;
     }
 
-    public function allUsers(string $term = ''): array
+    public function allUsers(string $term = '', ?string $roleName = null): array
     {
         $normalizedTerm = trim($term);
+        $normalizedRole = trim((string) $roleName);
+        $conditions = ['u.usuestado = true'];
+        $params = [];
 
-        if ($normalizedTerm === '') {
-            $statement = $this->db->query(
-                'SELECT u.usuid, u.usunombre, u.usuestado, u.perid, p.pernombres, p.perapellidos, p.percedula
-                 FROM usuario u
-                 INNER JOIN persona p ON p.perid = u.perid
-                 WHERE u.usuestado = true
-                 ORDER BY p.perapellidos ASC, p.pernombres ASC'
-            );
-
-            return $statement->fetchAll();
+        if ($normalizedTerm !== '') {
+            $conditions[] = '(
+                u.usunombre ILIKE :term
+                OR p.percedula ILIKE :term
+                OR p.pernombres ILIKE :term
+                OR p.perapellidos ILIKE :term
+            )';
+            $params['term'] = '%' . $normalizedTerm . '%';
         }
 
+        if ($normalizedRole !== '') {
+            $conditions[] = 'EXISTS (
+                SELECT 1
+                FROM usuario_rol ur_filter
+                INNER JOIN rol r_filter ON r_filter.rolid = ur_filter.rolid
+                WHERE ur_filter.usuid = u.usuid
+                  AND ur_filter.usrestado = true
+                  AND r_filter.rolestado = true
+                  AND r_filter.rolnombre = :role_name
+            )';
+            $params['role_name'] = $normalizedRole;
+        }
+
+        $whereSql = implode(' AND ', $conditions);
         $statement = $this->db->prepare(
-            'SELECT u.usuid, u.usunombre, u.usuestado, u.perid, p.pernombres, p.perapellidos, p.percedula
+            "SELECT u.usuid, u.usunombre, u.usuestado, u.perid, p.pernombres, p.perapellidos, p.percedula
              FROM usuario u
              INNER JOIN persona p ON p.perid = u.perid
-             WHERE u.usuestado = true
-               AND (
-                    u.usunombre ILIKE :term
-                    OR p.percedula ILIKE :term
-                    OR p.pernombres ILIKE :term
-                    OR p.perapellidos ILIKE :term
-               )
-             ORDER BY p.perapellidos ASC, p.pernombres ASC'
+             WHERE {$whereSql}
+             ORDER BY p.perapellidos ASC, p.pernombres ASC"
         );
-        $statement->execute(['term' => '%' . $normalizedTerm . '%']);
+        $statement->execute($params);
 
         return $statement->fetchAll();
     }
@@ -227,6 +246,24 @@ class RolePermissionModel extends Model
         return array_map('intval', $statement->fetchAll(PDO::FETCH_COLUMN));
     }
 
+    public function staffManagedRoleNames(): array
+    {
+        return self::STAFF_MANAGED_ROLE_NAMES;
+    }
+
+    public function staffManagedRoleIds(): array
+    {
+        $placeholders = implode(', ', array_fill(0, count(self::STAFF_MANAGED_ROLE_NAMES), '?'));
+        $statement = $this->db->prepare(
+            "SELECT rolid
+             FROM rol
+             WHERE rolnombre IN ({$placeholders})"
+        );
+        $statement->execute(self::STAFF_MANAGED_ROLE_NAMES);
+
+        return array_map('intval', $statement->fetchAll(PDO::FETCH_COLUMN));
+    }
+
     public function syncUserRoles(int $userId, array $roleIds): void
     {
         if (!$this->userExists($userId)) {
@@ -240,14 +277,27 @@ class RolePermissionModel extends Model
             throw new RuntimeException('Existe al menos un rol no valido en la asignacion.');
         }
 
+        $staffManagedRoleIds = $this->staffManagedRoleIds();
+
+        if (array_intersect($validRoleIds, $staffManagedRoleIds) !== []) {
+            throw new RuntimeException('Los roles institucionales se administran desde Asignacion de personal.');
+        }
+
         $this->db->beginTransaction();
 
         try {
+            $protectedSql = '';
+
+            if ($staffManagedRoleIds !== []) {
+                $protectedSql = ' AND rolid NOT IN (' . implode(', ', array_fill(0, count($staffManagedRoleIds), '?')) . ')';
+            }
+
             $deleteStatement = $this->db->prepare(
-                'DELETE FROM usuario_rol
-                 WHERE usuid = :user_id'
+                "DELETE FROM usuario_rol
+                 WHERE usuid = ?
+                 {$protectedSql}"
             );
-            $deleteStatement->execute(['user_id' => $userId]);
+            $deleteStatement->execute([$userId, ...$staffManagedRoleIds]);
 
             if ($validRoleIds !== []) {
                 $insertStatement = $this->db->prepare(

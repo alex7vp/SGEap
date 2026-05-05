@@ -55,6 +55,7 @@ $sectionModuleMap = [
     'seguridad_home' => 'seguridad',
     'seguridad_catalogos' => 'seguridad',
     'seguridad_usuarios' => 'seguridad',
+    'seguridad_usuarios_temporales' => 'seguridad',
     'seguridad_roles_permisos' => 'seguridad',
     'seguridad_usuarios_roles' => 'seguridad',
 ];
@@ -200,6 +201,12 @@ $sidebarModules = [
                 'icon' => 'fa-user',
             ],
             [
+                'key' => 'seguridad_usuarios_temporales',
+                'label' => 'Usuarios temporales',
+                'url' => baseUrl('seguridad/usuarios-temporales'),
+                'icon' => 'fa-clock-o',
+            ],
+            [
                 'key' => 'seguridad_roles_permisos',
                 'label' => 'Designacion de permisos',
                 'url' => baseUrl('seguridad/roles-permisos'),
@@ -265,9 +272,10 @@ $permissionMap = [
     'configuracion_matricula_documentos' => 'matriculas.documentos',
     'grados' => 'catalogos.gestionar',
     'cursos' => 'cursos.gestionar',
-    'seguridad_home' => ['seguridad.usuarios', 'seguridad.roles_permisos'],
+    'seguridad_home' => ['seguridad.usuarios', 'seguridad.roles_permisos', 'usuarios_temporales.gestionar'],
     'seguridad_catalogos' => 'seguridad.roles_permisos',
     'seguridad_usuarios' => 'seguridad.usuarios',
+    'seguridad_usuarios_temporales' => 'usuarios_temporales.gestionar',
     'seguridad_roles_permisos' => 'seguridad.roles_permisos',
     'seguridad_usuarios_roles' => 'seguridad.roles_permisos',
 ];
@@ -292,7 +300,7 @@ $modulePermissions = [
     'academico' => ['estudiantes.gestionar', 'personas.gestionar', 'matriculas.gestionar'],
     'configuracion' => ['configuracion.gestionar', 'catalogos.gestionar', 'cursos.gestionar', 'matriculas.documentos'],
     'reportes' => ['dashboard.ver'],
-    'seguridad' => ['seguridad.usuarios', 'seguridad.roles_permisos'],
+    'seguridad' => ['seguridad.usuarios', 'seguridad.roles_permisos', 'usuarios_temporales.gestionar'],
 ];
 $canAccessModule = static function (string $moduleKey) use ($modulePermissions, $userPermissions): bool {
     foreach (($modulePermissions[$moduleKey] ?? []) as $permission) {

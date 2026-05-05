@@ -10,8 +10,16 @@ use RuntimeException;
 
 class PersonalModel extends Model
 {
-    private const TEACHER_TYPE_NAME = 'Docente';
-    private const TEACHER_ROLE_NAME = 'Docente';
+    private const STAFF_TYPE_ROLE_MAP = [
+        'Rector' => 'Rector',
+        'Vicerrector' => 'Vicerrector',
+        'Secretaria' => 'Secretaria',
+        'Coordinador' => 'Coordinador',
+        'Docente' => 'Docente',
+        'DECE' => 'DECE',
+        'Inspector' => 'Inspector',
+        'Inspeccion' => 'Inspector',
+    ];
 
     protected string $table = 'personal';
     protected string $primaryKey = 'psnid';
@@ -293,7 +301,7 @@ class PersonalModel extends Model
                 }
             }
 
-            $this->syncTeacherRoleForStaff($staffId, $this->typeIdsContainName($validTypeIds, self::TEACHER_TYPE_NAME));
+            $this->syncStaffRolesForStaff($staffId, $validTypeIds);
 
             if ($manageTransaction) {
                 $this->db->commit();
@@ -366,41 +374,79 @@ class PersonalModel extends Model
         return $statement->fetchColumn() !== false;
     }
 
-    private function typeIdsContainName(array $typeIds, string $typeName): bool
+    public function roleNamesForPersonStaffTypes(int $personId): array
+    {
+        $statement = $this->db->prepare(
+            "SELECT DISTINCT tp.tpnombre
+             FROM {$this->table} ps
+             INNER JOIN asignacion_tipo_personal atp ON atp.psnid = ps.psnid
+             INNER JOIN tipo_personal tp ON tp.tpid = atp.tpid
+             WHERE ps.perid = :person_id
+               AND ps.psnestado = true
+               AND atp.atpestado = true"
+        );
+        $statement->execute(['person_id' => $personId]);
+
+        return $this->mappedRoleNames(array_column($statement->fetchAll(), 'tpnombre'));
+    }
+
+    private function typeNamesByIds(array $typeIds): array
     {
         if ($typeIds === []) {
-            return false;
+            return [];
         }
 
         $placeholders = implode(', ', array_fill(0, count($typeIds), '?'));
         $statement = $this->db->prepare(
-            "SELECT 1
+            "SELECT tpnombre
              FROM tipo_personal
-             WHERE tpid IN ({$placeholders})
-               AND tpnombre = ?
-             LIMIT 1"
+             WHERE tpid IN ({$placeholders})"
         );
-        $statement->execute([...$typeIds, $typeName]);
+        $statement->execute($typeIds);
 
-        return $statement->fetchColumn() !== false;
+        return array_column($statement->fetchAll(), 'tpnombre');
     }
 
-    private function syncTeacherRoleForStaff(int $staffId, bool $assign): void
+    private function syncStaffRolesForStaff(int $staffId, array $activeTypeIds): void
     {
         $statement = $this->db->prepare(
-            "SELECT perid
-             FROM {$this->table}
-             WHERE psnid = :staff_id
+            "SELECT p.perid, p.percedula, p.pernombres, p.perapellidos
+             FROM {$this->table} ps
+             INNER JOIN persona p ON p.perid = ps.perid
+             WHERE ps.psnid = :staff_id
              LIMIT 1"
         );
         $statement->execute(['staff_id' => $staffId]);
-        $personId = $statement->fetchColumn();
+        $person = $statement->fetch();
 
-        if ($personId === false) {
+        if ($person === false) {
             return;
         }
 
         $userModel = new UserModel();
-        $userModel->syncRoleByPerson((int) $personId, self::TEACHER_ROLE_NAME, $assign);
+        $activeRoleNames = $this->mappedRoleNames($this->typeNamesByIds($activeTypeIds));
+
+        if ($activeRoleNames !== []) {
+            $userModel->createAutomaticForPerson($person);
+        }
+
+        foreach (array_unique(array_values(self::STAFF_TYPE_ROLE_MAP)) as $roleName) {
+            $userModel->syncRoleByPerson((int) $person['perid'], $roleName, in_array($roleName, $activeRoleNames, true));
+        }
+    }
+
+    private function mappedRoleNames(array $typeNames): array
+    {
+        $roleNames = [];
+
+        foreach ($typeNames as $typeName) {
+            $typeName = (string) $typeName;
+
+            if (isset(self::STAFF_TYPE_ROLE_MAP[$typeName])) {
+                $roleNames[] = self::STAFF_TYPE_ROLE_MAP[$typeName];
+            }
+        }
+
+        return array_values(array_unique($roleNames));
     }
 }

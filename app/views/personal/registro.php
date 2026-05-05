@@ -12,7 +12,7 @@ $selectedTypeIds = array_map('intval', (array) ($old['type_ids'] ?? []));
     <a class="text-link" href="<?= htmlspecialchars(baseUrl('personal'), ENT_QUOTES, 'UTF-8'); ?>">Volver a personal</a>
 </div>
 
-<p class="module-note">Si la cedula ya existe como persona en el sistema, se reutiliza ese registro y se agrega el perfil de personal sin duplicar identidad.</p>
+<p class="module-note">Si la cedula ya existe como persona en el sistema, se reutiliza ese registro. Los tipos con rol operativo crean el usuario automaticamente.</p>
 
 <form class="data-form" method="POST" action="<?= htmlspecialchars(baseUrl('personal/registro'), ENT_QUOTES, 'UTF-8'); ?>">
     <div class="form-grid">

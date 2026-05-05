@@ -372,6 +372,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const securityUserRoleTableWrapper = document.querySelector('[data-security-user-role-table-wrapper]');
     const securityUserRoleEmptyWrapper = document.querySelector('[data-security-user-role-empty-wrapper]');
     const securityUserRoleStatus = document.querySelector('[data-security-user-role-status]');
+    const securityUserRoleFilter = document.querySelector('[data-security-user-role-filter]');
+    const securityUserRoleNote = document.querySelector('[data-security-user-role-note]');
 
     if (
         securityUserRoleSearchInput instanceof HTMLInputElement
@@ -387,6 +389,27 @@ document.addEventListener('DOMContentLoaded', () => {
             securityUserRoleStatus.textContent = rows + ' registro(s)';
         };
 
+        const selectedSecurityRole = () => {
+            if (!(securityUserRoleFilter instanceof HTMLElement)) {
+                return '';
+            }
+
+            const selectedOption = securityUserRoleFilter.querySelector('input[name="security_user_role_filter"]:checked');
+            return selectedOption instanceof HTMLInputElement ? selectedOption.value.trim() : '';
+        };
+
+        const updateSecurityRoleNote = () => {
+            if (!(securityUserRoleNote instanceof HTMLElement)) {
+                return;
+            }
+
+            const selectedRole = selectedSecurityRole();
+            securityUserRoleNote.textContent = 'Esta pagina concentra roles especiales de seguridad. Los roles institucionales se sincronizan desde Asignacion de personal. '
+                + (selectedRole === ''
+                    ? 'Mostrando usuarios activos de todos los roles.'
+                    : 'Mostrando usuarios con rol: ' + selectedRole + '.');
+        };
+
         const runSecuritySearch = async () => {
             const baseUrl = securityUserRoleSearchInput.dataset.securityUserRoleSearchUrl || '';
 
@@ -396,6 +419,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const url = new URL(baseUrl, window.location.origin);
             url.searchParams.set('q', securityUserRoleSearchInput.value.trim());
+            url.searchParams.set('rol', selectedSecurityRole());
 
             securityUserRoleStatus.textContent = 'Buscando...';
 
@@ -418,10 +442,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (payload.isEmpty) {
                     securityUserRoleEmptyWrapper.innerHTML = payload.emptyHtml || '<div class="empty-state">No se encontraron registros.</div>';
                     securityUserRoleStatus.textContent = '0 registro(s)';
+                    updateSecurityRoleNote();
                     return;
                 }
 
-                updateSecurityStatus();
+                const count = typeof payload.count === 'number' ? payload.count : securityUserRoleTableBody.querySelectorAll('tr').length;
+                securityUserRoleStatus.textContent = count + ' registro(s)';
+                updateSecurityRoleNote();
             } catch (error) {
                 securityUserRoleStatus.textContent = 'Error al filtrar';
             }
@@ -435,7 +462,18 @@ document.addEventListener('DOMContentLoaded', () => {
             securityDebounceTimer = window.setTimeout(runSecuritySearch, 250);
         });
 
+        if (securityUserRoleFilter instanceof HTMLElement) {
+            securityUserRoleFilter.addEventListener('change', (event) => {
+                if (!(event.target instanceof HTMLInputElement) || event.target.name !== 'security_user_role_filter') {
+                    return;
+                }
+
+                runSecuritySearch();
+            });
+        }
+
         updateSecurityStatus();
+        updateSecurityRoleNote();
     }
 
     const staffTypeSearchInput = document.querySelector('[data-staff-type-search]');

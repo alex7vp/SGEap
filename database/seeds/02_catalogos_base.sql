@@ -212,12 +212,15 @@ INSERT INTO estado_matricula (emdnombre) VALUES
 ON CONFLICT (emdnombre) DO NOTHING;
 
 INSERT INTO tipo_personal (tpnombre, tpdescripcion, tpestado) VALUES
+('Rector', 'Maxima autoridad institucional', true),
+('Vicerrector', 'Autoridad academica institucional', true),
+('Secretaria', 'Personal responsable de procesos administrativos y de secretaria', true),
+('Coordinador', 'Personal responsable de coordinacion academica u operativa', true),
 ('Docente', 'Personal academico responsable de la ensenanza', true),
-('Administrativo', 'Personal de apoyo administrativo institucional', true),
-('Directivo', 'Autoridades y responsables de direccion institucional', true),
 ('DECE', 'Personal del departamento de consejeria estudiantil', true),
-('Inspeccion', 'Personal responsable de control y convivencia', true),
-('Servicios', 'Personal operativo y de apoyo general', true)
+('Inspector', 'Personal responsable de control y convivencia', true),
+('Servicios', 'Personal operativo y de apoyo general', true),
+('Otro', 'Otro tipo de personal institucional', true)
 ON CONFLICT (tpnombre) DO NOTHING;
 
 INSERT INTO tipo_matricula (tmanombre, tmadescripcion, tmaestado) VALUES

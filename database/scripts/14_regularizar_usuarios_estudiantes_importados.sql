@@ -4,8 +4,10 @@
 -- usuario con las dos primeras letras de cada nombre y apellido. Ejemplo:
 -- Alex Vinicio Procel Barriga -> alviprba.
 --
--- La clave queda como marcador interno y debe ser restablecida por Secretaria
--- antes de activar el usuario.
+-- La clave inicial queda como la cedula del estudiante. Si no existe cedula,
+-- se usa el nombre de usuario generado. La clave se guarda hasheada.
+
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 INSERT INTO permiso (prmnombre, prmcodigo, prmdescripcion, prmestado)
 SELECT
@@ -54,13 +56,17 @@ INSERT INTO usuario (
 SELECT
     candidate.perid,
     candidate.usunombre,
-    '$2y$10$AAH8xUvasxfsIG/4hJrypung.vg1B46bn9VB9xAsdUxiGe6fL6.Gq',
+    crypt(
+        COALESCE(NULLIF(candidate.percedula, ''), candidate.usunombre),
+        gen_salt('bf')
+    ),
     false
 FROM (
     WITH base AS (
         SELECT
             e.estid,
             p.perid,
+            trim(p.percedula) AS percedula,
             translate(
                 lower(
                     concat(
@@ -70,7 +76,7 @@ FROM (
                         substring((regexp_split_to_array(trim(p.perapellidos), '\s+'))[2] from 1 for 2)
                     )
                 ),
-                'áéíóúüñ',
+                U&'\00E1\00E9\00ED\00F3\00FA\00FC\00F1',
                 'aeiouun'
             ) AS base_username
         FROM estudiante e
@@ -89,6 +95,7 @@ FROM (
     )
     SELECT
         numbered.perid,
+        numbered.percedula,
         CASE
             WHEN numbered.duplicate_order = 1
              AND NOT EXISTS (
@@ -111,12 +118,17 @@ WHERE candidate.usunombre <> ''
 -- Corrige usuarios inactivos creados previamente con la cedula como username.
 UPDATE usuario u
 SET usunombre = candidate.usunombre,
+    usuclave = crypt(
+        COALESCE(NULLIF(candidate.percedula, ''), candidate.usunombre),
+        gen_salt('bf')
+    ),
     usufecha_modificacion = CURRENT_TIMESTAMP
 FROM (
     WITH base AS (
         SELECT
             e.estid,
             p.perid,
+            trim(p.percedula) AS percedula,
             translate(
                 lower(
                     concat(
@@ -126,7 +138,7 @@ FROM (
                         substring((regexp_split_to_array(trim(p.perapellidos), '\s+'))[2] from 1 for 2)
                     )
                 ),
-                'áéíóúüñ',
+                U&'\00E1\00E9\00ED\00F3\00FA\00FC\00F1',
                 'aeiouun'
             ) AS base_username
         FROM estudiante e
@@ -143,6 +155,7 @@ FROM (
     )
     SELECT
         numbered.perid,
+        numbered.percedula,
         CASE
             WHEN numbered.duplicate_order = 1
              AND NOT EXISTS (
@@ -164,6 +177,19 @@ WHERE u.perid = candidate.perid
       WHERE u_conflict.usunombre = candidate.usunombre
         AND u_conflict.usuid <> u.usuid
   );
+
+-- Actualiza la clave marcador usada por versiones anteriores de este script.
+UPDATE usuario u
+SET usuclave = crypt(
+        COALESCE(NULLIF(trim(p.percedula), ''), u.usunombre),
+        gen_salt('bf')
+    ),
+    usufecha_modificacion = CURRENT_TIMESTAMP
+FROM estudiante e
+INNER JOIN persona p ON p.perid = e.perid
+WHERE u.perid = p.perid
+  AND u.usuestado = false
+  AND u.usuclave = '$2y$10$AAH8xUvasxfsIG/4hJrypung.vg1B46bn9VB9xAsdUxiGe6fL6.Gq';
 
 INSERT INTO usuario_rol (
     usuid,

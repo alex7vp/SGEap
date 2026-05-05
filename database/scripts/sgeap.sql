@@ -978,12 +978,15 @@ INSERT INTO estado_matricula (emdnombre) VALUES
 ON CONFLICT (emdnombre) DO NOTHING;
 
 INSERT INTO tipo_personal (tpnombre, tpdescripcion, tpestado) VALUES
+('Rector', 'Maxima autoridad institucional', true),
+('Vicerrector', 'Autoridad academica institucional', true),
+('Secretaria', 'Personal responsable de procesos administrativos y de secretaria', true),
+('Coordinador', 'Personal responsable de coordinacion academica u operativa', true),
 ('Docente', 'Personal academico responsable de la ensenanza', true),
-('Administrativo', 'Personal de apoyo administrativo institucional', true),
-('Directivo', 'Autoridades y responsables de direccion institucional', true),
 ('DECE', 'Personal del departamento de consejeria estudiantil', true),
-('Inspeccion', 'Personal responsable de control y convivencia', true),
-('Servicios', 'Personal operativo y de apoyo general', true)
+('Inspector', 'Personal responsable de control y convivencia', true),
+('Servicios', 'Personal operativo y de apoyo general', true),
+('Otro', 'Otro tipo de personal institucional', true)
 ON CONFLICT (tpnombre) DO NOTHING;
 
 INSERT INTO tipo_matricula (tmanombre, tmadescripcion, tmaestado) VALUES
@@ -1073,7 +1076,7 @@ SELECT
     true
 FROM personal ps
 INNER JOIN persona p ON p.perid = ps.perid
-INNER JOIN tipo_personal tp ON tp.tpnombre = 'Directivo'
+INNER JOIN tipo_personal tp ON tp.tpnombre = 'Rector'
 WHERE p.percedula = '1234567890'
   AND NOT EXISTS (
       SELECT 1
@@ -1187,6 +1190,24 @@ WHERE NOT EXISTS (
     SELECT 1
     FROM rol
     WHERE rolnombre = 'Secretaria'
+);
+
+-- Roles institucionales sin permisos amplios por defecto
+INSERT INTO rol (rolnombre, roldescripcion, rolestado)
+SELECT source.rolnombre, source.roldescripcion, true
+FROM (
+    VALUES
+        ('Rector', 'Acceso institucional para rectorado'),
+        ('Vicerrector', 'Acceso institucional para vicerrectorado'),
+        ('Coordinador', 'Acceso institucional para coordinacion'),
+        ('DECE', 'Acceso institucional para consejeria estudiantil'),
+        ('Inspector', 'Acceso institucional para inspeccion'),
+        ('Representante', 'Acceso para representantes legales de estudiantes')
+) AS source (rolnombre, roldescripcion)
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM rol r
+    WHERE r.rolnombre = source.rolnombre
 );
 
 -- Usuario administrador

@@ -142,6 +142,13 @@ class ModuleController extends Controller
                     'permission' => 'seguridad.usuarios',
                 ],
                 [
+                    'label' => 'Usuarios temporales',
+                    'description' => 'Crea y controla accesos temporales para representantes de alumnos nuevos.',
+                    'url' => baseUrl('seguridad/usuarios-temporales'),
+                    'icon' => 'fa-clock-o',
+                    'permission' => 'usuarios_temporales.gestionar',
+                ],
+                [
                     'label' => 'Designacion de permisos',
                     'description' => 'Define permisos funcionales para cada rol del sistema.',
                     'url' => baseUrl('seguridad/roles-permisos'),

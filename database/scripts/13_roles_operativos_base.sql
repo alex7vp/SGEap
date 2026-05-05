@@ -3,25 +3,23 @@
 -- y despues de haber cargado los permisos base.
 
 INSERT INTO rol (rolnombre, roldescripcion, rolestado)
-SELECT
-    'Estudiante',
-    'Acceso del estudiante a su informacion academica y matricula propia',
-    true
+SELECT source.rolnombre, source.roldescripcion, true
+FROM (
+    VALUES
+        ('Estudiante', 'Acceso del estudiante a su informacion academica y matricula propia'),
+        ('Representante', 'Acceso para representantes legales de estudiantes'),
+        ('Rector', 'Acceso institucional para rectorado'),
+        ('Vicerrector', 'Acceso institucional para vicerrectorado'),
+        ('Secretaria', 'Gestion operativa de personas, estudiantes, matriculas y accesos temporales'),
+        ('Coordinador', 'Acceso institucional para coordinacion'),
+        ('Docente', 'Acceso base para personal docente de la institucion'),
+        ('DECE', 'Acceso institucional para consejeria estudiantil'),
+        ('Inspector', 'Acceso institucional para inspeccion')
+) AS source (rolnombre, roldescripcion)
 WHERE NOT EXISTS (
     SELECT 1
-    FROM rol
-    WHERE rolnombre = 'Estudiante'
-);
-
-INSERT INTO rol (rolnombre, roldescripcion, rolestado)
-SELECT
-    'Docente',
-    'Acceso base para personal docente de la institucion',
-    true
-WHERE NOT EXISTS (
-    SELECT 1
-    FROM rol
-    WHERE rolnombre = 'Docente'
+    FROM rol r
+    WHERE r.rolnombre = source.rolnombre
 );
 
 INSERT INTO rol_permiso (rolid, prmid, rpeestado)

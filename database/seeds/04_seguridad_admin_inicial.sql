@@ -63,7 +63,7 @@ SELECT
     true
 FROM personal ps
 INNER JOIN persona p ON p.perid = ps.perid
-INNER JOIN tipo_personal tp ON tp.tpnombre = 'Directivo'
+INNER JOIN tipo_personal tp ON tp.tpnombre = 'Rector'
 WHERE p.percedula = '1234567890'
   AND NOT EXISTS (
       SELECT 1
@@ -177,6 +177,24 @@ WHERE NOT EXISTS (
     SELECT 1
     FROM rol
     WHERE rolnombre = 'Secretaria'
+);
+
+-- Roles institucionales sin permisos amplios por defecto
+INSERT INTO rol (rolnombre, roldescripcion, rolestado)
+SELECT source.rolnombre, source.roldescripcion, true
+FROM (
+    VALUES
+        ('Rector', 'Acceso institucional para rectorado'),
+        ('Vicerrector', 'Acceso institucional para vicerrectorado'),
+        ('Coordinador', 'Acceso institucional para coordinacion'),
+        ('DECE', 'Acceso institucional para consejeria estudiantil'),
+        ('Inspector', 'Acceso institucional para inspeccion'),
+        ('Representante', 'Acceso para representantes legales de estudiantes')
+) AS source (rolnombre, roldescripcion)
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM rol r
+    WHERE r.rolnombre = source.rolnombre
 );
 
 -- Usuario administrador

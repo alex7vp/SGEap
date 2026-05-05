@@ -161,6 +161,58 @@ class UserModel extends Model
         return $statement->fetchColumn() !== false;
     }
 
+    public function findByPerson(int $personId): array|false
+    {
+        $statement = $this->db->prepare(
+            "SELECT usuid, perid, usunombre, usuestado
+             FROM {$this->table}
+             WHERE perid = :perid
+             LIMIT 1"
+        );
+        $statement->execute(['perid' => $personId]);
+
+        return $statement->fetch();
+    }
+
+    public function createAutomaticForPerson(array $person): array
+    {
+        $personId = (int) ($person['perid'] ?? 0);
+
+        if ($personId <= 0) {
+            throw new \RuntimeException('La persona no es valida para crear usuario automatico.');
+        }
+
+        $existing = $this->findByPerson($personId);
+
+        if ($existing !== false) {
+            return [
+                'created' => false,
+                'usuid' => (int) $existing['usuid'],
+                'usunombre' => (string) $existing['usunombre'],
+            ];
+        }
+
+        $username = $this->uniqueGeneratedUsername($person);
+        $password = trim((string) ($person['percedula'] ?? ''));
+
+        if ($password === '') {
+            $password = $username;
+        }
+
+        $userId = $this->createAndReturnId([
+            'perid' => $personId,
+            'usunombre' => $username,
+            'usuclave' => $password,
+            'usuestado' => true,
+        ]);
+
+        return [
+            'created' => true,
+            'usuid' => $userId,
+            'usunombre' => $username,
+        ];
+    }
+
     public function create(array $data): void
     {
         $passwordHash = password_hash((string) $data['usuclave'], PASSWORD_DEFAULT);
@@ -321,5 +373,62 @@ class UserModel extends Model
         $statement->execute(['id' => $userId]);
 
         return $statement->fetch();
+    }
+
+    private function uniqueGeneratedUsername(array $person): string
+    {
+        $baseUsername = $this->baseUsernameFromPerson($person);
+        $candidate = $baseUsername;
+        $suffix = 2;
+
+        while ($this->existsByUsername($candidate)) {
+            $candidate = mb_substr($baseUsername, 0, max(1, 50 - mb_strlen((string) $suffix))) . $suffix;
+            $suffix++;
+        }
+
+        return $candidate;
+    }
+
+    private function baseUsernameFromPerson(array $person): string
+    {
+        $nameParts = preg_split('/\s+/', trim((string) ($person['pernombres'] ?? ''))) ?: [];
+        $lastNameParts = preg_split('/\s+/', trim((string) ($person['perapellidos'] ?? ''))) ?: [];
+        $parts = [...$nameParts, ...$lastNameParts];
+        $username = '';
+
+        foreach ($parts as $part) {
+            $normalized = $this->normalizeUsernameToken((string) $part);
+
+            if ($normalized === '') {
+                continue;
+            }
+
+            $username .= mb_substr($normalized, 0, 2);
+        }
+
+        if ($username === '') {
+            $username = preg_replace('/\D+/', '', (string) ($person['percedula'] ?? '')) ?: 'usuario';
+        }
+
+        return mb_substr($username, 0, 50);
+    }
+
+    private function normalizeUsernameToken(string $value): string
+    {
+        $value = trim($value);
+
+        if ($value === '') {
+            return '';
+        }
+
+        if (function_exists('iconv')) {
+            $transliterated = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $value);
+
+            if ($transliterated !== false) {
+                $value = $transliterated;
+            }
+        }
+
+        return strtolower((string) preg_replace('/[^a-zA-Z0-9]+/', '', $value));
     }
 }

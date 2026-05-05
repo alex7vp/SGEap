@@ -1,29 +1,34 @@
+<?php $staffManagedRoleNames = is_array($staffManagedRoleNames ?? null) ? $staffManagedRoleNames : []; ?>
 <?php foreach ($users as $account): ?>
     <?php
     $userId = (int) $account['usuid'];
     $userAssignedRoles = $assignedRoles[$userId] ?? [];
     ?>
     <tr id="user-<?= htmlspecialchars((string) $userId, ENT_QUOTES, 'UTF-8'); ?>">
-        <td>
+        <td class="role-user-sticky role-user-sticky-username">
             <span class="cell-title"><?= htmlspecialchars((string) $account['usunombre'], ENT_QUOTES, 'UTF-8'); ?></span>
         </td>
-        <td>
+        <td class="role-user-sticky role-user-sticky-person">
             <span class="person-name-inline">
                 <strong><?= htmlspecialchars((string) $account['perapellidos'], ENT_QUOTES, 'UTF-8'); ?></strong>
                 <span><?= htmlspecialchars((string) $account['pernombres'], ENT_QUOTES, 'UTF-8'); ?></span>
             </span>
         </td>
-        <td><?= htmlspecialchars((string) $account['percedula'], ENT_QUOTES, 'UTF-8'); ?></td>
+        <td class="role-user-sticky role-user-sticky-id"><?= htmlspecialchars((string) $account['percedula'], ENT_QUOTES, 'UTF-8'); ?></td>
         <?php foreach ($roles as $role): ?>
-            <?php $roleId = (int) $role['rolid']; ?>
-            <td class="role-matrix-cell">
-                <label class="role-toggle">
+            <?php
+            $roleId = (int) $role['rolid'];
+            $isStaffManagedRole = in_array((string) $role['rolnombre'], $staffManagedRoleNames, true);
+            ?>
+            <td class="role-matrix-cell <?= $isStaffManagedRole ? 'is-readonly-role' : ''; ?>">
+                <label class="role-toggle" title="<?= $isStaffManagedRole ? 'Rol sincronizado desde Asignacion de personal' : 'Rol editable desde seguridad'; ?>">
                     <input
                         type="checkbox"
                         name="role_ids[]"
                         value="<?= htmlspecialchars((string) $roleId, ENT_QUOTES, 'UTF-8'); ?>"
                         form="user-role-form-<?= htmlspecialchars((string) $userId, ENT_QUOTES, 'UTF-8'); ?>"
                         <?= in_array($roleId, $userAssignedRoles, true) ? 'checked' : ''; ?>
+                        <?= $isStaffManagedRole ? 'disabled' : ''; ?>
                     >
                 </label>
             </td>
