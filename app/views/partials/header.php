@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 use App\Models\InstitutionModel;
+use App\Models\MatriculationConfigurationModel;
+use App\Models\RepresentativeMatriculationAuthorizationModel;
 
 $topModules = [
     'inicio' => [
@@ -34,6 +36,7 @@ $topModules = [
 
 $sectionModuleMap = [
     'dashboard' => 'inicio',
+    'matricula_temporal' => 'inicio',
     'mi_matricula' => 'inicio',
     'academico_home' => 'academico',
     'personas' => 'academico',
@@ -69,6 +72,12 @@ $sidebarModules = [
                 'label' => 'Dashboard',
                 'url' => baseUrl('dashboard'),
                 'icon' => 'fa-home',
+            ],
+            [
+                'key' => 'matricula_temporal',
+                'label' => 'Matricula alumno nuevo',
+                'url' => baseUrl('matricula-temporal'),
+                'icon' => 'fa-address-card',
             ],
             [
                 'key' => 'mi_matricula',
@@ -254,8 +263,27 @@ if (in_array((string) ($currentSection ?? ''), ['personal', 'personal_register',
     ];
 }
 
+$userPermissions = (array) ($user['permissions'] ?? []);
+$representativeNewStudentEnabled = false;
+
+if (in_array('representante.matricula_nueva', $userPermissions, true)) {
+    try {
+        $enabledPeriod = (new MatriculationConfigurationModel())->findEnabledPeriod();
+
+        if ($enabledPeriod !== false) {
+            $representativeNewStudentEnabled = (new RepresentativeMatriculationAuthorizationModel())->activeByUserAndPeriod(
+                (int) ($user['usuid'] ?? 0),
+                (int) $enabledPeriod['pleid']
+            ) !== false;
+        }
+    } catch (\Throwable) {
+        $representativeNewStudentEnabled = false;
+    }
+}
+
 $permissionMap = [
     'dashboard' => 'dashboard.ver',
+    'matricula_temporal' => ['matricula_temporal.ver', 'representante.matricula_nueva'],
     'mi_matricula' => 'estudiante.mi_matricula',
     'academico_home' => ['estudiantes.gestionar', 'personas.gestionar', 'matriculas.gestionar'],
     'estudiantes' => 'estudiantes.gestionar',
@@ -279,7 +307,6 @@ $permissionMap = [
     'seguridad_roles_permisos' => 'seguridad.roles_permisos',
     'seguridad_usuarios_roles' => 'seguridad.roles_permisos',
 ];
-$userPermissions = (array) ($user['permissions'] ?? []);
 $canAccess = static function (string $key) use ($permissionMap, $userPermissions): bool {
     $required = $permissionMap[$key] ?? null;
 
@@ -296,14 +323,18 @@ $canAccess = static function (string $key) use ($permissionMap, $userPermissions
     return false;
 };
 $modulePermissions = [
-    'inicio' => ['dashboard.ver', 'estudiante.mi_matricula'],
+    'inicio' => ['dashboard.ver', 'matricula_temporal.ver', 'representante.matricula_nueva', 'estudiante.mi_matricula'],
     'academico' => ['estudiantes.gestionar', 'personas.gestionar', 'matriculas.gestionar'],
     'configuracion' => ['configuracion.gestionar', 'catalogos.gestionar', 'cursos.gestionar', 'matriculas.documentos'],
     'reportes' => ['dashboard.ver'],
     'seguridad' => ['seguridad.usuarios', 'seguridad.roles_permisos', 'usuarios_temporales.gestionar'],
 ];
-$canAccessModule = static function (string $moduleKey) use ($modulePermissions, $userPermissions): bool {
+$canAccessModule = static function (string $moduleKey) use ($modulePermissions, $userPermissions, $representativeNewStudentEnabled): bool {
     foreach (($modulePermissions[$moduleKey] ?? []) as $permission) {
+        if ($permission === 'representante.matricula_nueva' && !$representativeNewStudentEnabled) {
+            continue;
+        }
+
         if (in_array((string) $permission, $userPermissions, true)) {
             return true;
         }
@@ -314,6 +345,21 @@ $canAccessModule = static function (string $moduleKey) use ($modulePermissions, 
 
 if (!in_array('dashboard.ver', $userPermissions, true) && in_array('estudiante.mi_matricula', $userPermissions, true)) {
     $topModules['inicio']['url'] = baseUrl('mi-matricula');
+}
+
+if (!in_array('dashboard.ver', $userPermissions, true) && in_array('matricula_temporal.ver', $userPermissions, true)) {
+    $topModules['inicio']['url'] = baseUrl('matricula-temporal');
+}
+
+if (!in_array('dashboard.ver', $userPermissions, true) && $representativeNewStudentEnabled) {
+    $topModules['inicio']['url'] = baseUrl('matricula-temporal');
+}
+
+if (!$representativeNewStudentEnabled && !in_array('matricula_temporal.ver', $userPermissions, true)) {
+    $sidebarModules['inicio']['items'] = array_values(array_filter(
+        $sidebarModules['inicio']['items'],
+        static fn (array $item): bool => ($item['key'] ?? '') !== 'matricula_temporal'
+    ));
 }
 
 $topModules = array_filter($topModules, static fn (array $module, string $moduleKey): bool => $canAccessModule($moduleKey), ARRAY_FILTER_USE_BOTH);

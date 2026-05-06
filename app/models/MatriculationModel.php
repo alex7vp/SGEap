@@ -111,27 +111,12 @@ class MatriculationModel extends Model
 
     public function defaultInactiveEnrollmentStatus(): ?array
     {
-        $statement = $this->db->query(
-            "SELECT emdid, emdnombre
-             FROM estado_matricula
-             ORDER BY emdid ASC"
-        );
+        return $this->enrollmentStatusByNames(['inactivo', 'inactiva', 'inhabilitado', 'inhabilitada'], true);
+    }
 
-        $statuses = $statement->fetchAll();
-
-        if ($statuses === []) {
-            return null;
-        }
-
-        foreach ($statuses as $status) {
-            $name = mb_strtolower(trim((string) ($status['emdnombre'] ?? '')));
-
-            if (in_array($name, ['inactivo', 'inactiva', 'inhabilitado', 'inhabilitada'], true)) {
-                return $status;
-            }
-        }
-
-        return $statuses[0];
+    public function defaultActiveEnrollmentStatus(): ?array
+    {
+        return $this->enrollmentStatusByNames(['activo', 'activa', 'habilitado', 'habilitada'], false);
     }
 
     public function defaultEnrollmentType(): ?array
@@ -434,10 +419,109 @@ class MatriculationModel extends Model
 
     public function toggleStudentStatusByMatricula(int $matriculaId): bool
     {
+        $this->db->beginTransaction();
+
+        try {
+            $statement = $this->db->prepare(
+                "SELECT e.estid, e.estestado
+                 FROM matricula m
+                 INNER JOIN estudiante e ON e.estid = m.estid
+                 WHERE m.matid = :matid
+                 LIMIT 1"
+            );
+            $statement->execute(['matid' => $matriculaId]);
+            $record = $statement->fetch();
+
+            if ($record === false) {
+                throw new RuntimeException('La matricula solicitada no existe.');
+            }
+
+            $nextStatus = !((bool) ($record['estestado'] ?? false));
+
+            $update = $this->db->prepare(
+                "UPDATE estudiante
+                 SET estestado = :estado
+                 WHERE estid = :estid"
+            );
+            $update->bindValue(':estid', (int) $record['estid'], PDO::PARAM_INT);
+            $update->bindValue(':estado', $nextStatus, PDO::PARAM_BOOL);
+            $update->execute();
+
+            $status = $nextStatus
+                ? $this->defaultActiveEnrollmentStatus()
+                : $this->defaultInactiveEnrollmentStatus();
+
+            if ($status === null) {
+                throw new RuntimeException('No existe un estado de matricula configurado para la activacion.');
+            }
+
+            $matriculationUpdate = $this->db->prepare(
+                "UPDATE matricula
+                 SET emdid = :emdid
+                 WHERE matid = :matid"
+            );
+            $matriculationUpdate->execute([
+                'emdid' => (int) $status['emdid'],
+                'matid' => $matriculaId,
+            ]);
+
+            if ($nextStatus) {
+                $this->createAccessesForActivatedMatriculation($matriculaId);
+            }
+
+            $this->db->commit();
+
+            return $nextStatus;
+        } catch (\Throwable $exception) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+
+            throw $exception;
+        }
+    }
+
+    private function enrollmentStatusByNames(array $names, bool $fallbackToFirst): ?array
+    {
+        $statement = $this->db->query(
+            "SELECT emdid, emdnombre
+             FROM estado_matricula
+             ORDER BY emdid ASC"
+        );
+
+        $statuses = $statement->fetchAll();
+
+        if ($statuses === []) {
+            return null;
+        }
+
+        foreach ($statuses as $status) {
+            $name = mb_strtolower(trim((string) ($status['emdnombre'] ?? '')));
+
+            if (in_array($name, $names, true)) {
+                return $status;
+            }
+        }
+
+        return $fallbackToFirst ? $statuses[0] : null;
+    }
+
+    private function createAccessesForActivatedMatriculation(int $matriculaId): void
+    {
         $statement = $this->db->prepare(
-            "SELECT e.estid, e.estestado
+            "SELECT sp.perid AS student_perid,
+                    sp.percedula AS student_cedula,
+                    sp.pernombres AS student_nombres,
+                    sp.perapellidos AS student_apellidos,
+                    rp.perid AS representative_perid,
+                    rp.percedula AS representative_cedula,
+                    rp.pernombres AS representative_nombres,
+                    rp.perapellidos AS representative_apellidos
              FROM matricula m
              INNER JOIN estudiante e ON e.estid = m.estid
+             INNER JOIN persona sp ON sp.perid = e.perid
+             LEFT JOIN matricula_representante mr ON mr.matid = m.matid
+             LEFT JOIN persona rp ON rp.perid = mr.perid
              WHERE m.matid = :matid
              LIMIT 1"
         );
@@ -445,21 +529,36 @@ class MatriculationModel extends Model
         $record = $statement->fetch();
 
         if ($record === false) {
-            throw new RuntimeException('La matricula solicitada no existe.');
+            return;
         }
 
-        $nextStatus = !((bool) ($record['estestado'] ?? false));
+        $userModel = new UserModel();
+        $studentAccess = $userModel->createAutomaticForPerson([
+            'perid' => (int) $record['student_perid'],
+            'percedula' => (string) $record['student_cedula'],
+            'pernombres' => (string) $record['student_nombres'],
+            'perapellidos' => (string) $record['student_apellidos'],
+        ]);
+        $userModel->assignRoleToUser((int) $studentAccess['usuid'], 'Estudiante');
 
-        $update = $this->db->prepare(
-            "UPDATE estudiante
-             SET estestado = :estado
-             WHERE estid = :estid"
-        );
-        $update->bindValue(':estid', (int) $record['estid'], PDO::PARAM_INT);
-        $update->bindValue(':estado', $nextStatus, PDO::PARAM_BOOL);
-        $update->execute();
+        $representativePersonId = (int) ($record['representative_perid'] ?? 0);
 
-        return $nextStatus;
+        if ($representativePersonId <= 0) {
+            return;
+        }
+
+        $representativeAccess = $userModel->createAutomaticForPerson([
+            'perid' => $representativePersonId,
+            'percedula' => (string) ($record['representative_cedula'] ?? ''),
+            'pernombres' => (string) ($record['representative_nombres'] ?? ''),
+            'perapellidos' => (string) ($record['representative_apellidos'] ?? ''),
+        ]);
+        $userModel->assignRoleToUser((int) $representativeAccess['usuid'], 'Representante');
+        $userModel->syncRoleByPerson($representativePersonId, 'Representante temporal', false);
+
+        if (!$representativeAccess['created']) {
+            (new TemporaryUserModel())->convertAccess((int) $representativeAccess['usuid']);
+        }
     }
 
     private function persistFamilies(int $studentId, int $studentPersonId, array $families): array

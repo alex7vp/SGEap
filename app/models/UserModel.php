@@ -27,6 +27,7 @@ class UserModel extends Model
                         ut.utestado = 'ACTIVO'
                         AND ut.utfecha_expiracion >= CURRENT_TIMESTAMP
                     )
+                    OR ut.utestado = 'CONVERTIDO'
                )
              LIMIT 1"
         );
@@ -273,6 +274,25 @@ class UserModel extends Model
             'user_id' => $userId,
             'role_name' => $roleName,
         ]);
+    }
+
+    public function userHasRole(int $userId, string $roleName): bool
+    {
+        $statement = $this->db->prepare(
+            "SELECT 1
+             FROM usuario_rol ur
+             INNER JOIN rol r ON r.rolid = ur.rolid
+             WHERE ur.usuid = :user_id
+               AND r.rolnombre = :role_name
+               AND ur.usrestado = true
+             LIMIT 1"
+        );
+        $statement->execute([
+            'user_id' => $userId,
+            'role_name' => $roleName,
+        ]);
+
+        return $statement->fetchColumn() !== false;
     }
 
     public function syncRoleByPerson(int $personId, string $roleName, bool $assign): void

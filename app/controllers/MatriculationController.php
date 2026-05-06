@@ -8,6 +8,9 @@ use App\Core\Controller;
 use App\Models\MatriculationConfigurationModel;
 use App\Models\MatriculationModel;
 use App\Models\PersonModel;
+use App\Models\RepresentativeMatriculationAuthorizationModel;
+use App\Models\StudentModel;
+use App\Models\UserModel;
 
 class MatriculationController extends Controller
 {
@@ -101,7 +104,164 @@ class MatriculationController extends Controller
         $this->redirect('/matriculas?panel=gestion#matriculas-registradas');
     }
 
+    public function temporary(): void
+    {
+        $user = $this->requireAuth();
+        $matriculationModel = new MatriculationModel();
+        $matriculationConfigurationModel = new MatriculationConfigurationModel();
+        $period = $matriculationConfigurationModel->findEnabledPeriod();
+        $documents = $matriculationModel->allActiveDocuments();
+        $usesRepresentativeAuthorization = $this->usesRepresentativeAuthorization($user);
+
+        if ($usesRepresentativeAuthorization && ($period === false || !$this->hasActiveRepresentativeAuthorization($user, (int) $period['pleid']))) {
+            $this->temporaryMatriculationForbidden('Secretaria debe habilitar la opcion para matricular un nuevo estudiante.');
+        }
+
+        $this->view('matriculas.index', [
+            'appName' => config('app')['name'] ?? 'SGEap',
+            'pageTitle' => 'Matricula de alumno nuevo',
+            'currentSection' => 'matricula_temporal',
+            'user' => $user,
+            'activePanel' => 'nueva',
+            'currentPeriod' => $period !== false ? $period : currentAcademicPeriod(),
+            'newMatriculaPeriod' => $period !== false ? $period : null,
+            'matriculationConfiguration' => $period !== false ? $matriculationConfigurationModel->findByPeriodId((int) $period['pleid']) : false,
+            'canCreateMatricula' => $period !== false,
+            'newMatriculaLabel' => $period !== false
+                ? 'Matricula de alumno nuevo | ' . (string) $period['pledescripcion']
+                : 'Matricula de alumno nuevo',
+            'courses' => $period !== false ? $matriculationModel->allCoursesByPeriod((int) $period['pleid']) : [],
+            'relationships' => $matriculationModel->allRelationships(),
+            'civilStatuses' => $matriculationModel->allCivilStatuses(),
+            'instructionLevels' => $matriculationModel->allInstructionLevels(),
+            'housingConditions' => $matriculationModel->allHousingConditions(),
+            'bloodGroups' => $matriculationModel->allBloodGroups(),
+            'medicalCareTypes' => $matriculationModel->allMedicalCareTypes(),
+            'healthConditionTypes' => $matriculationModel->allHealthConditionTypes(),
+            'insuranceProviders' => $matriculationModel->allInsuranceProviders(),
+            'pregnancyTypes' => $matriculationModel->allPregnancyTypes(),
+            'birthTypes' => $matriculationModel->allBirthTypes(),
+            'enrollmentStatuses' => $matriculationModel->allEnrollmentStatuses(),
+            'documents' => $documents,
+            'matriculas' => [],
+            'success' => null,
+            'error' => null,
+            'matriculaFormFeedback' => $this->matriculaFormFeedback(),
+            'matriculaListFeedback' => null,
+            'old' => $this->oldFormDataForTemporaryUser($user),
+            'isTemporaryMatriculation' => true,
+            'matriculationFormAction' => 'matricula-temporal',
+        ]);
+    }
+
+    public function storeTemporary(): void
+    {
+        $user = $this->requireAuth();
+        $configurationModel = new MatriculationConfigurationModel();
+        $period = $configurationModel->findEnabledPeriod();
+
+        if ($period === false) {
+            $this->flashMatriculaFormFeedback('error', 'No existe un periodo lectivo con matricula habilitada.');
+            $this->redirect('/matricula-temporal#matricula-form');
+        }
+
+        $usesRepresentativeAuthorization = $this->usesRepresentativeAuthorization($user);
+        $representativeAuthorization = false;
+
+        if ($usesRepresentativeAuthorization) {
+            $representativeAuthorization = $this->activeRepresentativeAuthorization($user, (int) $period['pleid']);
+
+            if ($representativeAuthorization === false) {
+                $this->flashMatriculaFormFeedback('error', 'Secretaria debe habilitar la opcion para matricular un nuevo estudiante.');
+                $this->redirect('/matricula-temporal#matricula-form');
+            }
+        }
+
+        $matriculationModel = new MatriculationModel();
+        $documents = $matriculationModel->allActiveDocuments();
+        $data = $this->formData($period, $documents);
+        $this->forceTemporaryRepresentative($data, $user);
+
+        if ($this->studentAlreadyExistsByCedula((string) $data['person']['percedula'])) {
+            $this->flashOldFormData($data);
+            $this->flashMatriculaFormFeedback('error', 'El estudiante ya existe. Acerquese a secretaria para el proceso de matricula de alumno antiguo.');
+            $this->redirect('/matricula-temporal#matricula-form');
+        }
+
+        if (!$this->isValid($data, $documents)) {
+            $this->flashOldFormData($data);
+            $this->flashMatriculaFormFeedback('error', 'Complete los datos obligatorios de persona, estudiante, familiares, representante, facturacion, documentos y matricula.');
+            $this->redirect('/matricula-temporal#matricula-form');
+        }
+
+        try {
+            $matriculationModel->createEnrollment($data);
+
+            if ($usesRepresentativeAuthorization) {
+                (new RepresentativeMatriculationAuthorizationModel())->useById((int) ($representativeAuthorization['rhmid'] ?? 0));
+                (new UserModel())->syncRoleByPerson((int) ($user['perid'] ?? 0), 'Representante matricula nueva', false);
+            }
+        } catch (\Throwable $exception) {
+            $this->flashOldFormData($data);
+            $this->flashMatriculaFormFeedback('error', $exception->getMessage());
+            $this->redirect('/matricula-temporal#matricula-form');
+        }
+
+        $this->flashMatriculaFormFeedback('success', 'Matricula enviada correctamente. Secretaria revisara y activara el registro.');
+        $this->redirect('/matricula-temporal#matricula-form');
+    }
+
     public function findPerson(): void
+    {
+        $this->requireAuth();
+
+        header('Content-Type: application/json; charset=UTF-8');
+
+        $cedula = trim((string) ($_GET['cedula'] ?? ''));
+
+        if (!$this->isValidCedula($cedula)) {
+            http_response_code(422);
+            echo json_encode([
+                'found' => false,
+                'message' => 'La cedula debe tener 10 digitos.',
+            ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            return;
+        }
+
+        $personModel = new PersonModel();
+        $person = $personModel->findByCedula($cedula);
+
+        if ($person === false) {
+            echo json_encode([
+                'found' => false,
+                'message' => 'Persona no registrada, favor completar los datos.',
+            ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            return;
+        }
+
+        echo json_encode([
+            'found' => true,
+            'person' => [
+                'perid' => (int) ($person['perid'] ?? 0),
+                'percedula' => (string) ($person['percedula'] ?? ''),
+                'pernombres' => (string) ($person['pernombres'] ?? ''),
+                'perapellidos' => (string) ($person['perapellidos'] ?? ''),
+                'pertelefono1' => (string) ($person['pertelefono1'] ?? ''),
+                'pertelefono2' => (string) ($person['pertelefono2'] ?? ''),
+                'percorreo' => (string) ($person['percorreo'] ?? ''),
+                'persexo' => (string) ($person['persexo'] ?? ''),
+                'perfechanacimiento' => (string) ($person['perfechanacimiento'] ?? ''),
+                'eciid' => (int) ($person['eciid'] ?? 0),
+                'istid' => (int) ($person['istid'] ?? 0),
+                'perprofesion' => (string) ($person['perprofesion'] ?? ''),
+                'perocupacion' => (string) ($person['perocupacion'] ?? ''),
+                'perlugardetrabajo' => (string) ($person['perlugardetrabajo'] ?? ''),
+                'perhablaingles' => !empty($person['perhablaingles']),
+            ],
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    }
+
+    public function findPersonTemporary(): void
     {
         $this->requireAuth();
 
@@ -783,6 +943,144 @@ class MatriculationController extends Controller
             ],
             'documents' => !empty($decoded['documents']) && is_array($decoded['documents']) ? array_map('intval', $decoded['documents']) : [],
         ];
+    }
+
+    private function oldFormDataForTemporaryUser(array $user): array
+    {
+        $old = $this->oldFormData();
+        $representative = $this->temporaryRepresentativeData($user);
+        $existingExternal = is_array($old['representative']['external'] ?? null)
+            ? $old['representative']['external']
+            : [];
+
+        $old['representative'] = [
+            'source' => 'external',
+            'family_index' => -1,
+            'external' => array_merge($representative, [
+                'pteid' => (int) ($existingExternal['pteid'] ?? $representative['pteid']),
+            ]),
+        ];
+
+        return $old;
+    }
+
+    private function usesRepresentativeAuthorization(array $user): bool
+    {
+        return $this->hasPermission('representante.matricula_nueva', $user)
+            && !$this->hasPermission('matricula_temporal.ver', $user);
+    }
+
+    private function hasActiveRepresentativeAuthorization(array $user, int $periodId): bool
+    {
+        return $this->activeRepresentativeAuthorization($user, $periodId) !== false;
+    }
+
+    private function activeRepresentativeAuthorization(array $user, int $periodId): array|false
+    {
+        return (new RepresentativeMatriculationAuthorizationModel())->activeByUserAndPeriod(
+            (int) ($user['usuid'] ?? 0),
+            $periodId
+        );
+    }
+
+    private function temporaryMatriculationForbidden(string $message): void
+    {
+        http_response_code(403);
+        $this->view('errors.forbidden', [
+            'pageTitle' => 'Acceso restringido',
+            'currentSection' => 'dashboard',
+            'user' => $_SESSION['auth'] ?? [],
+            'requestedPath' => currentPath(),
+            'message' => $message,
+        ]);
+        exit;
+    }
+
+    private function forceTemporaryRepresentative(array &$data, array $user): void
+    {
+        $representative = $this->temporaryRepresentativeData($user);
+        $submittedExternal = is_array($data['representative']['external'] ?? null)
+            ? $data['representative']['external']
+            : [];
+
+        $data['representative'] = [
+            'source' => 'external',
+            'family_index' => -1,
+            'external' => array_merge($submittedExternal, [
+                'perid' => $representative['perid'],
+                'percedula' => $representative['percedula'],
+                'pernombres' => trim((string) ($submittedExternal['pernombres'] ?? '')) !== '' ? $submittedExternal['pernombres'] : $representative['pernombres'],
+                'perapellidos' => trim((string) ($submittedExternal['perapellidos'] ?? '')) !== '' ? $submittedExternal['perapellidos'] : $representative['perapellidos'],
+                'pertelefono1' => trim((string) ($submittedExternal['pertelefono1'] ?? '')) !== '' ? $submittedExternal['pertelefono1'] : $representative['pertelefono1'],
+                'pertelefono2' => trim((string) ($submittedExternal['pertelefono2'] ?? '')) !== '' ? $submittedExternal['pertelefono2'] : $representative['pertelefono2'],
+                'percorreo' => trim((string) ($submittedExternal['percorreo'] ?? '')) !== '' ? $submittedExternal['percorreo'] : $representative['percorreo'],
+            ]),
+        ];
+    }
+
+    private function temporaryRepresentativeData(array $user): array
+    {
+        $userModel = new UserModel();
+        $person = $userModel->userWithPerson((int) ($user['usuid'] ?? 0));
+
+        if ($person === false) {
+            return [
+                'perid' => (int) ($user['perid'] ?? 0),
+                'percedula' => '',
+                'pernombres' => (string) ($user['first_name'] ?? ''),
+                'perapellidos' => (string) ($user['last_name'] ?? ''),
+                'pertelefono1' => '',
+                'pertelefono2' => '',
+                'percorreo' => '',
+                'persexo' => '',
+                'perfechanacimiento' => '',
+                'eciid' => 0,
+                'istid' => 0,
+                'perprofesion' => '',
+                'perocupacion' => '',
+                'perlugardetrabajo' => '',
+                'perhablaingles' => false,
+                'pteid' => 0,
+            ];
+        }
+
+        $personModel = new PersonModel();
+        $fullPerson = $personModel->findByCedula((string) ($person['percedula'] ?? ''));
+        $source = is_array($fullPerson) ? $fullPerson : $person;
+
+        return [
+            'perid' => (int) ($source['perid'] ?? $person['perid'] ?? 0),
+            'percedula' => (string) ($source['percedula'] ?? ''),
+            'pernombres' => (string) ($source['pernombres'] ?? ''),
+            'perapellidos' => (string) ($source['perapellidos'] ?? ''),
+            'pertelefono1' => (string) ($source['pertelefono1'] ?? ''),
+            'pertelefono2' => (string) ($source['pertelefono2'] ?? ''),
+            'percorreo' => (string) ($source['percorreo'] ?? ''),
+            'persexo' => (string) ($source['persexo'] ?? ''),
+            'perfechanacimiento' => (string) ($source['perfechanacimiento'] ?? ''),
+            'eciid' => (int) ($source['eciid'] ?? 0),
+            'istid' => (int) ($source['istid'] ?? 0),
+            'perprofesion' => (string) ($source['perprofesion'] ?? ''),
+            'perocupacion' => (string) ($source['perocupacion'] ?? ''),
+            'perlugardetrabajo' => (string) ($source['perlugardetrabajo'] ?? ''),
+            'perhablaingles' => !empty($source['perhablaingles']),
+            'pteid' => 0,
+        ];
+    }
+
+    private function studentAlreadyExistsByCedula(string $cedula): bool
+    {
+        if (!$this->isValidCedula($cedula)) {
+            return false;
+        }
+
+        $person = (new PersonModel())->findByCedula($cedula);
+
+        if ($person === false) {
+            return false;
+        }
+
+        return (new StudentModel())->existsByPersonId((int) $person['perid']);
     }
 
     private function defaultMatriculaData(): array

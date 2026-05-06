@@ -194,7 +194,9 @@ $fatherRow = $emptyFamilyRow();
 $additionalFamilyRows = [];
 $representativeIndex = 0;
 $activePanel = $activePanel ?? '';
-$personLookupUrl = baseUrl('matriculas/persona');
+$isTemporaryMatriculation = !empty($isTemporaryMatriculation);
+$personLookupUrl = $isTemporaryMatriculation ? baseUrl('matricula-temporal/persona') : baseUrl('matriculas/persona');
+$matriculationFormAction = (string) ($matriculationFormAction ?? 'matriculas');
 $externalRepresentative = array_merge($emptyRepresentativeRow(), $externalRepresentative);
 
 foreach ($familyRows as $index => $family) {
@@ -346,14 +348,18 @@ ob_start();
 <?php
 $healthConditionTemplate = ob_get_clean();
 ?>
-<p class="module-note">La matriculacion consolida persona, estudiante, familiares, representante y curso en un solo flujo operativo.</p>
+<p class="module-note"><?= $isTemporaryMatriculation
+    ? 'Complete el formulario de matricula para alumno nuevo. El registro quedara pendiente de revision por secretaria.'
+    : 'La matriculacion consolida persona, estudiante, familiares, representante y curso en un solo flujo operativo.'; ?></p>
 
+<?php if (!$isTemporaryMatriculation): ?>
 <nav class="module-subnav" aria-label="Submodulos de matriculas">
     <?php if (!empty($canCreateMatricula)): ?>
         <a class="<?= $activePanel === 'nueva' ? 'is-active' : ''; ?>" href="<?= htmlspecialchars(baseUrl('matriculas?panel=nueva'), ENT_QUOTES, 'UTF-8'); ?>"><?= htmlspecialchars((string) ($newMatriculaLabel ?? 'Nueva matricula'), ENT_QUOTES, 'UTF-8'); ?></a>
     <?php endif; ?>
     <a class="<?= $activePanel === 'gestion' ? 'is-active' : ''; ?>" href="<?= htmlspecialchars(baseUrl('matriculas?panel=gestion'), ENT_QUOTES, 'UTF-8'); ?>">Gestion de matriculas</a>
 </nav>
+<?php endif; ?>
 
 <?php if ($currentPeriod === null && empty($newMatriculaPeriod)): ?>
     <div class="empty-state">No hay un periodo lectivo seleccionado. Elige uno desde el chip de periodo en el navbar para continuar.</div>
@@ -386,7 +392,7 @@ $healthConditionTemplate = ob_get_clean();
         <?php if (empty($courses) || empty($enrollmentStatuses) || empty($relationships)): ?>
             <div class="empty-state">Para matricular necesitas cursos activos del periodo, estados de matricula y parentescos registrados.</div>
         <?php else: ?>
-            <form class="data-form matricula-form" method="POST" action="<?= htmlspecialchars(baseUrl('matriculas'), ENT_QUOTES, 'UTF-8'); ?>" enctype="multipart/form-data" data-matricula-form>
+            <form class="data-form matricula-form" method="POST" action="<?= htmlspecialchars(baseUrl($matriculationFormAction), ENT_QUOTES, 'UTF-8'); ?>" enctype="multipart/form-data" data-matricula-form>
                 <div class="wizard-tabs" role="tablist" aria-label="Secciones de matricula">
                     <button type="button" class="wizard-tab is-active" data-wizard-tab="persona">Estudiante</button>
                     <button type="button" class="wizard-tab" data-wizard-tab="estudiante">Datos Personales</button>
@@ -605,7 +611,9 @@ $healthConditionTemplate = ob_get_clean();
                 </section>
 
                 <section class="wizard-panel" data-wizard-panel="representante" hidden>
-                    <p class="module-note">Selecciona un familiar cargado o elige Otro para registrar un tutor, apoderado o responsable externo.</p>
+                    <p class="module-note"><?= $isTemporaryMatriculation
+                        ? 'Confirme sus datos como representante del alumno nuevo y seleccione el parentesco correspondiente.'
+                        : 'Selecciona un familiar cargado o elige Otro para registrar un tutor, apoderado o responsable externo.'; ?></p>
                     <input type="hidden" name="representative_source" value="<?= htmlspecialchars($representativeSource, ENT_QUOTES, 'UTF-8'); ?>" data-representative-source-input>
                     <input type="hidden" name="representative_index" value="<?= htmlspecialchars((string) $representativeIndex, ENT_QUOTES, 'UTF-8'); ?>" data-representative-index-input>
                     <div class="representative-options" data-representative-options></div>
@@ -805,7 +813,7 @@ $healthConditionTemplate = ob_get_clean();
                         <div class="form-group"><div class="input-group"><span class="input-addon">Foto</span><input type="file" name="matricula_photo" accept=".jpg,.jpeg,.png,.webp"></div></div>
                     </div>
                     <div class="actions-row">
-                        <button class="btn-primary btn-inline" type="submit" data-matricula-submit disabled>Guardar matricula</button>
+                        <button class="btn-primary btn-inline" type="submit" data-matricula-submit disabled><?= $isTemporaryMatriculation ? 'Enviar matricula' : 'Guardar matricula'; ?></button>
                     </div>
                 </section>
 
@@ -831,7 +839,7 @@ $healthConditionTemplate = ob_get_clean();
     </section>
     <?php endif; ?>
 
-    <?php if ($activePanel === 'gestion'): ?>
+    <?php if (!$isTemporaryMatriculation && $activePanel === 'gestion'): ?>
     <section class="security-assignment-block" id="matriculas-registradas">
         <header class="security-assignment-header">
             <div><h3>Gestion de matriculas</h3><p>Listado de matriculas correspondientes al periodo actual. Desde aqui puedes habilitar o inhabilitar estudiantes matriculados.</p></div>

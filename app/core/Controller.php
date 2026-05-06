@@ -60,6 +60,8 @@ abstract class Controller
 
         $exact = [
             '/dashboard' => 'dashboard.ver',
+            '/matricula-temporal' => 'matricula_temporal.ver|representante.matricula_nueva',
+            '/matricula-temporal/persona' => 'matricula_temporal.editar|representante.matricula_nueva',
             '/mi-matricula' => 'estudiante.mi_matricula',
             '/academico' => 'estudiantes.gestionar|personas.gestionar|matriculas.gestionar',
             '/configuracion' => 'configuracion.gestionar|catalogos.gestionar|cursos.gestionar|matriculas.documentos',
@@ -74,6 +76,8 @@ abstract class Controller
             '/seguridad/catalogos' => 'seguridad.roles_permisos',
             '/seguridad/usuarios' => 'seguridad.usuarios',
             '/seguridad/usuarios-temporales' => 'usuarios_temporales.gestionar',
+            '/seguridad/representantes/matricula-nueva' => 'usuarios_temporales.gestionar',
+            '/seguridad/representantes/matricula-nueva/anular' => 'usuarios_temporales.gestionar',
             '/seguridad/usuarios/buscar' => 'seguridad.usuarios',
             '/seguridad/personas-disponibles/buscar' => 'seguridad.usuarios|usuarios_temporales.gestionar',
             '/seguridad/roles-permisos' => 'seguridad.roles_permisos',
@@ -88,6 +92,7 @@ abstract class Controller
 
         $prefixes = [
             '/personas/' => 'personas.gestionar',
+            '/matricula-temporal/' => 'matricula_temporal.editar|representante.matricula_nueva',
             '/mi-matricula/' => 'estudiante.mi_matricula',
             '/personal/' => 'personas.gestionar',
             '/matriculas/' => 'matriculas.gestionar',

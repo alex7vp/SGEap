@@ -19,6 +19,9 @@ return static function (Router $router): void {
     $router->get('/login', [AuthController::class, 'index']);
     $router->post('/login', [AuthController::class, 'authenticate']);
     $router->get('/dashboard', [AuthController::class, 'dashboard']);
+    $router->get('/matricula-temporal', [MatriculationController::class, 'temporary']);
+    $router->post('/matricula-temporal', [MatriculationController::class, 'storeTemporary']);
+    $router->get('/matricula-temporal/persona', [MatriculationController::class, 'findPersonTemporary']);
     $router->get('/mi-matricula', [StudentController::class, 'myMatriculation']);
     $router->get('/mi-matricula/modulo', [StudentController::class, 'myMatriculationModule']);
     $router->get('/academico', [ModuleController::class, 'academic']);
@@ -64,6 +67,8 @@ return static function (Router $router): void {
     $router->post('/seguridad/usuarios-temporales/clave', [SecurityController::class, 'resetTemporaryUserPassword']);
     $router->post('/seguridad/usuarios-temporales/extender', [SecurityController::class, 'extendTemporaryUser']);
     $router->post('/seguridad/usuarios-temporales/eliminar', [SecurityController::class, 'deleteTemporaryUser']);
+    $router->post('/seguridad/representantes/matricula-nueva', [SecurityController::class, 'enableRepresentativeNewStudent']);
+    $router->post('/seguridad/representantes/matricula-nueva/anular', [SecurityController::class, 'annulRepresentativeNewStudent']);
     $router->post('/seguridad/usuarios/estado', [SecurityController::class, 'toggleUserStatus']);
     $router->post('/seguridad/usuarios/clave', [SecurityController::class, 'resetUserPassword']);
     $router->post('/seguridad/roles-permisos', [SecurityController::class, 'updateRolePermissions']);

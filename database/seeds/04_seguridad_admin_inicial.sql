@@ -103,6 +103,7 @@ FROM (
         ('Matricula temporal - ver', 'matricula_temporal.ver', 'Acceso del representante temporal a su proceso de matricula', true),
         ('Matricula temporal - editar', 'matricula_temporal.editar', 'Edicion de datos del proceso de matricula temporal', true),
         ('Matricula temporal - enviar', 'matricula_temporal.enviar', 'Envio de la solicitud de matricula temporal', true),
+        ('Representante - matricula nueva', 'representante.matricula_nueva', 'Acceso habilitado por secretaria para agregar un nuevo estudiante', true),
         ('Usuarios', 'seguridad.usuarios', 'Asignacion y control de usuarios', true),
         ('Roles y permisos', 'seguridad.roles_permisos', 'Gestion de roles y permisos de seguridad', true)
 ) AS source (prmnombre, prmcodigo, prmdescripcion, prmestado)
@@ -174,6 +175,22 @@ WHERE NOT EXISTS (
     SELECT 1
     FROM rol
     WHERE rolnombre = 'Secretaria'
+);
+
+-- Rol representante matricula nueva
+INSERT INTO rol (
+    rolnombre,
+    roldescripcion,
+    rolestado
+)
+SELECT
+    'Representante matricula nueva',
+    'Acceso puntual para que un representante agregue un nuevo estudiante',
+    true
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM rol
+    WHERE rolnombre = 'Representante matricula nueva'
 );
 
 -- Roles institucionales sin permisos amplios por defecto
@@ -287,6 +304,28 @@ INNER JOIN permiso p ON p.prmcodigo IN (
     'matricula_temporal.enviar'
 )
 WHERE r.rolnombre = 'Representante temporal'
+  AND NOT EXISTS (
+      SELECT 1
+      FROM rol_permiso rp
+      WHERE rp.rolid = r.rolid
+        AND rp.prmid = p.prmid
+  );
+
+-- Asignacion de permiso al rol representante matricula nueva
+INSERT INTO rol_permiso (
+    rolid,
+    prmid,
+    rpeestado
+)
+SELECT
+    r.rolid,
+    p.prmid,
+    true
+FROM rol r
+INNER JOIN permiso p ON p.prmcodigo IN (
+    'representante.matricula_nueva'
+)
+WHERE r.rolnombre = 'Representante matricula nueva'
   AND NOT EXISTS (
       SELECT 1
       FROM rol_permiso rp

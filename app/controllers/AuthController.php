@@ -11,6 +11,7 @@ use App\Models\MatriculationModel;
 use App\Models\PersonalModel;
 use App\Models\PeriodModel;
 use App\Models\PersonModel;
+use App\Models\RepresentativeMatriculationAuthorizationModel;
 use App\Models\RolePermissionModel;
 use App\Models\StudentModel;
 use App\Models\UserModel;
@@ -20,7 +21,10 @@ class AuthController extends Controller
     public function index(): void
     {
         if (!empty($_SESSION['auth'])) {
-            $this->redirect('/dashboard');
+            $this->redirect($this->landingPathForPermissions(
+                (array) ($_SESSION['auth']['permissions'] ?? []),
+                (int) ($_SESSION['auth']['usuid'] ?? 0)
+            ));
         }
 
         $this->view('auth.login', [
@@ -68,7 +72,7 @@ class AuthController extends Controller
         setCurrentAcademicPeriod($activePeriod !== false ? $activePeriod : null);
 
         $userModel->updateLastAccess((int) $user['usuid']);
-        $this->redirect($this->landingPathForPermissions($permissionCodes));
+        $this->redirect($this->landingPathForPermissions($permissionCodes, (int) $user['usuid']));
     }
 
     public function dashboard(): void
@@ -124,10 +128,12 @@ class AuthController extends Controller
         $this->redirect('/login');
     }
 
-    private function landingPathForPermissions(array $permissions): string
+    private function landingPathForPermissions(array $permissions, int $userId): string
     {
         $targets = [
             'dashboard.ver' => '/dashboard',
+            'matricula_temporal.ver' => '/matricula-temporal',
+            'representante.matricula_nueva' => '/matricula-temporal',
             'estudiante.mi_matricula' => '/mi-matricula',
             'estudiantes.gestionar' => '/estudiantes',
             'matriculas.gestionar' => '/matriculas',
@@ -142,11 +148,26 @@ class AuthController extends Controller
         ];
 
         foreach ($targets as $permission => $path) {
+            if ($permission === 'representante.matricula_nueva' && !$this->hasActiveRepresentativeMatriculationAuthorization($userId)) {
+                continue;
+            }
+
             if (in_array($permission, $permissions, true)) {
                 return $path;
             }
         }
 
         return '/dashboard';
+    }
+
+    private function hasActiveRepresentativeMatriculationAuthorization(int $userId): bool
+    {
+        $period = (new MatriculationConfigurationModel())->findEnabledPeriod();
+
+        if ($period === false) {
+            return false;
+        }
+
+        return (new RepresentativeMatriculationAuthorizationModel())->activeByUserAndPeriod($userId, (int) $period['pleid']) !== false;
     }
 }

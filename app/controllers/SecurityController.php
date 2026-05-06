@@ -6,7 +6,9 @@ namespace App\Controllers;
 
 use App\Core\Controller;
 use App\Core\Database;
+use App\Models\MatriculationConfigurationModel;
 use App\Models\PersonalModel;
+use App\Models\RepresentativeMatriculationAuthorizationModel;
 use App\Models\RolePermissionModel;
 use App\Models\SecurityCatalogModel;
 use App\Models\StudentModel;
@@ -121,6 +123,9 @@ class SecurityController extends Controller
         $user = $this->requireAuth();
         $userModel = new UserModel();
         $temporaryUserModel = new TemporaryUserModel();
+        $authorizationModel = new RepresentativeMatriculationAuthorizationModel();
+        $enabledPeriod = (new MatriculationConfigurationModel())->findEnabledPeriod();
+        $enabledPeriodId = $enabledPeriod !== false ? (int) $enabledPeriod['pleid'] : null;
         $defaultExpiration = (new \DateTimeImmutable('+30 days'))->format('Y-m-d\TH:i');
 
         $this->view('seguridad.usuarios_temporales', [
@@ -129,8 +134,10 @@ class SecurityController extends Controller
             'currentModule' => 'seguridad',
             'currentSection' => 'seguridad_usuarios_temporales',
             'user' => $user,
+            'enabledPeriod' => $enabledPeriod !== false ? $enabledPeriod : null,
             'availablePersons' => $userModel->allWithoutUser(),
             'temporaryUsers' => $temporaryUserModel->allDetailed(),
+            'representatives' => $authorizationModel->allRepresentativesWithAuthorization($enabledPeriodId),
             'feedback' => $this->temporaryUserFeedback(),
             'old' => [
                 'perid' => sessionFlash('old_temp_user_perid') ?? '',
@@ -285,6 +292,105 @@ class SecurityController extends Controller
         $temporaryUserModel->deleteAccess($userId, $reason);
         $this->flashTemporaryUserFeedback('success', 'Acceso temporal anulado correctamente.');
         $this->redirect('/seguridad/usuarios-temporales#usuarios-temporales-listado');
+    }
+
+    public function enableRepresentativeNewStudent(): void
+    {
+        $user = $this->requireAuth();
+
+        $representativeUserId = (int) ($_POST['usuid'] ?? 0);
+        $expiration = $this->parseTemporaryExpiration(trim((string) ($_POST['rhmfecha_expiracion'] ?? '')));
+        $observation = trim((string) ($_POST['rhmobservacion'] ?? ''));
+        $period = (new MatriculationConfigurationModel())->findEnabledPeriod();
+
+        if ($representativeUserId <= 0) {
+            $this->flashTemporaryUserFeedback('error', 'Seleccione un representante valido.');
+            $this->redirect('/seguridad/usuarios-temporales#representantes-habilitacion');
+        }
+
+        if ($period === false) {
+            $this->flashTemporaryUserFeedback('error', 'No existe un periodo lectivo con matricula habilitada.');
+            $this->redirect('/seguridad/usuarios-temporales#representantes-habilitacion');
+        }
+
+        if ($expiration !== null && $expiration <= new \DateTimeImmutable()) {
+            $this->flashTemporaryUserFeedback('error', 'La fecha de expiracion debe ser posterior a la fecha actual.');
+            $this->redirect('/seguridad/usuarios-temporales#representantes-habilitacion');
+        }
+
+        $userModel = new UserModel();
+
+        if (!$userModel->userHasRole($representativeUserId, 'Representante')) {
+            $this->flashTemporaryUserFeedback('error', 'El usuario seleccionado no tiene rol de representante formal.');
+            $this->redirect('/seguridad/usuarios-temporales#representantes-habilitacion');
+        }
+
+        $db = Database::connection();
+        $db->beginTransaction();
+
+        try {
+            $authorizationModel = new RepresentativeMatriculationAuthorizationModel();
+            $authorizationModel->createForUser(
+                $representativeUserId,
+                (int) $period['pleid'],
+                (int) ($user['usuid'] ?? 0),
+                $expiration,
+                $observation
+            );
+
+            $userModel->assignRoleToUser($representativeUserId, 'Representante matricula nueva');
+
+            $db->commit();
+        } catch (\Throwable $exception) {
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
+
+            $this->flashTemporaryUserFeedback('error', $exception->getMessage());
+            $this->redirect('/seguridad/usuarios-temporales#representantes-habilitacion');
+        }
+
+        $this->flashTemporaryUserFeedback('success', 'Representante habilitado para matricular un nuevo estudiante.');
+        $this->redirect('/seguridad/usuarios-temporales#representantes-habilitacion');
+    }
+
+    public function annulRepresentativeNewStudent(): void
+    {
+        $user = $this->requireAuth();
+
+        $authorizationId = (int) ($_POST['rhmid'] ?? 0);
+        $representativePersonId = (int) ($_POST['perid'] ?? 0);
+        $reason = trim((string) ($_POST['rhmmotivo_anulacion'] ?? ''));
+
+        if ($authorizationId <= 0 || $representativePersonId <= 0) {
+            $this->flashTemporaryUserFeedback('error', 'La habilitacion seleccionada no es valida.');
+            $this->redirect('/seguridad/usuarios-temporales#representantes-habilitacion');
+        }
+
+        $db = Database::connection();
+        $db->beginTransaction();
+
+        try {
+            (new RepresentativeMatriculationAuthorizationModel())->annul(
+                $authorizationId,
+                (int) ($user['usuid'] ?? 0),
+                $reason
+            );
+
+            (new UserModel())->syncRoleByPerson($representativePersonId, 'Representante matricula nueva', false);
+
+            $db->commit();
+        } catch (\Throwable $exception) {
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
+
+            $this->flashTemporaryUserFeedback('error', $exception->getMessage());
+            $this->redirect('/seguridad/usuarios-temporales#representantes-habilitacion');
+        }
+
+        $this->flashTemporaryUserFeedback('success', 'Habilitacion anulada correctamente.');
+        $this->redirect('/seguridad/usuarios-temporales#representantes-habilitacion');
     }
 
     public function storeUser(): void
