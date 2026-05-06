@@ -626,6 +626,7 @@ function summarizePlan(array $plannedRows): array
         'artificial_student_ids' => 0,
         'duplicate_rows' => 0,
         'unmapped_levels' => 0,
+        'courses_not_found' => 0,
         'blood_group_not_imported' => 0,
         'representative_without_id' => 0,
     ];
@@ -643,6 +644,10 @@ function summarizePlan(array $plannedRows): array
 
         if ($row['reason'] === 'nivel_no_mapeado') {
             $summary['unmapped_levels']++;
+        }
+
+        if ($row['reason'] === 'curso_no_encontrado') {
+            $summary['courses_not_found']++;
         }
 
         if (in_array('cedula_estudiante_artificial', $row['warnings'], true)) {
@@ -685,6 +690,7 @@ function executeImport(array &$plannedRows, string $periodDescription, string $p
                 $row['reason'] = 'curso_no_encontrado';
                 $summary['omitted']++;
                 $summary['importable']--;
+                $summary['courses_not_found']++;
                 continue;
             }
 
@@ -1291,6 +1297,7 @@ function printSummary(array $summary, bool $commit, string $excelPath, string $r
     echo "Cedulas artificiales estudiante: {$summary['artificial_student_ids']}\n";
     echo "Duplicados omitidos: {$summary['duplicate_rows']}\n";
     echo "Niveles no mapeados: {$summary['unmapped_levels']}\n";
+    echo "Cursos no encontrados: {$summary['courses_not_found']}\n";
     echo "Grupos sanguineos no importados: {$summary['blood_group_not_imported']}\n";
     echo "Representantes sin cedula no insertados: {$summary['representative_without_id']}\n";
     echo "Reporte: {$reportPath}\n";

@@ -79,4 +79,3 @@ EXECUTE FUNCTION fn_validar_representante_no_es_estudiante();
 -- Ejecutar este archivo despues de:
 -- - 03_personas.sql
 -- - 04_matriculacion.sql
--- o al final del consolidado sgeap.sql

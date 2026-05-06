@@ -60,7 +60,5 @@ Esto conserva trazabilidad de quien lleno o envio informacion.
 ## Archivos Relacionados
 
 - `database/scripts/05_seguridad.sql`
-- `database/scripts/12_usuario_temporal.sql`
-- `database/scripts/sgeap.sql`
 - `app/models/UserModel.php`
 - `app/models/TemporaryUserModel.php`

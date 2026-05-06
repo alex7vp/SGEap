@@ -104,55 +104,55 @@ WHERE nednombre = 'Educacion General Basica Elemental'
 ON CONFLICT (nedid, granombre) DO NOTHING;
 
 INSERT INTO grado (nedid, granombre)
-SELECT nedid, '2do Año'
+SELECT nedid, U&'2do A\00F1o'
 FROM nivel_educativo
 WHERE nednombre = 'Educacion General Basica Elemental'
 ON CONFLICT (nedid, granombre) DO NOTHING;
 
 INSERT INTO grado (nedid, granombre)
-SELECT nedid, '3er Año'
+SELECT nedid, U&'3er A\00F1o'
 FROM nivel_educativo
 WHERE nednombre = 'Educacion General Basica Elemental'
 ON CONFLICT (nedid, granombre) DO NOTHING;
 
 INSERT INTO grado (nedid, granombre)
-SELECT nedid, '4to Año'
+SELECT nedid, U&'4to A\00F1o'
 FROM nivel_educativo
 WHERE nednombre = 'Educacion General Basica Elemental'
 ON CONFLICT (nedid, granombre) DO NOTHING;
 
 INSERT INTO grado (nedid, granombre)
-SELECT nedid, '5to Año'
+SELECT nedid, U&'5to A\00F1o'
 FROM nivel_educativo
 WHERE nednombre = 'Educacion General Basica Media'
 ON CONFLICT (nedid, granombre) DO NOTHING;
 
 INSERT INTO grado (nedid, granombre)
-SELECT nedid, '6to Año'
+SELECT nedid, U&'6to A\00F1o'
 FROM nivel_educativo
 WHERE nednombre = 'Educacion General Basica Media'
 ON CONFLICT (nedid, granombre) DO NOTHING;
 
 INSERT INTO grado (nedid, granombre)
-SELECT nedid, '7mo Año'
+SELECT nedid, U&'7mo A\00F1o'
 FROM nivel_educativo
 WHERE nednombre = 'Educacion General Basica Media'
 ON CONFLICT (nedid, granombre) DO NOTHING;
 
 INSERT INTO grado (nedid, granombre)
-SELECT nedid, '8vo Año'
+SELECT nedid, U&'8vo A\00F1o'
 FROM nivel_educativo
 WHERE nednombre = 'Educacion General Basica Superior'
 ON CONFLICT (nedid, granombre) DO NOTHING;
 
 INSERT INTO grado (nedid, granombre)
-SELECT nedid, '9no Año'
+SELECT nedid, U&'9no A\00F1o'
 FROM nivel_educativo
 WHERE nednombre = 'Educacion General Basica Superior'
 ON CONFLICT (nedid, granombre) DO NOTHING;
 
 INSERT INTO grado (nedid, granombre)
-SELECT nedid, '10mo Año'
+SELECT nedid, U&'10mo A\00F1o'
 FROM nivel_educativo
 WHERE nednombre = 'Educacion General Basica Superior'
 ON CONFLICT (nedid, granombre) DO NOTHING;

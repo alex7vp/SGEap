@@ -323,7 +323,5 @@ Con esa regla, no conviene guardar un campo unico tipo `rol_persona` en `persona
 - `database/scripts/04_matriculacion.sql`
 - `database/scripts/05_seguridad.sql`
 - `database/scripts/06_triggers_reglas_negocio.sql`
-- `database/scripts/sgeap.sql`
-- `database/scripts/sgeap_triggers.sql`
 - `app/models/MatriculationModel.php`
 

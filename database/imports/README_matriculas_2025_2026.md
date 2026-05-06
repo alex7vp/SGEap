@@ -5,19 +5,36 @@ Este importador carga el archivo Excel historico de estudiantes como matriculas 
 Script:
 
 ```powershell
-database\imports\import_matriculas_2025_2026.php
+php database\imports\import_matriculas_2025_2026.php
 ```
 
 Archivo Excel por defecto:
 
 ```text
-C:\Users\Alex\Downloads\Matrículas (1).xlsx
+C:\Users\Alex\Downloads\Matriculas (1).xlsx
 ```
+
+## Antes de importar
+
+En una base nueva, ejecutar primero la instalacion limpia:
+
+```sql
+database/scripts/sgeap.sql
+```
+
+Luego confirmar que existan:
+
+- periodo lectivo `2025 2026`;
+- paralelo `A`;
+- grados y cursos base;
+- catalogos base;
+- roles y permisos base.
 
 ## Reglas aplicadas
 
 - Periodo destino: `2025 2026`.
 - Paralelo destino: `A`.
+- Fecha de matricula por defecto: `2025-09-01`.
 - Duplicados por cedula de estudiante: se importa la primera fila y se omiten las siguientes.
 - Cedula de estudiante vacia o invalida: se reemplaza por una cedula artificial desde `0000000001`.
 - Grupo sanguineo: se normaliza si es posible. Si no se reconoce, se deja vacio.
@@ -71,18 +88,18 @@ La simulacion no escribe en la base de datos.
 php database\imports\import_matriculas_2025_2026.php
 ```
 
-Resultado esperado actual:
+La salida muestra:
 
-```text
-Filas reales: 200
-Importables: 191
-Omitidas: 9
-Cedulas artificiales estudiante: 1
-Duplicados omitidos: 9
-Niveles no mapeados: 0
-Grupos sanguineos no importados: 19
-Representantes sin cedula no insertados: 15
-```
+- filas reales leidas;
+- filas importables;
+- filas omitidas;
+- insertadas, si se ejecuto con `--commit`;
+- cedulas artificiales;
+- duplicados omitidos;
+- niveles no mapeados;
+- cursos no encontrados;
+- grupos sanguineos no importados;
+- representantes sin cedula no insertados.
 
 Revisar el reporte:
 
@@ -118,6 +135,18 @@ Usar otro archivo:
 php database\imports\import_matriculas_2025_2026.php --file="C:\ruta\archivo.xlsx"
 ```
 
+Cambiar periodo:
+
+```powershell
+php database\imports\import_matriculas_2025_2026.php --period="2025 2026" --commit
+```
+
+Cambiar paralelo:
+
+```powershell
+php database\imports\import_matriculas_2025_2026.php --parallel=A --commit
+```
+
 Cambiar fecha de matricula:
 
 ```powershell
@@ -144,6 +173,10 @@ PHP CLI no puede conectarse a PostgreSQL.
 
 Solucion: habilitar `extension=pgsql` y `extension=pdo_pgsql` en el `php.ini` de consola.
 
+### No existe el archivo Excel
+
+Validar la ruta por defecto o pasar otra ruta con `--file`.
+
 ### Invalid text representation para boolean
 
 El script ya fue ajustado para enviar booleanos como `true`/`false`.
@@ -156,17 +189,30 @@ El script ya fue ajustado para separar parametros de `INSERT` y `UPDATE`.
 
 El script ya recorta los textos a los limites definidos por la base.
 
+### Muchos registros omitidos por curso_no_encontrado
+
+Significa que el grado fue reconocido, pero no existe un curso para ese grado, periodo y paralelo.
+
+Solucion: ejecutar o revisar el seed de cursos base:
+
+```sql
+database/seeds/03_cursos_base.sql
+```
+
+Luego volver a correr el importador con `--commit`. Las matriculas ya insertadas se omiten y se intentan importar las pendientes.
+
 ## Despues de importar
 
 Revisar en el sistema:
 
 - Dashboard: cantidad de matriculas del periodo.
 - Modulo Matriculas: gestion de matriculas del periodo `2025 2026`.
+- Modulo Estudiantes: fichas, salud, representante, documentos y recursos.
 - Reporte CSV: filas omitidas, cedulas artificiales y grupos sanguineos no importados.
 
 ## Regularizar usuarios de estudiantes importados
 
-Si la importacion se ejecuto antes de crear la regla de usuarios/roles, ejecutar:
+Despues de importar estudiantes historicos, ejecutar si se necesitan crear sus cuentas de usuario:
 
 ```sql
 database/scripts/14_regularizar_usuarios_estudiantes_importados.sql
@@ -174,10 +220,14 @@ database/scripts/14_regularizar_usuarios_estudiantes_importados.sql
 
 Este script:
 
+- crea el permiso `estudiante.mi_matricula`, si no existe;
+- crea el rol `Estudiante`, si no existe;
+- asigna el permiso `estudiante.mi_matricula` al rol `Estudiante`;
 - crea usuarios inactivos para estudiantes sin cuenta;
 - genera el usuario con las dos primeras letras de cada nombre y apellido;
 - corrige usuarios inactivos que hayan quedado con la cedula como nombre;
-- asigna el rol `Estudiante`;
-- no activa las cuentas ni entrega una clave utilizable.
+- asigna el rol `Estudiante`.
 
-Secretaria debe restablecer la clave y activar cada usuario antes de entregarlo.
+Las cuentas quedan inactivas. La clave inicial queda como la cedula del estudiante; si no hay cedula, queda como el nombre de usuario generado.
+
+Secretaria o administracion debe activar cada usuario antes de entregarlo.

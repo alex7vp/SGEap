@@ -5,10 +5,7 @@
 --   database/scripts/03_personas.sql
 --   database/scripts/04_matriculacion.sql
 --   database/scripts/05_seguridad.sql
---
--- Si se usa el consolidado database/scripts/sgeap.sql,
--- no ejecutar este seed porque el usuario administrador inicial
--- ya se crea dentro del script consolidado.
+-- Este seed tambien queda incluido en database/scripts/sgeap.sql.
 
 -- Persona administradora
 INSERT INTO persona (

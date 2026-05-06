@@ -60,8 +60,16 @@ Orden sugerido de ejecucion de scripts modulares en una base nueva:
 - `database/scripts/04_matriculacion.sql`
 - `database/scripts/05_seguridad.sql`
 - `database/scripts/06_triggers_reglas_negocio.sql`
+- `database/seeds/01_periodos_base.sql`
+- `database/seeds/02_catalogos_base.sql`
+- `database/seeds/03_cursos_base.sql`
+- `database/seeds/04_seguridad_admin_inicial.sql`
 
-Si se usa el consolidado general `database/scripts/sgeap.sql`, ejecutar luego `database/scripts/sgeap_triggers.sql`.
+Tambien se puede usar el consolidado:
+
+- `database/scripts/sgeap.sql`
+
+Ver tambien `database/scripts/README_instalacion_limpia.md`.
 
 ## Documentacion funcional
 
