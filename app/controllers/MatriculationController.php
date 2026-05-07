@@ -111,15 +111,37 @@ class MatriculationController extends Controller
         $matriculationConfigurationModel = new MatriculationConfigurationModel();
         $period = $matriculationConfigurationModel->findEnabledPeriod();
         $documents = $matriculationModel->allActiveDocuments();
-        $usesRepresentativeAuthorization = $this->usesRepresentativeAuthorization($user);
+        $existingStudentId = (int) ($_GET['estudiante'] ?? 0);
+        $existingStudentProfile = false;
+        $isExistingStudentMatriculation = $existingStudentId > 0;
+        $usesRepresentativeAuthorization = !$isExistingStudentMatriculation
+            && !$this->hasPermission('matricula_temporal.ver', $user);
 
         if ($usesRepresentativeAuthorization && ($period === false || !$this->hasActiveRepresentativeAuthorization($user, (int) $period['pleid']))) {
             $this->temporaryMatriculationForbidden('Secretaria debe habilitar la opcion para matricular un nuevo estudiante.');
         }
 
+        if ($isExistingStudentMatriculation) {
+            $studentModel = new StudentModel();
+
+            if (!$this->hasPermission('representante.estudiantes', $user)
+                || !$studentModel->representativeCanAccessStudent((int) ($user['perid'] ?? 0), $existingStudentId)
+            ) {
+                $this->temporaryMatriculationForbidden('No tiene permiso para matricular este estudiante.');
+            }
+
+            $existingStudentProfile = $studentModel->profile($existingStudentId);
+
+            if ($existingStudentProfile === false) {
+                $this->temporaryMatriculationForbidden('No se encontro la ficha del estudiante seleccionado.');
+            }
+        }
+
+        $newMatriculaTitle = $isExistingStudentMatriculation ? 'Matricula de alumno antiguo' : 'Matricula de alumno nuevo';
+
         $this->view('matriculas.index', [
             'appName' => config('app')['name'] ?? 'SGEap',
-            'pageTitle' => 'Matricula de alumno nuevo',
+            'pageTitle' => $newMatriculaTitle,
             'currentSection' => 'matricula_temporal',
             'user' => $user,
             'activePanel' => 'nueva',
@@ -128,8 +150,8 @@ class MatriculationController extends Controller
             'matriculationConfiguration' => $period !== false ? $matriculationConfigurationModel->findByPeriodId((int) $period['pleid']) : false,
             'canCreateMatricula' => $period !== false,
             'newMatriculaLabel' => $period !== false
-                ? 'Matricula de alumno nuevo | ' . (string) $period['pledescripcion']
-                : 'Matricula de alumno nuevo',
+                ? $newMatriculaTitle . ' | ' . (string) $period['pledescripcion']
+                : $newMatriculaTitle,
             'courses' => $period !== false ? $matriculationModel->allCoursesByPeriod((int) $period['pleid']) : [],
             'relationships' => $matriculationModel->allRelationships(),
             'civilStatuses' => $matriculationModel->allCivilStatuses(),
@@ -148,8 +170,11 @@ class MatriculationController extends Controller
             'error' => null,
             'matriculaFormFeedback' => $this->matriculaFormFeedback(),
             'matriculaListFeedback' => null,
-            'old' => $this->oldFormDataForTemporaryUser($user),
+            'old' => $isExistingStudentMatriculation
+                ? $this->oldFormDataForExistingStudentTemporaryUser($user, $existingStudentId, $existingStudentProfile)
+                : $this->oldFormDataForTemporaryUser($user),
             'isTemporaryMatriculation' => true,
+            'isExistingStudentMatriculation' => $isExistingStudentMatriculation,
             'matriculationFormAction' => 'matricula-temporal',
         ]);
     }
@@ -165,15 +190,30 @@ class MatriculationController extends Controller
             $this->redirect('/matricula-temporal#matricula-form');
         }
 
-        $usesRepresentativeAuthorization = $this->usesRepresentativeAuthorization($user);
+        $existingStudentId = (int) ($_POST['existing_estid'] ?? 0);
+        $isExistingStudentMatriculation = $existingStudentId > 0;
+        $redirectTo = $this->temporaryMatriculationRedirect($existingStudentId);
+        $usesRepresentativeAuthorization = !$isExistingStudentMatriculation
+            && !$this->hasPermission('matricula_temporal.ver', $user);
         $representativeAuthorization = false;
+
+        if ($isExistingStudentMatriculation) {
+            $studentModel = new StudentModel();
+
+            if (!$this->hasPermission('representante.estudiantes', $user)
+                || !$studentModel->representativeCanAccessStudent((int) ($user['perid'] ?? 0), $existingStudentId)
+            ) {
+                $this->flashMatriculaFormFeedback('error', 'No tiene permiso para matricular este estudiante.');
+                $this->redirect($redirectTo);
+            }
+        }
 
         if ($usesRepresentativeAuthorization) {
             $representativeAuthorization = $this->activeRepresentativeAuthorization($user, (int) $period['pleid']);
 
             if ($representativeAuthorization === false) {
                 $this->flashMatriculaFormFeedback('error', 'Secretaria debe habilitar la opcion para matricular un nuevo estudiante.');
-                $this->redirect('/matricula-temporal#matricula-form');
+                $this->redirect($redirectTo);
             }
         }
 
@@ -182,16 +222,24 @@ class MatriculationController extends Controller
         $data = $this->formData($period, $documents);
         $this->forceTemporaryRepresentative($data, $user);
 
-        if ($this->studentAlreadyExistsByCedula((string) $data['person']['percedula'])) {
+        if ($isExistingStudentMatriculation && !$this->matchesExistingStudentCedula($existingStudentId, (string) $data['person']['percedula'])) {
+            $data['existing_estid'] = $existingStudentId;
+            $this->flashOldFormData($data);
+            $this->flashMatriculaFormFeedback('error', 'La cedula no corresponde al estudiante seleccionado.');
+            $this->redirect($redirectTo);
+        }
+
+        if (!$isExistingStudentMatriculation && $this->studentAlreadyExistsByCedula((string) $data['person']['percedula'])) {
             $this->flashOldFormData($data);
             $this->flashMatriculaFormFeedback('error', 'El estudiante ya existe. Acerquese a secretaria para el proceso de matricula de alumno antiguo.');
-            $this->redirect('/matricula-temporal#matricula-form');
+            $this->redirect($redirectTo);
         }
 
         if (!$this->isValid($data, $documents)) {
+            $data['existing_estid'] = $existingStudentId;
             $this->flashOldFormData($data);
             $this->flashMatriculaFormFeedback('error', 'Complete los datos obligatorios de persona, estudiante, familiares, representante, facturacion, documentos y matricula.');
-            $this->redirect('/matricula-temporal#matricula-form');
+            $this->redirect($redirectTo);
         }
 
         try {
@@ -202,13 +250,19 @@ class MatriculationController extends Controller
                 (new UserModel())->syncRoleByPerson((int) ($user['perid'] ?? 0), 'Representante matricula nueva', false);
             }
         } catch (\Throwable $exception) {
+            $data['existing_estid'] = $existingStudentId;
             $this->flashOldFormData($data);
             $this->flashMatriculaFormFeedback('error', $exception->getMessage());
-            $this->redirect('/matricula-temporal#matricula-form');
+            $this->redirect($redirectTo);
         }
 
-        $this->flashMatriculaFormFeedback('success', 'Matricula enviada correctamente. Secretaria revisara y activara el registro.');
-        $this->redirect('/matricula-temporal#matricula-form');
+        $this->flashMatriculaFormFeedback(
+            'success',
+            $isExistingStudentMatriculation
+                ? 'Matricula de alumno antiguo enviada correctamente. Secretaria revisara y activara el registro.'
+                : 'Matricula enviada correctamente. Secretaria revisara y activara el registro.'
+        );
+        $this->redirect($redirectTo);
     }
 
     public function findPerson(): void
@@ -348,6 +402,7 @@ class MatriculationController extends Controller
         $acceptedDocumentIds = array_map('intval', array_keys((array) ($_POST['documents'] ?? [])));
 
         return [
+            'existing_estid' => (int) ($_POST['existing_estid'] ?? 0),
             'period' => $period,
             'person' => [
                 'percedula' => trim($_POST['person']['percedula'] ?? ''),
@@ -788,6 +843,7 @@ class MatriculationController extends Controller
     private function flashOldFormData(array $data): void
     {
         sessionFlash('old_matricula_form', json_encode([
+            'existing_estid' => (int) ($data['existing_estid'] ?? 0),
             'person' => $data['person'],
             'student' => $data['student'],
             'family_context' => $data['family_context'],
@@ -818,6 +874,7 @@ class MatriculationController extends Controller
         }
 
         return [
+            'existing_estid' => (int) ($decoded['existing_estid'] ?? 0),
             'person' => $decoded['person'] ?? [
                 'percedula' => '',
                 'pernombres' => '',
@@ -964,6 +1021,141 @@ class MatriculationController extends Controller
         return $old;
     }
 
+    private function oldFormDataForExistingStudentTemporaryUser(array $user, int $studentId, array $profile): array
+    {
+        $old = $this->oldFormDataForTemporaryUser($user);
+
+        if ((int) ($old['existing_estid'] ?? 0) === $studentId
+            && trim((string) ($old['person']['percedula'] ?? '')) !== ''
+        ) {
+            return $old;
+        }
+
+        $student = is_array($profile['student'] ?? null) ? $profile['student'] : [];
+        $representative = (new StudentModel())->representativeByStudentAndPerson($studentId, (int) ($user['perid'] ?? 0));
+        $representativePteid = is_array($representative) ? (int) ($representative['pteid'] ?? 0) : 0;
+        $oldRepresentative = is_array($old['representative']['external'] ?? null) ? $old['representative']['external'] : [];
+
+        $old['existing_estid'] = $studentId;
+        $old['person'] = [
+            'percedula' => (string) ($student['percedula'] ?? ''),
+            'pernombres' => (string) ($student['pernombres'] ?? ''),
+            'perapellidos' => (string) ($student['perapellidos'] ?? ''),
+            'pertelefono1' => (string) ($student['pertelefono1'] ?? ''),
+            'pertelefono2' => (string) ($student['pertelefono2'] ?? ''),
+            'percorreo' => (string) ($student['percorreo'] ?? ''),
+            'persexo' => (string) ($student['persexo'] ?? ''),
+            'perfechanacimiento' => (string) ($student['perfechanacimiento'] ?? ''),
+            'eciid' => $this->defaultStudentCivilStatusId(),
+            'istid' => (int) ($student['istid'] ?? 0),
+            'perprofesion' => 'Estudiante',
+            'perocupacion' => 'Estudiante',
+            'perlugardetrabajo' => '',
+            'perhablaingles' => false,
+        ];
+        $old['student'] = [
+            'estlugarnacimiento' => (string) ($student['estlugarnacimiento'] ?? ''),
+            'estdireccion' => (string) ($student['estdireccion'] ?? ''),
+            'estparroquia' => (string) ($student['estparroquia'] ?? ''),
+        ];
+        $old['families'] = $this->oldFamiliesFromProfile($profile);
+        $old['family_context'] = $this->oldRowFromProfile($profile, 'family_context', [
+            'ecfconvivecon_pteids' => [],
+            'ecfconvivecon' => '',
+            'ecfnumerohermanos' => '',
+            'ecfposicionhermanos' => '',
+        ]);
+        $old['housing'] = $this->oldRowFromProfile($profile, 'housing', [
+            'cviid' => 0,
+            'estvdescripcion' => '',
+            'estvluzelectrica' => false,
+            'estvaguapotable' => false,
+            'estvsshh' => false,
+            'estvtelefono' => false,
+            'estvcable' => false,
+        ]);
+        $old['health_context'] = $this->oldRowFromProfile($profile, 'health_context', [
+            'gsid' => 0,
+            'ecstienediscapacidad' => false,
+            'ecsdetallediscapacidad' => '',
+            'amid' => 0,
+        ]);
+        $old['health_conditions'] = is_array($profile['health_conditions'] ?? null) ? $profile['health_conditions'] : [];
+        $old['health_measurement'] = $this->oldRowFromProfile($profile, 'health_measurement', [
+            'emspeso' => '',
+            'emstalla' => '',
+            'emsimc' => '',
+            'emsfecha_medicion' => date('Y-m-d'),
+            'emsobservacion' => '',
+        ]);
+        $old['vital_history'] = $this->oldRowFromProfile($profile, 'vital_history', [
+            'ehvedadmadre' => '',
+            'ehvcomplicacionesembarazo' => '',
+            'ehvmedicacionembarazo' => '',
+            'teid' => 0,
+            'tpid' => 0,
+            'ehvdetalleembarazo' => '',
+            'ehvpesonacer' => '',
+            'ehvtallanacer' => '',
+            'ehvedadcaminar' => '',
+            'ehvedadhablar' => '',
+            'ehvperiodolactancia' => '',
+            'ehvedadbiberon' => '',
+            'ehvedadcontrolesfinteres' => '',
+        ]);
+        $old['academic_context'] = $this->oldRowFromProfile($profile, 'academic_context', [
+            'ecafechaingresoinstitucion' => '',
+            'ecaharepetidoanios' => false,
+            'ecadetallerepeticion' => '',
+            'ecaasignaturaspreferencia' => '',
+            'ecaasignaturasdificultad' => '',
+            'ecaactividadesextras' => '',
+        ]);
+        $old['resources'] = $this->oldRowFromProfile($profile, 'resources', $old['resources'] ?? []);
+        $old['insurance'] = $this->oldRowFromProfile($profile, 'health_insurance', $old['insurance'] ?? []);
+        $old['billing'] = $this->oldRowFromProfile($profile, 'billing', $old['billing'] ?? []);
+        $old['matricula']['curid'] = 0;
+        $old['representative']['external'] = array_merge($oldRepresentative, [
+            'pteid' => $representativePteid,
+        ]);
+        $old['documents'] = [];
+
+        return $old;
+    }
+
+    private function oldRowFromProfile(array $profile, string $key, array $defaults): array
+    {
+        $row = is_array($profile[$key] ?? null) ? $profile[$key] : [];
+
+        return array_merge($defaults, $row);
+    }
+
+    private function oldFamiliesFromProfile(array $profile): array
+    {
+        $families = is_array($profile['families'] ?? null) ? $profile['families'] : [];
+
+        return array_map(static function (array $family): array {
+            return [
+                'perid' => (int) ($family['perid'] ?? 0),
+                'percedula' => (string) ($family['percedula'] ?? ''),
+                'pernombres' => (string) ($family['pernombres'] ?? ''),
+                'perapellidos' => (string) ($family['perapellidos'] ?? ''),
+                'pertelefono1' => (string) ($family['pertelefono1'] ?? ''),
+                'pertelefono2' => (string) ($family['pertelefono2'] ?? ''),
+                'percorreo' => (string) ($family['percorreo'] ?? ''),
+                'persexo' => (string) ($family['persexo'] ?? ''),
+                'perfechanacimiento' => (string) ($family['perfechanacimiento'] ?? ''),
+                'pteid' => (int) ($family['pteid'] ?? 0),
+                'eciid' => (int) ($family['eciid'] ?? 0),
+                'istid' => (int) ($family['istid'] ?? 0),
+                'perprofesion' => (string) ($family['perprofesion'] ?? ''),
+                'perocupacion' => (string) ($family['perocupacion'] ?? ''),
+                'perlugardetrabajo' => (string) ($family['perlugardetrabajo'] ?? ''),
+                'perhablaingles' => !empty($family['perhablaingles']) && $family['perhablaingles'] !== 'f',
+            ];
+        }, $families);
+    }
+
     private function usesRepresentativeAuthorization(array $user): bool
     {
         return $this->hasPermission('representante.matricula_nueva', $user)
@@ -994,6 +1186,15 @@ class MatriculationController extends Controller
             'message' => $message,
         ]);
         exit;
+    }
+
+    private function temporaryMatriculationRedirect(int $studentId = 0): string
+    {
+        if ($studentId > 0) {
+            return '/matricula-temporal?estudiante=' . $studentId . '#matricula-form';
+        }
+
+        return '/matricula-temporal#matricula-form';
     }
 
     private function forceTemporaryRepresentative(array &$data, array $user): void
@@ -1081,6 +1282,18 @@ class MatriculationController extends Controller
         }
 
         return (new StudentModel())->existsByPersonId((int) $person['perid']);
+    }
+
+    private function matchesExistingStudentCedula(int $studentId, string $cedula): bool
+    {
+        if (!$this->isValidCedula($cedula)) {
+            return false;
+        }
+
+        $student = (new StudentModel())->findDetailed($studentId);
+
+        return is_array($student)
+            && trim((string) ($student['percedula'] ?? '')) === trim($cedula);
     }
 
     private function defaultMatriculaData(): array

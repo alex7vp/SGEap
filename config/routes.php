@@ -24,6 +24,8 @@ return static function (Router $router): void {
     $router->get('/matricula-temporal/persona', [MatriculationController::class, 'findPersonTemporary']);
     $router->get('/mi-matricula', [StudentController::class, 'myMatriculation']);
     $router->get('/mi-matricula/modulo', [StudentController::class, 'myMatriculationModule']);
+    $router->get('/representante/estudiante', [StudentController::class, 'representativeStudent']);
+    $router->get('/representante/estudiante/modulo', [StudentController::class, 'representativeStudentModule']);
     $router->get('/academico', [ModuleController::class, 'academic']);
     $router->get('/configuracion', [ModuleController::class, 'configuration']);
     $router->get('/reportes', [ModuleController::class, 'reports']);
@@ -56,6 +58,7 @@ return static function (Router $router): void {
     $router->get('/seguridad/usuarios-temporales', [SecurityController::class, 'temporaryUsers']);
     $router->get('/seguridad/usuarios/buscar', [SecurityController::class, 'searchUsers']);
     $router->get('/seguridad/personas-disponibles/buscar', [SecurityController::class, 'searchAvailablePersons']);
+    $router->get('/seguridad/representantes/matricula-nueva/buscar', [SecurityController::class, 'searchRepresentativeNewStudentAuthorizations']);
     $router->post('/seguridad/catalogos', [SecurityController::class, 'storeCatalogItem']);
     $router->post('/seguridad/catalogos/actualizar', [SecurityController::class, 'updateCatalogItem']);
     $router->post('/seguridad/catalogos/eliminar', [SecurityController::class, 'deleteCatalogItem']);

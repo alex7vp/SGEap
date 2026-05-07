@@ -1,4 +1,4 @@
--- Regulariza estudiantes ya existentes, incluidos los importados historicamente.
+-- Regulariza estudiantes y representantes ya existentes, incluidos los importados historicamente.
 --
 -- Crea usuarios INACTIVOS para estudiantes sin cuenta, generando el nombre de
 -- usuario con las dos primeras letras de cada nombre y apellido. Ejemplo:
@@ -21,6 +21,30 @@ WHERE NOT EXISTS (
     WHERE prmcodigo = 'estudiante.mi_matricula'
 );
 
+INSERT INTO permiso (prmnombre, prmcodigo, prmdescripcion, prmestado)
+SELECT
+    'Representante - estudiantes',
+    'representante.estudiantes',
+    'Consulta de estudiantes vinculados al representante',
+    true
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM permiso
+    WHERE prmcodigo = 'representante.estudiantes'
+);
+
+INSERT INTO permiso (prmnombre, prmcodigo, prmdescripcion, prmestado)
+SELECT
+    'Dashboard',
+    'dashboard.ver',
+    'Acceso al dashboard principal',
+    true
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM permiso
+    WHERE prmcodigo = 'dashboard.ver'
+);
+
 INSERT INTO rol (rolnombre, roldescripcion, rolestado)
 SELECT
     'Estudiante',
@@ -32,6 +56,17 @@ WHERE NOT EXISTS (
     WHERE rolnombre = 'Estudiante'
 );
 
+INSERT INTO rol (rolnombre, roldescripcion, rolestado)
+SELECT
+    'Representante',
+    'Acceso para representantes legales de estudiantes',
+    true
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM rol
+    WHERE rolnombre = 'Representante'
+);
+
 INSERT INTO rol_permiso (rolid, prmid, rpeestado)
 SELECT
     r.rolid,
@@ -40,6 +75,24 @@ SELECT
 FROM rol r
 INNER JOIN permiso p ON p.prmcodigo = 'estudiante.mi_matricula'
 WHERE r.rolnombre = 'Estudiante'
+  AND NOT EXISTS (
+      SELECT 1
+      FROM rol_permiso rp
+      WHERE rp.rolid = r.rolid
+      AND rp.prmid = p.prmid
+  );
+
+INSERT INTO rol_permiso (rolid, prmid, rpeestado)
+SELECT
+    r.rolid,
+    p.prmid,
+    true
+FROM rol r
+INNER JOIN permiso p ON p.prmcodigo IN (
+    'dashboard.ver',
+    'representante.estudiantes'
+)
+WHERE r.rolnombre = 'Representante'
   AND NOT EXISTS (
       SELECT 1
       FROM rol_permiso rp
@@ -191,6 +244,74 @@ WHERE u.perid = p.perid
   AND u.usuestado = false
   AND u.usuclave = '$2y$10$AAH8xUvasxfsIG/4hJrypung.vg1B46bn9VB9xAsdUxiGe6fL6.Gq';
 
+-- Crea usuarios inactivos para representantes formales sin cuenta.
+INSERT INTO usuario (
+    perid,
+    usunombre,
+    usuclave,
+    usuestado
+)
+SELECT
+    candidate.perid,
+    candidate.usunombre,
+    crypt(
+        COALESCE(NULLIF(candidate.percedula, ''), candidate.usunombre),
+        gen_salt('bf')
+    ),
+    false
+FROM (
+    WITH base AS (
+        SELECT DISTINCT
+            p.perid,
+            trim(p.percedula) AS percedula,
+            translate(
+                lower(
+                    concat(
+                        substring((regexp_split_to_array(trim(p.pernombres), '\s+'))[1] from 1 for 2),
+                        substring((regexp_split_to_array(trim(p.pernombres), '\s+'))[2] from 1 for 2),
+                        substring((regexp_split_to_array(trim(p.perapellidos), '\s+'))[1] from 1 for 2),
+                        substring((regexp_split_to_array(trim(p.perapellidos), '\s+'))[2] from 1 for 2)
+                    )
+                ),
+                U&'\00E1\00E9\00ED\00F3\00FA\00FC\00F1',
+                'aeiouun'
+            ) AS base_username
+        FROM matricula_representante mr
+        INNER JOIN persona p ON p.perid = mr.perid
+        WHERE NOT EXISTS (
+            SELECT 1
+            FROM usuario u
+            WHERE u.perid = p.perid
+        )
+    ),
+    numbered AS (
+        SELECT
+            base.*,
+            ROW_NUMBER() OVER (PARTITION BY base_username ORDER BY perid) AS duplicate_order
+        FROM base
+    )
+    SELECT
+        numbered.perid,
+        numbered.percedula,
+        CASE
+            WHEN numbered.duplicate_order = 1
+             AND NOT EXISTS (
+                 SELECT 1
+                 FROM usuario u
+                 WHERE u.usunombre = numbered.base_username
+             )
+                THEN numbered.base_username
+            ELSE numbered.base_username || numbered.perid::text
+        END AS usunombre
+    FROM numbered
+) candidate
+WHERE candidate.usunombre <> ''
+  AND NOT EXISTS (
+      SELECT 1
+      FROM usuario u
+      WHERE u.usunombre = candidate.usunombre
+  );
+
 INSERT INTO usuario_rol (
     usuid,
     rolid,
@@ -210,8 +331,40 @@ WHERE NOT EXISTS (
       AND ur.rolid = r.rolid
 );
 
--- Registros que no pudieron recibir usuario automatico por conflicto de username.
+INSERT INTO usuario_rol (
+    usuid,
+    rolid,
+    usrestado
+)
+SELECT DISTINCT
+    u.usuid,
+    r.rolid,
+    true
+FROM matricula_representante mr
+INNER JOIN usuario u ON u.perid = mr.perid
+INNER JOIN rol r ON r.rolnombre = 'Representante'
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM usuario_rol ur
+    WHERE ur.usuid = u.usuid
+      AND ur.rolid = r.rolid
+);
+
+-- Activa representantes asociados a estudiantes cuyo usuario ya esta activo.
+UPDATE usuario representative_user
+SET usuestado = true,
+    usufecha_modificacion = CURRENT_TIMESTAMP
+FROM matricula_representante mr
+INNER JOIN matricula m ON m.matid = mr.matid
+INNER JOIN estudiante e ON e.estid = m.estid
+INNER JOIN usuario student_user ON student_user.perid = e.perid
+WHERE representative_user.perid = mr.perid
+  AND student_user.usuestado = true
+  AND representative_user.usuestado = false;
+
+-- Estudiantes que no pudieron recibir usuario automatico por conflicto de username.
 SELECT
+    'ESTUDIANTE' AS tipo,
     e.estid,
     p.perid,
     p.percedula,
@@ -219,6 +372,22 @@ SELECT
     p.pernombres
 FROM estudiante e
 INNER JOIN persona p ON p.perid = e.perid
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM usuario u
+    WHERE u.perid = p.perid
+)
+ORDER BY p.perapellidos ASC, p.pernombres ASC;
+
+-- Representantes que no pudieron recibir usuario automatico por conflicto de username.
+SELECT DISTINCT
+    'REPRESENTANTE' AS tipo,
+    p.perid,
+    p.percedula,
+    p.perapellidos,
+    p.pernombres
+FROM matricula_representante mr
+INNER JOIN persona p ON p.perid = mr.perid
 WHERE NOT EXISTS (
     SELECT 1
     FROM usuario u

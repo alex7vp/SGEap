@@ -285,6 +285,7 @@ $permissionMap = [
     'dashboard' => 'dashboard.ver',
     'matricula_temporal' => ['matricula_temporal.ver', 'representante.matricula_nueva'],
     'mi_matricula' => 'estudiante.mi_matricula',
+    'representante_estudiantes' => 'representante.estudiantes',
     'academico_home' => ['estudiantes.gestionar', 'personas.gestionar', 'matriculas.gestionar'],
     'estudiantes' => 'estudiantes.gestionar',
     'personal' => 'personas.gestionar',
@@ -323,7 +324,7 @@ $canAccess = static function (string $key) use ($permissionMap, $userPermissions
     return false;
 };
 $modulePermissions = [
-    'inicio' => ['dashboard.ver', 'matricula_temporal.ver', 'representante.matricula_nueva', 'estudiante.mi_matricula'],
+    'inicio' => ['dashboard.ver', 'matricula_temporal.ver', 'representante.matricula_nueva', 'estudiante.mi_matricula', 'representante.estudiantes'],
     'academico' => ['estudiantes.gestionar', 'personas.gestionar', 'matriculas.gestionar'],
     'configuracion' => ['configuracion.gestionar', 'catalogos.gestionar', 'cursos.gestionar', 'matriculas.documentos'],
     'reportes' => ['dashboard.ver'],
@@ -345,6 +346,10 @@ $canAccessModule = static function (string $moduleKey) use ($modulePermissions, 
 
 if (!in_array('dashboard.ver', $userPermissions, true) && in_array('estudiante.mi_matricula', $userPermissions, true)) {
     $topModules['inicio']['url'] = baseUrl('mi-matricula');
+}
+
+if (!in_array('dashboard.ver', $userPermissions, true) && in_array('representante.estudiantes', $userPermissions, true)) {
+    $topModules['inicio']['url'] = baseUrl('dashboard');
 }
 
 if (!in_array('dashboard.ver', $userPermissions, true) && in_array('matricula_temporal.ver', $userPermissions, true)) {

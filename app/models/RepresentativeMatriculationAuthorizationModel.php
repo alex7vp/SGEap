@@ -12,10 +12,24 @@ class RepresentativeMatriculationAuthorizationModel extends Model
     protected string $table = 'representante_habilitacion_matricula';
     protected string $primaryKey = 'rhmid';
 
-    public function allRepresentativesWithAuthorization(?int $periodId): array
+    public function allRepresentativesWithAuthorization(?int $periodId, string $term = '', int $limit = 50): array
     {
         $this->markExpiredAuthorizations();
         $periodFilter = $periodId !== null ? 'AND h.pleid = :period_id' : '';
+        $term = trim($term);
+        $searchFilter = '';
+        $params = $periodId !== null ? ['period_id' => $periodId] : [];
+        $limit = max(1, min($limit, 100));
+
+        if ($term !== '') {
+            $searchFilter = "AND (
+                p.percedula ILIKE :term
+                OR p.pernombres ILIKE :term
+                OR p.perapellidos ILIKE :term
+                OR u.usunombre ILIKE :term
+            )";
+            $params['term'] = '%' . $term . '%';
+        }
 
         $statement = $this->db->prepare(
             "SELECT
@@ -54,9 +68,12 @@ class RepresentativeMatriculationAuthorizationModel extends Model
              ) rhm ON true
              WHERE r.rolnombre = 'Representante'
                AND ur.usrestado = true
-             ORDER BY p.perapellidos ASC, p.pernombres ASC"
+               AND u.usuestado = true
+               {$searchFilter}
+             ORDER BY p.perapellidos ASC, p.pernombres ASC
+             LIMIT {$limit}"
         );
-        $statement->execute($periodId !== null ? ['period_id' => $periodId] : []);
+        $statement->execute($params);
 
         return $statement->fetchAll();
     }

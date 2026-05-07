@@ -175,7 +175,7 @@ class UserModel extends Model
         return $statement->fetch();
     }
 
-    public function createAutomaticForPerson(array $person): array
+    public function createAutomaticForPerson(array $person, bool $active = true): array
     {
         $personId = (int) ($person['perid'] ?? 0);
 
@@ -204,7 +204,7 @@ class UserModel extends Model
             'perid' => $personId,
             'usunombre' => $username,
             'usuclave' => $password,
-            'usuestado' => true,
+            'usuestado' => $active,
         ]);
 
         return [
@@ -212,6 +212,59 @@ class UserModel extends Model
             'usuid' => $userId,
             'usunombre' => $username,
         ];
+    }
+
+    public function syncRepresentativesForStudentPerson(int $studentPersonId, bool $studentActive): void
+    {
+        $statement = $this->db->prepare(
+            "SELECT DISTINCT
+                    rp.perid,
+                    rp.percedula,
+                    rp.pernombres,
+                    rp.perapellidos
+             FROM estudiante e
+             INNER JOIN matricula m ON m.estid = e.estid
+             INNER JOIN matricula_representante mr ON mr.matid = m.matid
+             INNER JOIN persona rp ON rp.perid = mr.perid
+             WHERE e.perid = :student_person_id"
+        );
+        $statement->execute(['student_person_id' => $studentPersonId]);
+        $representatives = $statement->fetchAll();
+
+        foreach ($representatives as $representative) {
+            $representativePersonId = (int) $representative['perid'];
+
+            if ($studentActive) {
+                $access = $this->createAutomaticForPerson([
+                    'perid' => $representativePersonId,
+                    'percedula' => (string) ($representative['percedula'] ?? ''),
+                    'pernombres' => (string) ($representative['pernombres'] ?? ''),
+                    'perapellidos' => (string) ($representative['perapellidos'] ?? ''),
+                ], true);
+
+                $this->updateStatus((int) $access['usuid'], true);
+                $this->assignRoleToUser((int) $access['usuid'], 'Representante');
+                $this->syncRoleByPerson($representativePersonId, 'Representante temporal', false);
+
+                continue;
+            }
+
+            $existing = $this->findByPerson($representativePersonId);
+
+            if ($existing === false) {
+                continue;
+            }
+
+            if ($this->representativeHasOtherActiveStudent($representativePersonId, $studentPersonId)) {
+                continue;
+            }
+
+            if ($this->userHasNonRepresentativeRole((int) $existing['usuid'])) {
+                continue;
+            }
+
+            $this->updateStatus((int) $existing['usuid'], false);
+        }
     }
 
     public function create(array $data): void
@@ -291,6 +344,46 @@ class UserModel extends Model
             'user_id' => $userId,
             'role_name' => $roleName,
         ]);
+
+        return $statement->fetchColumn() !== false;
+    }
+
+    public function representativeHasOtherActiveStudent(int $representativePersonId, int $excludedStudentPersonId): bool
+    {
+        $statement = $this->db->prepare(
+            "SELECT 1
+             FROM matricula_representante mr
+             INNER JOIN matricula m ON m.matid = mr.matid
+             INNER JOIN estudiante e ON e.estid = m.estid
+             WHERE mr.perid = :representative_person_id
+               AND e.perid <> :excluded_student_person_id
+               AND e.estestado = true
+             LIMIT 1"
+        );
+        $statement->execute([
+            'representative_person_id' => $representativePersonId,
+            'excluded_student_person_id' => $excludedStudentPersonId,
+        ]);
+
+        return $statement->fetchColumn() !== false;
+    }
+
+    public function userHasNonRepresentativeRole(int $userId): bool
+    {
+        $statement = $this->db->prepare(
+            "SELECT 1
+             FROM usuario_rol ur
+             INNER JOIN rol r ON r.rolid = ur.rolid
+             WHERE ur.usuid = :user_id
+               AND ur.usrestado = true
+               AND r.rolnombre NOT IN (
+                    'Representante',
+                    'Representante temporal',
+                    'Representante matricula nueva'
+               )
+             LIMIT 1"
+        );
+        $statement->execute(['user_id' => $userId]);
 
         return $statement->fetchColumn() !== false;
     }

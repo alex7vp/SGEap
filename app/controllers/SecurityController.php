@@ -118,6 +118,49 @@ class SecurityController extends Controller
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     }
 
+    public function searchRepresentativeNewStudentAuthorizations(): void
+    {
+        $this->requireAuth();
+
+        $term = trim((string) ($_GET['q'] ?? ''));
+        $enabledPeriod = (new MatriculationConfigurationModel())->findEnabledPeriod();
+        $enabledPeriodId = $enabledPeriod !== false ? (int) $enabledPeriod['pleid'] : null;
+
+        if ($enabledPeriodId === null) {
+            header('Content-Type: application/json; charset=UTF-8');
+            echo json_encode([
+                'html' => '',
+                'isEmpty' => true,
+                'emptyHtml' => '<div class="empty-state">No existe un periodo lectivo con matricula habilitada.</div>',
+                'count' => 0,
+            ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            return;
+        }
+
+        if (mb_strlen($term) < 2) {
+            header('Content-Type: application/json; charset=UTF-8');
+            echo json_encode([
+                'html' => '',
+                'isEmpty' => true,
+                'emptyHtml' => '<div class="empty-state">Escriba al menos 2 caracteres para buscar representantes activos.</div>',
+                'count' => 0,
+            ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            return;
+        }
+
+        $representatives = (new RepresentativeMatriculationAuthorizationModel())
+            ->allRepresentativesWithAuthorization($enabledPeriodId, $term, 50);
+
+        header('Content-Type: application/json; charset=UTF-8');
+        echo json_encode([
+            'html' => $this->renderRepresentativeAuthorizationRows($representatives),
+            'isEmpty' => empty($representatives),
+            'emptyHtml' => '<div class="empty-state">No se encontraron representantes activos con ese filtro.</div>',
+            'count' => count($representatives),
+            'limited' => count($representatives) >= 50,
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    }
+
     public function temporaryUsers(): void
     {
         $user = $this->requireAuth();
@@ -137,7 +180,7 @@ class SecurityController extends Controller
             'enabledPeriod' => $enabledPeriod !== false ? $enabledPeriod : null,
             'availablePersons' => $userModel->allWithoutUser(),
             'temporaryUsers' => $temporaryUserModel->allDetailed(),
-            'representatives' => $authorizationModel->allRepresentativesWithAuthorization($enabledPeriodId),
+            'representatives' => [],
             'feedback' => $this->temporaryUserFeedback(),
             'old' => [
                 'perid' => sessionFlash('old_temp_user_perid') ?? '',
@@ -449,12 +492,36 @@ class SecurityController extends Controller
             $this->redirect('/seguridad/usuarios#usuarios-asignados');
         }
 
-        if ($userModel->userWithPerson($userId) === false) {
+        $selectedUser = $userModel->userWithPerson($userId);
+
+        if ($selectedUser === false) {
             $this->flashUserListFeedback('error', 'El usuario solicitado no existe.');
             $this->redirect('/seguridad/usuarios#usuarios-asignados');
         }
 
-        $userModel->updateStatus($userId, $status);
+        $db = Database::connection();
+
+        try {
+            $db->beginTransaction();
+
+            $userModel->updateStatus($userId, $status);
+
+            $studentModel = new StudentModel();
+
+            if ($studentModel->personIsStudent((int) $selectedUser['perid'])) {
+                $userModel->syncRepresentativesForStudentPerson((int) $selectedUser['perid'], $status);
+            }
+
+            $db->commit();
+        } catch (\Throwable $exception) {
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
+
+            $this->flashUserListFeedback('error', 'No se pudo actualizar el estado del usuario.');
+            $this->redirect('/seguridad/usuarios#usuarios-asignados');
+        }
+
         $this->flashUserListFeedback('success', 'Estado del usuario actualizado correctamente.');
         $this->redirect('/seguridad/usuarios#usuarios-asignados');
     }
@@ -813,6 +880,23 @@ class SecurityController extends Controller
     {
         ob_start();
         require BASE_PATH . '/app/views/seguridad/_users_rows.php';
+        return (string) ob_get_clean();
+    }
+
+    private function renderRepresentativeAuthorizationRows(array $representatives): string
+    {
+        $formatDateTime = static function (?string $value, string $format): string {
+            if ($value === null || $value === '') {
+                return '';
+            }
+
+            $timestamp = strtotime($value);
+
+            return $timestamp === false ? '' : date($format, $timestamp);
+        };
+
+        ob_start();
+        require BASE_PATH . '/app/views/seguridad/_representative_authorization_rows.php';
         return (string) ob_get_clean();
     }
 

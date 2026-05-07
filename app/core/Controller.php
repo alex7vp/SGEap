@@ -60,9 +60,11 @@ abstract class Controller
 
         $exact = [
             '/dashboard' => 'dashboard.ver',
-            '/matricula-temporal' => 'matricula_temporal.ver|representante.matricula_nueva',
+            '/matricula-temporal' => 'matricula_temporal.ver|representante.matricula_nueva|representante.estudiantes',
             '/matricula-temporal/persona' => 'matricula_temporal.editar|representante.matricula_nueva',
             '/mi-matricula' => 'estudiante.mi_matricula',
+            '/representante/estudiante' => 'representante.estudiantes',
+            '/representante/estudiante/modulo' => 'representante.estudiantes',
             '/academico' => 'estudiantes.gestionar|personas.gestionar|matriculas.gestionar',
             '/configuracion' => 'configuracion.gestionar|catalogos.gestionar|cursos.gestionar|matriculas.documentos',
             '/reportes' => 'dashboard.ver',
@@ -78,6 +80,7 @@ abstract class Controller
             '/seguridad/usuarios-temporales' => 'usuarios_temporales.gestionar',
             '/seguridad/representantes/matricula-nueva' => 'usuarios_temporales.gestionar',
             '/seguridad/representantes/matricula-nueva/anular' => 'usuarios_temporales.gestionar',
+            '/seguridad/representantes/matricula-nueva/buscar' => 'usuarios_temporales.gestionar',
             '/seguridad/usuarios/buscar' => 'seguridad.usuarios',
             '/seguridad/personas-disponibles/buscar' => 'seguridad.usuarios|usuarios_temporales.gestionar',
             '/seguridad/roles-permisos' => 'seguridad.roles_permisos',
@@ -92,8 +95,9 @@ abstract class Controller
 
         $prefixes = [
             '/personas/' => 'personas.gestionar',
-            '/matricula-temporal/' => 'matricula_temporal.editar|representante.matricula_nueva',
+            '/matricula-temporal/' => 'matricula_temporal.editar|representante.matricula_nueva|representante.estudiantes',
             '/mi-matricula/' => 'estudiante.mi_matricula',
+            '/representante/estudiante/' => 'representante.estudiantes',
             '/personal/' => 'personas.gestionar',
             '/matriculas/' => 'matriculas.gestionar',
             '/estudiantes/' => 'estudiantes.gestionar',

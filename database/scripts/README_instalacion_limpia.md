@@ -38,12 +38,14 @@ Si se va a cargar el Excel historico de matriculas 2025 2026, usar este orden:
    php database\imports\import_matriculas_2025_2026.php --commit
    ```
 
-4. Ejecutar la regularizacion de usuarios de estudiantes:
+4. Ejecutar la regularizacion de usuarios de estudiantes y representantes:
 
    ```sql
    database/scripts/14_regularizar_usuarios_estudiantes_importados.sql
    ```
 
-El script `14_regularizar_usuarios_estudiantes_importados.sql` crea usuarios inactivos para los estudiantes importados que no tengan cuenta, les asigna el rol `Estudiante` y deja como clave inicial la cedula del estudiante. Si el estudiante no tiene cedula, usa el nombre de usuario generado.
+El script `14_regularizar_usuarios_estudiantes_importados.sql` crea usuarios inactivos para los estudiantes y representantes importados que no tengan cuenta. A los estudiantes les asigna el rol `Estudiante`; a los representantes formales de `matricula_representante` les asigna el rol `Representante`. Si el usuario del estudiante ya esta activo, tambien activa al representante vinculado.
+
+La clave inicial queda como la cedula de la persona. Si no existe cedula, usa el nombre de usuario generado.
 
 Las cuentas quedan inactivas por seguridad. Secretaria o administracion debe activar cada usuario antes de entregarlo.

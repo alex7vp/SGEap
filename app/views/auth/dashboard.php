@@ -5,6 +5,7 @@ declare(strict_types=1);
 require BASE_PATH . '/app/views/partials/header.php';
 
 $stats = is_array($stats ?? null) ? $stats : [];
+$representativeStudents = is_array($representativeStudents ?? null) ? $representativeStudents : [];
 $currentPeriod = is_array($currentPeriod ?? null) ? $currentPeriod : null;
 $canCreateMatricula = !empty($canCreateMatricula);
 $newMatriculaLabel = (string) ($newMatriculaLabel ?? 'Nueva matricula');
@@ -20,6 +21,7 @@ $canDocumentos = $can('matriculas.documentos');
 $canUsuarios = $can('seguridad.usuarios');
 $canRolesPermisos = $can('seguridad.roles_permisos');
 $canOwnMatriculation = $can('estudiante.mi_matricula');
+$canRepresentativeStudents = $can('representante.estudiantes');
 
 $metricCards = [
     [
@@ -59,6 +61,7 @@ $metricCards = array_values(array_filter($metricCards, static fn (array $card): 
 
 $quickLinks = [
     ['visible' => $canOwnMatriculation, 'label' => 'Mi matricula', 'url' => baseUrl('mi-matricula')],
+    ['visible' => $canRepresentativeStudents, 'label' => 'Mis estudiantes', 'url' => baseUrl('dashboard')],
     ['visible' => $canPersonas, 'label' => 'Ver personal', 'url' => baseUrl('personal')],
     ['visible' => $canEstudiantes, 'label' => 'Registrar estudiante', 'url' => baseUrl('estudiantes/crear')],
     ['visible' => $canMatriculas && $canCreateMatricula, 'label' => $newMatriculaLabel, 'url' => baseUrl('matriculas?panel=nueva')],
@@ -103,6 +106,33 @@ $quickLinks = array_values(array_filter($quickLinks, static fn (array $link): bo
                 <a class="text-link" href="<?= htmlspecialchars((string) $card['url'], ENT_QUOTES, 'UTF-8'); ?>"><?= htmlspecialchars((string) $card['link'], ENT_QUOTES, 'UTF-8'); ?></a>
             </article>
         <?php endforeach; ?>
+    </section>
+<?php endif; ?>
+
+<?php if ($canRepresentativeStudents): ?>
+    <section class="dashboard-grid dashboard-metrics-grid">
+        <?php if ($representativeStudents === []): ?>
+            <article class="summary-card">
+                <span class="summary-label">Mis estudiantes</span>
+                <strong>Sin estudiantes vinculados</strong>
+                <p>No existen estudiantes asociados a tu usuario representante en el periodo actual.</p>
+            </article>
+        <?php else: ?>
+            <?php foreach ($representativeStudents as $student): ?>
+                <?php
+                $studentName = trim((string) (($student['perapellidos'] ?? '') . ' ' . ($student['pernombres'] ?? '')));
+                $studentUrl = baseUrl('representante/estudiante?id=' . (int) ($student['estid'] ?? 0));
+                ?>
+                <a class="summary-card student-card-link student-compact-card" href="<?= htmlspecialchars($studentUrl, ENT_QUOTES, 'UTF-8'); ?>">
+                    <span class="summary-label">Estudiante</span>
+                    <strong><?= htmlspecialchars($studentName !== '' ? $studentName : 'Estudiante sin nombre', ENT_QUOTES, 'UTF-8'); ?></strong>
+                    <p>
+                        <?= htmlspecialchars((string) ($student['curso'] ?? 'Sin curso'), ENT_QUOTES, 'UTF-8'); ?>
+                        | <?= !empty($student['estestado']) ? 'Activo' : 'Inactivo'; ?>
+                    </p>
+                </a>
+            <?php endforeach; ?>
+        <?php endif; ?>
     </section>
 <?php endif; ?>
 

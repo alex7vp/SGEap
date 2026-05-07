@@ -23,10 +23,20 @@ $studentName = trim((string) (($student['perapellidos'] ?? '') . ' ' . ($student
 $courseName = (string) ($matriculation['curso'] ?? 'Sin matricula en el periodo');
 $studentId = (int) ($student['estid'] ?? 0);
 $isOwnProfile = !empty($isOwnProfile);
+$isRepresentativeProfile = !empty($isRepresentativeProfile);
+$canRepresentativeMatriculate = !empty($canRepresentativeMatriculate);
 $studentEditUrl = baseUrl('estudiantes/editar?id=' . $studentId);
-$moduleUrl = static fn (string $section): string => $isOwnProfile
-    ? baseUrl('mi-matricula/modulo?seccion=' . $section)
-    : baseUrl('estudiantes/modulo?id=' . $studentId . '&seccion=' . $section);
+$moduleUrl = static function (string $section) use ($isOwnProfile, $isRepresentativeProfile, $studentId): string {
+    if ($isOwnProfile) {
+        return baseUrl('mi-matricula/modulo?seccion=' . $section);
+    }
+
+    if ($isRepresentativeProfile) {
+        return baseUrl('representante/estudiante/modulo?id=' . $studentId . '&seccion=' . $section);
+    }
+
+    return baseUrl('estudiantes/modulo?id=' . $studentId . '&seccion=' . $section);
+};
 
 $representativeName = $representative === null
     ? 'Pendiente'
@@ -87,7 +97,9 @@ $cards = [
 ?>
 <div class="toolbar">
     <p><?= $isOwnProfile ? 'Consulta de tu informacion academica y de matricula.' : 'Ficha operativa del estudiante y su matricula asociada.'; ?></p>
-    <?php if (!$isOwnProfile): ?>
+    <?php if ($isRepresentativeProfile): ?>
+        <a class="text-link" href="<?= $h(baseUrl('dashboard')); ?>">Volver al dashboard</a>
+    <?php elseif (!$isOwnProfile): ?>
         <a class="text-link" href="<?= $h(baseUrl('estudiantes')); ?>">Volver al listado</a>
     <?php endif; ?>
 </div>
@@ -106,7 +118,10 @@ $cards = [
         <span class="state-pill <?= !empty($student['estestado']) ? 'state-pill-active' : 'state-pill-inactive'; ?>">
             <?= !empty($student['estestado']) ? 'Activo' : 'Inactivo'; ?>
         </span>
-        <?php if (!$isOwnProfile): ?>
+        <?php if ($canRepresentativeMatriculate): ?>
+            <a class="btn-primary btn-auto" href="<?= $h(baseUrl('matricula-temporal?estudiante=' . $studentId)); ?>">Matricular</a>
+        <?php endif; ?>
+        <?php if (!$isOwnProfile && !$isRepresentativeProfile): ?>
             <a class="btn-secondary btn-auto" href="<?= $h($studentEditUrl); ?>">Editar datos</a>
         <?php endif; ?>
     </div>

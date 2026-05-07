@@ -721,6 +721,83 @@ document.addEventListener('DOMContentLoaded', () => {
         securityUserStatusFilter.addEventListener('change', runSecurityUserSearch);
     }
 
+    const representativeAuthorizationSearchInput = document.querySelector('[data-representative-authorization-search]');
+    const representativeAuthorizationTableBody = document.querySelector('[data-representative-authorization-table-body]');
+    const representativeAuthorizationTableWrapper = document.querySelector('[data-representative-authorization-table-wrapper]');
+    const representativeAuthorizationEmptyWrapper = document.querySelector('[data-representative-authorization-empty-wrapper]');
+    const representativeAuthorizationStatus = document.querySelector('[data-representative-authorization-status]');
+
+    if (
+        representativeAuthorizationSearchInput instanceof HTMLInputElement
+        && representativeAuthorizationTableBody instanceof HTMLTableSectionElement
+        && representativeAuthorizationTableWrapper instanceof HTMLElement
+        && representativeAuthorizationEmptyWrapper instanceof HTMLElement
+        && representativeAuthorizationStatus instanceof HTMLElement
+    ) {
+        let representativeAuthorizationDebounceTimer = null;
+
+        const runRepresentativeAuthorizationSearch = async () => {
+            const baseUrl = representativeAuthorizationSearchInput.dataset.representativeAuthorizationSearchUrl || '';
+
+            if (baseUrl === '') {
+                return;
+            }
+
+            const term = representativeAuthorizationSearchInput.value.trim();
+
+            if (term.length < 2) {
+                representativeAuthorizationTableBody.innerHTML = '';
+                representativeAuthorizationTableWrapper.hidden = true;
+                representativeAuthorizationEmptyWrapper.hidden = false;
+                representativeAuthorizationEmptyWrapper.innerHTML = '<div class="empty-state">Escriba al menos 2 caracteres para buscar representantes activos.</div>';
+                representativeAuthorizationStatus.textContent = 'Escriba al menos 2 caracteres';
+                return;
+            }
+
+            const url = new URL(baseUrl, window.location.origin);
+            url.searchParams.set('q', term);
+            representativeAuthorizationStatus.textContent = 'Buscando...';
+
+            try {
+                const response = await fetch(url.toString(), {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                });
+
+                if (!response.ok) {
+                    throw new Error('Representative authorization search request failed');
+                }
+
+                const payload = await response.json();
+                representativeAuthorizationTableBody.innerHTML = payload.html || '';
+                representativeAuthorizationTableWrapper.hidden = !!payload.isEmpty;
+                representativeAuthorizationEmptyWrapper.hidden = !payload.isEmpty;
+
+                if (payload.isEmpty) {
+                    representativeAuthorizationEmptyWrapper.innerHTML = payload.emptyHtml || '<div class="empty-state">No se encontraron registros.</div>';
+                    representativeAuthorizationStatus.textContent = '0 registro(s)';
+                    return;
+                }
+
+                const count = typeof payload.count === 'number'
+                    ? payload.count
+                    : representativeAuthorizationTableBody.querySelectorAll('tr').length;
+                representativeAuthorizationStatus.textContent = count + ' registro(s)' + (payload.limited ? ' | refine el filtro' : '');
+            } catch (error) {
+                representativeAuthorizationStatus.textContent = 'Error al filtrar';
+            }
+        };
+
+        representativeAuthorizationSearchInput.addEventListener('input', () => {
+            if (representativeAuthorizationDebounceTimer !== null) {
+                window.clearTimeout(representativeAuthorizationDebounceTimer);
+            }
+
+            representativeAuthorizationDebounceTimer = window.setTimeout(runRepresentativeAuthorizationSearch, 250);
+        });
+    }
+
     const personPickerSearch = document.querySelector('[data-person-picker-search]');
     const personPickerValue = document.querySelector('[data-person-picker-value]');
     const personPickerResults = document.querySelector('[data-person-picker-results]');
@@ -896,7 +973,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const matriculaSubmitButton = document.querySelector('[data-matricula-submit]');
 
     if (matriculaForm instanceof HTMLFormElement) {
-        const draftKey = 'sgeap_matricula_draft';
+        const draftKey = matriculaForm.dataset.matriculaDraftKey || 'sgeap_matricula_draft';
         const requiredDocumentCheckboxes = Array.from(
             matriculaForm.querySelectorAll('[data-document-required]')
         ).filter((field) => field instanceof HTMLInputElement);
@@ -1971,7 +2048,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 syncRepresentativeOptions();
             });
 
-            const rawDraft = window.localStorage.getItem('sgeap_matricula_draft');
+            const dynamicDraftKey = matriculaForm.dataset.matriculaDraftKey || 'sgeap_matricula_draft';
+            const rawDraft = window.localStorage.getItem(dynamicDraftKey);
 
             if (rawDraft !== null) {
                 try {
@@ -2048,7 +2126,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     syncDisabilityDetail();
                     syncRepeatedYearsDetail();
                 } catch (error) {
-                    window.localStorage.removeItem('sgeap_matricula_draft');
+                    window.localStorage.removeItem(dynamicDraftKey);
                 }
             }
         }

@@ -1224,6 +1224,7 @@ FROM (
         ('Matricula temporal - editar', 'matricula_temporal.editar', 'Edicion de datos del proceso de matricula temporal', true),
         ('Matricula temporal - enviar', 'matricula_temporal.enviar', 'Envio de la solicitud de matricula temporal', true),
         ('Representante - matricula nueva', 'representante.matricula_nueva', 'Acceso habilitado por secretaria para agregar un nuevo estudiante', true),
+        ('Representante - estudiantes', 'representante.estudiantes', 'Consulta de estudiantes vinculados al representante', true),
         ('Usuarios', 'seguridad.usuarios', 'Asignacion y control de usuarios', true),
         ('Roles y permisos', 'seguridad.roles_permisos', 'Gestion de roles y permisos de seguridad', true)
 ) AS source (prmnombre, prmcodigo, prmdescripcion, prmestado)
@@ -1453,6 +1454,29 @@ WHERE r.rolnombre = 'Representante matricula nueva'
         AND rp.prmid = p.prmid
   );
 
+-- Asignacion de permisos al rol representante
+INSERT INTO rol_permiso (
+    rolid,
+    prmid,
+    rpeestado
+)
+SELECT
+    r.rolid,
+    p.prmid,
+    true
+FROM rol r
+INNER JOIN permiso p ON p.prmcodigo IN (
+    'dashboard.ver',
+    'representante.estudiantes'
+)
+WHERE r.rolnombre = 'Representante'
+  AND NOT EXISTS (
+      SELECT 1
+      FROM rol_permiso rp
+      WHERE rp.rolid = r.rolid
+        AND rp.prmid = p.prmid
+  );
+
 -- Asignacion de permisos al rol estudiante
 INSERT INTO rol_permiso (
     rolid,
@@ -1522,4 +1546,3 @@ WHERE r.rolnombre = 'Secretaria'
       WHERE rp.rolid = r.rolid
         AND rp.prmid = p.prmid
   );
-

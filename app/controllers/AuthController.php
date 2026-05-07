@@ -105,6 +105,12 @@ class AuthController extends Controller
             'matriculas_periodo' => $currentPeriod !== false ? $matriculationModel->countByPeriod((int) $currentPeriod['pleid']) : 0,
             'periodo_actual' => $currentPeriod !== false ? (string) $currentPeriod['pledescripcion'] : 'Sin periodo activo',
         ];
+        $representativeStudents = in_array('representante.estudiantes', (array) ($user['permissions'] ?? []), true)
+            ? $studentModel->allByRepresentativePerson(
+                (int) ($user['perid'] ?? 0),
+                $currentPeriod !== false ? (int) $currentPeriod['pleid'] : null
+            )
+            : [];
 
         $this->view('auth.dashboard', [
             'appName' => config('app')['name'] ?? 'SGEap',
@@ -112,6 +118,7 @@ class AuthController extends Controller
             'currentSection' => 'dashboard',
             'user' => $user,
             'stats' => $stats,
+            'representativeStudents' => $representativeStudents,
             'currentPeriod' => $currentPeriod !== false ? $currentPeriod : null,
             'canCreateMatricula' => $canCreateMatricula,
             'newMatriculaLabel' => $newMatriculaLabel,
@@ -132,6 +139,7 @@ class AuthController extends Controller
     {
         $targets = [
             'dashboard.ver' => '/dashboard',
+            'representante.estudiantes' => '/dashboard',
             'matricula_temporal.ver' => '/matricula-temporal',
             'representante.matricula_nueva' => '/matricula-temporal',
             'estudiante.mi_matricula' => '/mi-matricula',

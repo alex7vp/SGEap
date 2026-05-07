@@ -176,6 +176,86 @@ class StudentModel extends Model
         ];
     }
 
+    public function allByRepresentativePerson(int $representativePersonId, ?int $periodId = null): array
+    {
+        $periodFilter = $periodId !== null ? 'AND c.pleid = :period_id' : '';
+        $statement = $this->db->prepare(
+            "SELECT DISTINCT ON (e.estid)
+                e.estid,
+                e.perid,
+                e.estestado,
+                p.percedula,
+                p.pernombres,
+                p.perapellidos,
+                m.matid,
+                pl.pledescripcion,
+                CONCAT(g.granombre, ' ', pr.prlnombre) AS curso
+             FROM matricula_representante mr
+             INNER JOIN matricula m ON m.matid = mr.matid
+             INNER JOIN estudiante e ON e.estid = m.estid
+             INNER JOIN persona p ON p.perid = e.perid
+             INNER JOIN curso c ON c.curid = m.curid
+             INNER JOIN periodo_lectivo pl ON pl.pleid = c.pleid
+             INNER JOIN grado g ON g.graid = c.graid
+             INNER JOIN paralelo pr ON pr.prlid = c.prlid
+             WHERE mr.perid = :representative_person_id
+             {$periodFilter}
+             ORDER BY e.estid, m.matfecha DESC, m.matid DESC"
+        );
+        $params = ['representative_person_id' => $representativePersonId];
+
+        if ($periodId !== null) {
+            $params['period_id'] = $periodId;
+        }
+
+        $statement->execute($params);
+
+        return $statement->fetchAll();
+    }
+
+    public function representativeCanAccessStudent(int $representativePersonId, int $studentId): bool
+    {
+        $statement = $this->db->prepare(
+            "SELECT 1
+             FROM matricula_representante mr
+             INNER JOIN matricula m ON m.matid = mr.matid
+             WHERE mr.perid = :representative_person_id
+               AND m.estid = :student_id
+             LIMIT 1"
+        );
+        $statement->execute([
+            'representative_person_id' => $representativePersonId,
+            'student_id' => $studentId,
+        ]);
+
+        return $statement->fetchColumn() !== false;
+    }
+
+    public function representativeByStudentAndPerson(int $studentId, int $representativePersonId): array|false
+    {
+        $statement = $this->db->prepare(
+            "SELECT mr.perid, mr.pteid,
+                    p.percedula, p.pernombres, p.perapellidos, p.pertelefono1, p.pertelefono2,
+                    p.percorreo, p.persexo, p.perfechanacimiento, p.eciid, p.istid,
+                    p.perprofesion, p.perocupacion, p.perlugardetrabajo, p.perhablaingles,
+                    pt.ptenombre
+             FROM matricula_representante mr
+             INNER JOIN matricula m ON m.matid = mr.matid
+             INNER JOIN persona p ON p.perid = mr.perid
+             INNER JOIN parentesco pt ON pt.pteid = mr.pteid
+             WHERE m.estid = :student_id
+               AND mr.perid = :representative_person_id
+             ORDER BY m.matfecha DESC, m.matid DESC
+             LIMIT 1"
+        );
+        $statement->execute([
+            'student_id' => $studentId,
+            'representative_person_id' => $representativePersonId,
+        ]);
+
+        return $statement->fetch();
+    }
+
     private function findProfileMatriculation(int $studentId, ?int $periodId = null): array|false
     {
         $periodFilter = $periodId !== null ? 'AND c.pleid = :period_id' : '';

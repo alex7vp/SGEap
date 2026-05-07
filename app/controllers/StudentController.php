@@ -85,6 +85,96 @@ class StudentController extends Controller
         ]);
     }
 
+    public function representativeStudent(): void
+    {
+        $user = $this->requireAuth();
+        $studentId = (int) ($_GET['id'] ?? 0);
+        $studentModel = new StudentModel();
+
+        if ($studentId <= 0 || !$studentModel->representativeCanAccessStudent((int) ($user['perid'] ?? 0), $studentId)) {
+            sessionFlash('error', 'No tienes acceso a la ficha solicitada.');
+            $this->redirect('/dashboard');
+        }
+
+        $currentPeriod = currentAcademicPeriod();
+        $profile = $studentModel->profile($studentId, is_array($currentPeriod) ? (int) $currentPeriod['pleid'] : null);
+
+        if ($profile === false) {
+            sessionFlash('error', 'No se pudo cargar la ficha del estudiante.');
+            $this->redirect('/dashboard');
+        }
+
+        $this->view('estudiantes.show', [
+            'appName' => config('app')['name'] ?? 'SGEap',
+            'pageTitle' => 'Ficha del estudiante',
+            'currentSection' => 'representante_estudiantes',
+            'user' => $user,
+            'currentPeriod' => $currentPeriod,
+            'profile' => $profile,
+            'isRepresentativeProfile' => true,
+            'canRepresentativeMatriculate' => true,
+            'success' => sessionFlash('success'),
+            'error' => sessionFlash('error'),
+        ]);
+    }
+
+    public function representativeStudentModule(): void
+    {
+        $user = $this->requireAuth();
+        $studentId = (int) ($_GET['id'] ?? 0);
+        $section = trim((string) ($_GET['seccion'] ?? ''));
+        $panel = trim((string) ($_GET['panel'] ?? ''));
+        $sections = $this->studentProfileSections();
+        $studentModel = new StudentModel();
+
+        if ($studentId <= 0 || !$studentModel->representativeCanAccessStudent((int) ($user['perid'] ?? 0), $studentId)) {
+            sessionFlash('error', 'No tienes acceso al modulo solicitado.');
+            $this->redirect('/dashboard');
+        }
+
+        if (!isset($sections[$section])) {
+            sessionFlash('error', 'El modulo solicitado no es valido.');
+            $this->redirect('/representante/estudiante?id=' . $studentId);
+        }
+
+        $currentPeriod = currentAcademicPeriod();
+        $profile = $studentModel->profile($studentId, is_array($currentPeriod) ? (int) $currentPeriod['pleid'] : null);
+
+        if ($profile === false) {
+            sessionFlash('error', 'No se pudo cargar el modulo solicitado.');
+            $this->redirect('/dashboard');
+        }
+
+        $this->view('estudiantes.module', [
+            'appName' => config('app')['name'] ?? 'SGEap',
+            'pageTitle' => $sections[$section],
+            'currentSection' => 'representante_estudiantes',
+            'user' => $user,
+            'currentPeriod' => $currentPeriod,
+            'profile' => $profile,
+            'section' => $section,
+            'panel' => $section === 'salud' ? $this->healthPanel($panel) : '',
+            'sectionTitle' => $sections[$section],
+            'courses' => [],
+            'relationships' => [],
+            'civilStatuses' => [],
+            'instructionLevels' => [],
+            'bloodGroups' => [],
+            'medicalCareTypes' => [],
+            'healthConditionTypes' => [],
+            'insuranceProviders' => [],
+            'pregnancyTypes' => [],
+            'birthTypes' => [],
+            'enrollmentStatuses' => [],
+            'enrollmentTypes' => [],
+            'documentsCatalog' => [],
+            'isRepresentativeProfile' => true,
+            'readOnly' => true,
+            'success' => sessionFlash('success'),
+            'error' => sessionFlash('error'),
+        ]);
+    }
+
     public function index(): void
     {
         $user = $this->requireAuth();

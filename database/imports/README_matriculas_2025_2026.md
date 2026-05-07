@@ -210,9 +210,9 @@ Revisar en el sistema:
 - Modulo Estudiantes: fichas, salud, representante, documentos y recursos.
 - Reporte CSV: filas omitidas, cedulas artificiales y grupos sanguineos no importados.
 
-## Regularizar usuarios de estudiantes importados
+## Regularizar usuarios de estudiantes y representantes importados
 
-Despues de importar estudiantes historicos, ejecutar si se necesitan crear sus cuentas de usuario:
+Despues de importar estudiantes historicos, ejecutar si se necesitan crear sus cuentas de usuario y las cuentas de sus representantes formales:
 
 ```sql
 database/scripts/14_regularizar_usuarios_estudiantes_importados.sql
@@ -222,11 +222,14 @@ Este script:
 
 - crea el permiso `estudiante.mi_matricula`, si no existe;
 - crea el rol `Estudiante`, si no existe;
+- crea el rol `Representante`, si no existe;
 - asigna el permiso `estudiante.mi_matricula` al rol `Estudiante`;
 - crea usuarios inactivos para estudiantes sin cuenta;
+- crea usuarios inactivos para representantes de `matricula_representante` sin cuenta;
 - genera el usuario con las dos primeras letras de cada nombre y apellido;
 - corrige usuarios inactivos que hayan quedado con la cedula como nombre;
-- asigna el rol `Estudiante`.
+- asigna el rol `Estudiante` o `Representante`, segun corresponda;
+- activa representantes cuando el usuario del estudiante vinculado ya esta activo.
 
 Las cuentas quedan inactivas. La clave inicial queda como la cedula del estudiante; si no hay cedula, queda como el nombre de usuario generado.
 
