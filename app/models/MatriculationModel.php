@@ -153,12 +153,19 @@ class MatriculationModel extends Model
                     n.nednombre, g.granombre, pr.prlnombre,
                     em.emdnombre,
                     e.estestado,
+                    u.usuid AS student_usuid,
+                    u.usunombre AS student_usunombre,
+                    u.usuestado AS student_usuestado,
                     rp.perapellidos AS rep_apellidos,
                     rp.pernombres AS rep_nombres,
-                    pt.ptenombre AS rep_parentesco
+                    pt.ptenombre AS rep_parentesco,
+                    ru.usuid AS rep_usuid,
+                    ru.usunombre AS rep_usunombre,
+                    ru.usuestado AS rep_usuestado
              FROM {$this->table} m
              INNER JOIN estudiante e ON e.estid = m.estid
              INNER JOIN persona p ON p.perid = e.perid
+             LEFT JOIN usuario u ON u.perid = p.perid
              INNER JOIN curso c ON c.curid = m.curid
              INNER JOIN grado g ON g.graid = c.graid
              INNER JOIN nivel_educativo n ON n.nedid = g.nedid
@@ -166,6 +173,7 @@ class MatriculationModel extends Model
              INNER JOIN estado_matricula em ON em.emdid = m.emdid
              LEFT JOIN matricula_representante mr ON mr.matid = m.matid
              LEFT JOIN persona rp ON rp.perid = mr.perid
+             LEFT JOIN usuario ru ON ru.perid = rp.perid
              LEFT JOIN parentesco pt ON pt.pteid = mr.pteid
              WHERE c.pleid = :period_id
              ORDER BY m.matfecha DESC, p.perapellidos ASC, p.pernombres ASC"
@@ -186,6 +194,134 @@ class MatriculationModel extends Model
         $statement->execute(['period_id' => $periodId]);
 
         return (int) $statement->fetchColumn();
+    }
+
+    public function findForEdit(int $matriculaId): array|false
+    {
+        $statement = $this->db->prepare(
+            "SELECT m.matid, m.estid, m.curid, m.emdid, m.tmaid, m.matfecha,
+                    m.matfecha_retiro, m.matmotivo_retiro,
+                    p.percedula, p.pernombres, p.perapellidos,
+                    c.pleid, pl.pledescripcion, n.nednombre, g.granombre, pr.prlnombre,
+                    em.emdnombre, tm.tmanombre
+             FROM {$this->table} m
+             INNER JOIN estudiante e ON e.estid = m.estid
+             INNER JOIN persona p ON p.perid = e.perid
+             INNER JOIN curso c ON c.curid = m.curid
+             INNER JOIN periodo_lectivo pl ON pl.pleid = c.pleid
+             INNER JOIN grado g ON g.graid = c.graid
+             INNER JOIN nivel_educativo n ON n.nedid = g.nedid
+             INNER JOIN paralelo pr ON pr.prlid = c.prlid
+             INNER JOIN estado_matricula em ON em.emdid = m.emdid
+             INNER JOIN tipo_matricula tm ON tm.tmaid = m.tmaid
+             WHERE m.matid = :matid
+             LIMIT 1"
+        );
+        $statement->execute(['matid' => $matriculaId]);
+
+        return $statement->fetch();
+    }
+
+    public function updateMatriculationData(int $matriculaId, array $data): void
+    {
+        if ($matriculaId <= 0) {
+            throw new RuntimeException('La matricula seleccionada no es valida.');
+        }
+
+        $course = $this->coursePeriod((int) ($data['curid'] ?? 0));
+
+        if ($course === false) {
+            throw new RuntimeException('El curso seleccionado no existe o esta inactivo.');
+        }
+
+        $statusName = $this->catalogName('estado_matricula', 'emdid', 'emdnombre', (int) ($data['emdid'] ?? 0));
+
+        if ($statusName === null) {
+            throw new RuntimeException('El estado de matricula seleccionado no es valido.');
+        }
+
+        if (!$this->catalogValueExists('tipo_matricula', 'tmaid', (int) ($data['tmaid'] ?? 0))) {
+            throw new RuntimeException('El tipo de matricula seleccionado no es valido.');
+        }
+
+        $matricula = $this->findForEdit($matriculaId);
+
+        if ($matricula === false) {
+            throw new RuntimeException('La matricula solicitada no existe.');
+        }
+
+        if ((int) ($matricula['pleid'] ?? 0) !== (int) ($course['pleid'] ?? 0)) {
+            throw new RuntimeException('El nuevo curso debe pertenecer al mismo periodo lectivo de la matricula.');
+        }
+
+        $matriculaDate = trim((string) ($data['matfecha'] ?? ''));
+        $withdrawalDate = trim((string) ($data['matfecha_retiro'] ?? ''));
+        $withdrawalReason = trim((string) ($data['matmotivo_retiro'] ?? ''));
+
+        if (!$this->isIsoDate($matriculaDate)) {
+            throw new RuntimeException('La fecha de matricula no es valida.');
+        }
+
+        if ($withdrawalDate !== '' && !$this->isIsoDate($withdrawalDate)) {
+            throw new RuntimeException('La fecha de retiro no es valida.');
+        }
+
+        if ($withdrawalDate !== '' && $withdrawalDate < $matriculaDate) {
+            throw new RuntimeException('La fecha de retiro no puede ser anterior a la fecha de matricula.');
+        }
+
+        $activeStatusNames = ['activo', 'activa', 'habilitado', 'habilitada'];
+        $isActiveStatus = in_array(mb_strtolower(trim($statusName)), $activeStatusNames, true);
+
+        if ($isActiveStatus && $withdrawalDate !== '') {
+            throw new RuntimeException('Una matricula activa no puede tener fecha de retiro.');
+        }
+
+        $this->db->beginTransaction();
+
+        try {
+            $statement = $this->db->prepare(
+                "UPDATE {$this->table}
+                 SET curid = :curid,
+                     emdid = :emdid,
+                     tmaid = :tmaid,
+                     matfecha = :matfecha,
+                     matfecha_retiro = :matfecha_retiro,
+                     matmotivo_retiro = :matmotivo_retiro,
+                     matfecha_modificacion = CURRENT_TIMESTAMP
+                 WHERE matid = :matid"
+            );
+            $statement->execute([
+                'matid' => $matriculaId,
+                'curid' => (int) $data['curid'],
+                'emdid' => (int) $data['emdid'],
+                'tmaid' => (int) $data['tmaid'],
+                'matfecha' => $matriculaDate,
+                'matfecha_retiro' => $withdrawalDate !== '' ? $withdrawalDate : null,
+                'matmotivo_retiro' => $withdrawalReason !== '' ? $withdrawalReason : null,
+            ]);
+
+            $studentUpdate = $this->db->prepare(
+                "UPDATE estudiante
+                 SET estestado = :status
+                 WHERE estid = :student_id"
+            );
+            $studentUpdate->bindValue(':student_id', (int) $matricula['estid'], PDO::PARAM_INT);
+            $studentUpdate->bindValue(':status', $isActiveStatus, PDO::PARAM_BOOL);
+            $studentUpdate->execute();
+
+            if ($isActiveStatus) {
+                $this->createAccessesForActivatedMatriculation($matriculaId);
+            }
+
+            $this->db->commit();
+        } catch (\Throwable $exception) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+
+            throw $exception;
+        }
     }
 
     public function createEnrollment(array $data): int
@@ -260,6 +396,66 @@ class MatriculationModel extends Model
         );
 
         return $statement->fetchAll();
+    }
+
+    private function coursePeriod(int $courseId): array|false
+    {
+        $statement = $this->db->prepare(
+            "SELECT curid, pleid
+             FROM curso
+             WHERE curid = :course_id
+               AND curestado = true
+             LIMIT 1"
+        );
+        $statement->execute(['course_id' => $courseId]);
+
+        return $statement->fetch();
+    }
+
+    private function catalogValueExists(string $table, string $idColumn, int $id): bool
+    {
+        if ($id <= 0) {
+            return false;
+        }
+
+        $statement = $this->db->prepare(
+            "SELECT 1
+             FROM {$table}
+             WHERE {$idColumn} = :id
+             LIMIT 1"
+        );
+        $statement->execute(['id' => $id]);
+
+        return $statement->fetchColumn() !== false;
+    }
+
+    private function catalogName(string $table, string $idColumn, string $nameColumn, int $id): ?string
+    {
+        if ($id <= 0) {
+            return null;
+        }
+
+        $statement = $this->db->prepare(
+            "SELECT {$nameColumn}
+             FROM {$table}
+             WHERE {$idColumn} = :id
+             LIMIT 1"
+        );
+        $statement->execute(['id' => $id]);
+        $name = $statement->fetchColumn();
+
+        return $name === false ? null : (string) $name;
+    }
+
+    private function isIsoDate(string $date): bool
+    {
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+            return false;
+        }
+
+        [$year, $month, $day] = array_map('intval', explode('-', $date));
+
+        return checkdate($month, $day, $year);
     }
 
     private function upsertPerson(array $person): int
@@ -481,6 +677,52 @@ class MatriculationModel extends Model
         }
     }
 
+    public function syncAccessesForActiveMatriculations(int $periodId): int
+    {
+        $statement = $this->db->prepare(
+            "SELECT m.matid
+             FROM matricula m
+             INNER JOIN curso c ON c.curid = m.curid
+             INNER JOIN estudiante e ON e.estid = m.estid
+             INNER JOIN estado_matricula em ON em.emdid = m.emdid
+             WHERE c.pleid = :period_id
+               AND e.estestado = true
+               AND LOWER(em.emdnombre) IN ('activo', 'activa', 'habilitado', 'habilitada')
+               AND m.matfecha_retiro IS NULL
+             ORDER BY m.matid ASC"
+        );
+        $statement->execute(['period_id' => $periodId]);
+        $matriculationIds = array_map('intval', $statement->fetchAll(\PDO::FETCH_COLUMN));
+
+        foreach ($matriculationIds as $matriculationId) {
+            $this->createAccessesForActivatedMatriculation($matriculationId);
+        }
+
+        return count($matriculationIds);
+    }
+
+    public function syncAccessesForMatriculation(int $matriculaId): void
+    {
+        $statement = $this->db->prepare(
+            "SELECT 1
+             FROM matricula m
+             INNER JOIN estudiante e ON e.estid = m.estid
+             INNER JOIN estado_matricula em ON em.emdid = m.emdid
+             WHERE m.matid = :matriculation_id
+               AND e.estestado = true
+               AND LOWER(em.emdnombre) IN ('activo', 'activa', 'habilitado', 'habilitada')
+               AND m.matfecha_retiro IS NULL
+             LIMIT 1"
+        );
+        $statement->execute(['matriculation_id' => $matriculaId]);
+
+        if ($statement->fetchColumn() === false) {
+            throw new RuntimeException('La matricula debe estar activa para sincronizar usuarios.');
+        }
+
+        $this->createAccessesForActivatedMatriculation($matriculaId);
+    }
+
     private function enrollmentStatusByNames(array $names, bool $fallbackToFirst): ?array
     {
         $statement = $this->db->query(
@@ -538,7 +780,8 @@ class MatriculationModel extends Model
             'percedula' => (string) $record['student_cedula'],
             'pernombres' => (string) $record['student_nombres'],
             'perapellidos' => (string) $record['student_apellidos'],
-        ]);
+        ], true);
+        $userModel->updateStatus((int) $studentAccess['usuid'], true);
         $userModel->assignRoleToUser((int) $studentAccess['usuid'], 'Estudiante');
 
         $representativePersonId = (int) ($record['representative_perid'] ?? 0);
@@ -552,7 +795,8 @@ class MatriculationModel extends Model
             'percedula' => (string) ($record['representative_cedula'] ?? ''),
             'pernombres' => (string) ($record['representative_nombres'] ?? ''),
             'perapellidos' => (string) ($record['representative_apellidos'] ?? ''),
-        ]);
+        ], true);
+        $userModel->updateStatus((int) $representativeAccess['usuid'], true);
         $userModel->assignRoleToUser((int) $representativeAccess['usuid'], 'Representante');
         $userModel->syncRoleByPerson($representativePersonId, 'Representante temporal', false);
 

@@ -12,6 +12,10 @@ Para crear la base de datos desde cero, ejecutar los scripts en este orden:
 8. `database/seeds/02_catalogos_base.sql`
 9. `database/seeds/03_cursos_base.sql`
 10. `database/seeds/04_seguridad_admin_inicial.sql`
+11. `database/scripts/07_asistencia.sql`
+12. `database/seeds/05_asistencia_academica_base.sql`
+
+El script `07_asistencia.sql` se ejecuta despues de las semillas de seguridad porque, ademas de crear la estructura de asistencia, registra permisos y los asigna a roles existentes.
 
 Como alternativa, se puede ejecutar directamente el consolidado:
 

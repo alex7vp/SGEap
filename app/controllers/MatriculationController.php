@@ -63,6 +63,7 @@ class MatriculationController extends Controller
             'enrollmentStatuses' => $matriculationModel->allEnrollmentStatuses(),
             'documents' => $documents,
             'matriculas' => $viewedPeriod !== null ? $matriculationModel->allByPeriod((int) $viewedPeriod['pleid']) : [],
+            'canEditMatriculas' => $this->canEditMatriculations($user),
             'success' => null,
             'error' => null,
             'matriculaFormFeedback' => $this->matriculaFormFeedback(),
@@ -393,6 +394,127 @@ class MatriculationController extends Controller
                 : 'Matricula inhabilitada correctamente. El estudiante queda inactivo.'
         );
         $this->redirect($redirectTo);
+    }
+
+    public function edit(): void
+    {
+        $user = $this->requireAuth();
+
+        if (!$this->canEditMatriculations($user)) {
+            $this->flashMatriculaListFeedback('error', 'Solo Administrador y Secretaria pueden editar matriculas.');
+            $this->redirect('/matriculas?panel=gestion#matriculas-registradas');
+        }
+
+        $matriculaId = (int) ($_GET['id'] ?? 0);
+
+        if ($matriculaId <= 0) {
+            $this->flashMatriculaListFeedback('error', 'La matricula seleccionada no es valida.');
+            $this->redirect('/matriculas?panel=gestion#matriculas-registradas');
+        }
+
+        $matriculationModel = new MatriculationModel();
+        $matricula = $matriculationModel->findForEdit($matriculaId);
+
+        if ($matricula === false) {
+            $this->flashMatriculaListFeedback('error', 'No se encontro la matricula solicitada.');
+            $this->redirect('/matriculas?panel=gestion#matriculas-registradas');
+        }
+
+        $this->view('matriculas.edit', [
+            'appName' => config('app')['name'] ?? 'SGEap',
+            'pageTitle' => 'Editar matricula',
+            'currentSection' => 'matriculas',
+            'user' => $user,
+            'currentPeriod' => currentAcademicPeriod(),
+            'matricula' => $matricula,
+            'courses' => $matriculationModel->allCoursesByPeriod((int) $matricula['pleid']),
+            'enrollmentStatuses' => $matriculationModel->allEnrollmentStatuses(),
+            'enrollmentTypes' => $matriculationModel->allEnrollmentTypes(),
+            'feedback' => $this->matriculaEditFeedback(),
+        ]);
+    }
+
+    public function update(): void
+    {
+        $user = $this->requireAuth();
+
+        if (!$this->canEditMatriculations($user)) {
+            $this->flashMatriculaListFeedback('error', 'Solo Administrador y Secretaria pueden editar matriculas.');
+            $this->redirect('/matriculas?panel=gestion#matriculas-registradas');
+        }
+
+        $matriculaId = (int) ($_POST['matid'] ?? 0);
+
+        if ($matriculaId <= 0) {
+            $this->flashMatriculaListFeedback('error', 'La matricula seleccionada no es valida.');
+            $this->redirect('/matriculas?panel=gestion#matriculas-registradas');
+        }
+
+        $data = [
+            'curid' => (int) ($_POST['curid'] ?? 0),
+            'emdid' => (int) ($_POST['emdid'] ?? 0),
+            'tmaid' => (int) ($_POST['tmaid'] ?? 0),
+            'matfecha' => trim((string) ($_POST['matfecha'] ?? '')),
+            'matfecha_retiro' => trim((string) ($_POST['matfecha_retiro'] ?? '')),
+            'matmotivo_retiro' => trim((string) ($_POST['matmotivo_retiro'] ?? '')),
+        ];
+
+        try {
+            (new MatriculationModel())->updateMatriculationData($matriculaId, $data);
+        } catch (\Throwable $exception) {
+            $this->flashMatriculaEditFeedback('error', $exception->getMessage());
+            $this->redirect('/matriculas/editar?id=' . $matriculaId);
+        }
+
+        $this->flashMatriculaListFeedback('success', 'Matricula actualizada correctamente.');
+        $this->redirect('/matriculas?panel=gestion#matriculas-registradas');
+    }
+
+    public function syncAccesses(): void
+    {
+        $this->requireAuth();
+
+        $period = currentAcademicPeriod();
+
+        if ($period === null) {
+            $this->flashMatriculaListFeedback('error', 'Debe seleccionar un periodo lectivo antes de sincronizar usuarios.');
+            $this->redirect('/matriculas?panel=gestion#matriculas-registradas');
+        }
+
+        try {
+            $processed = (new MatriculationModel())->syncAccessesForActiveMatriculations((int) $period['pleid']);
+        } catch (\Throwable $exception) {
+            $this->flashMatriculaListFeedback('error', 'No se pudieron sincronizar los usuarios: ' . $exception->getMessage());
+            $this->redirect('/matriculas?panel=gestion#matriculas-registradas');
+        }
+
+        $this->flashMatriculaListFeedback(
+            'success',
+            'Usuarios sincronizados correctamente para ' . $processed . ' matriculas activas.'
+        );
+        $this->redirect('/matriculas?panel=gestion#matriculas-registradas');
+    }
+
+    public function syncMatriculationAccesses(): void
+    {
+        $this->requireAuth();
+
+        $matriculaId = (int) ($_POST['matid'] ?? 0);
+
+        if ($matriculaId <= 0) {
+            $this->flashMatriculaListFeedback('error', 'La matricula seleccionada no es valida.');
+            $this->redirect('/matriculas?panel=gestion#matriculas-registradas');
+        }
+
+        try {
+            (new MatriculationModel())->syncAccessesForMatriculation($matriculaId);
+        } catch (\Throwable $exception) {
+            $this->flashMatriculaListFeedback('error', 'No se pudieron sincronizar los usuarios: ' . $exception->getMessage());
+            $this->redirect('/matriculas?panel=gestion#matriculas-registradas');
+        }
+
+        $this->flashMatriculaListFeedback('success', 'Usuarios de la matricula sincronizados correctamente.');
+        $this->redirect('/matriculas?panel=gestion#matriculas-registradas');
     }
 
     private function formData(array $period, array $documents = []): array
@@ -1362,6 +1484,32 @@ class MatriculationController extends Controller
         $selected = array_values(array_filter($names, static fn (string $name): bool => trim($name) !== ''));
 
         return implode(', ', $selected);
+    }
+
+    private function canEditMatriculations(array $user): bool
+    {
+        return (new UserModel())->hasAnyRoleName(
+            (int) ($user['usuid'] ?? 0),
+            ['Administrador', 'Secretaria']
+        );
+    }
+
+    private function flashMatriculaEditFeedback(string $type, string $message): void
+    {
+        sessionFlash('matricula_edit_feedback_type', $type);
+        sessionFlash('matricula_edit_feedback_message', $message);
+    }
+
+    private function matriculaEditFeedback(): ?array
+    {
+        $type = sessionFlash('matricula_edit_feedback_type');
+        $message = sessionFlash('matricula_edit_feedback_message');
+
+        if ($type === null || $message === null) {
+            return null;
+        }
+
+        return ['type' => $type, 'message' => $message];
     }
 
     private function flashMatriculaFormFeedback(string $type, string $message): void

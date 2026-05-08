@@ -37,6 +37,41 @@ class ModuleController extends Controller
                     'icon' => 'fa-address-card',
                     'permission' => 'matriculas.gestionar',
                 ],
+                [
+                    'label' => 'Configuracion de asistencia',
+                    'description' => 'Administra areas, asignaturas, materias por curso y docentes asignados.',
+                    'url' => baseUrl('asistencia/configuracion'),
+                    'icon' => 'fa-calendar-check-o',
+                    'permission' => 'asistencia.calendario.gestionar',
+                ],
+                [
+                    'label' => 'Calendario de asistencia',
+                    'description' => 'Define jornadas normales, reducidas, suspendidas o especiales por fecha.',
+                    'url' => baseUrl('asistencia/calendario'),
+                    'icon' => 'fa-calendar',
+                    'permission' => 'asistencia.calendario.gestionar',
+                ],
+                [
+                    'label' => 'Justificaciones',
+                    'description' => 'Registra, aprueba, rechaza y anula justificaciones de asistencia.',
+                    'url' => baseUrl('asistencia/justificaciones'),
+                    'icon' => 'fa-file-text-o',
+                    'permission' => 'justificaciones.gestionar',
+                ],
+                [
+                    'label' => 'Supervision de asistencia',
+                    'description' => 'Revisa sesiones registradas, detalle por estudiante y anulaciones con motivo.',
+                    'url' => baseUrl('asistencia/supervision'),
+                    'icon' => 'fa-search',
+                    'permission' => 'asistencia.supervisar',
+                ],
+                [
+                    'label' => 'Registrar asistencia',
+                    'description' => 'Registra asistencia por materia asignada y hora de clase.',
+                    'url' => baseUrl('asistencia/registro'),
+                    'icon' => 'fa-check-square-o',
+                    'permission' => 'asistencia.registrar',
+                ],
             ]
         );
     }
@@ -101,19 +136,14 @@ class ModuleController extends Controller
             'reportes',
             'reportes_home',
             'Reportes',
-            'Consolida salidas de informacion y consultas ejecutivas. Los reportes aun no estan implementados por completo.',
+            'Consolida salidas de informacion y consultas ejecutivas.',
             [
                 [
-                    'label' => 'Reporte de estudiantes',
-                    'description' => 'Punto de entrada previsto para reportes estudiantiles.',
-                    'url' => null,
-                    'icon' => 'fa-file-text-o',
-                ],
-                [
-                    'label' => 'Reporte de personal',
-                    'description' => 'Punto de entrada previsto para reportes de personal institucional.',
-                    'url' => null,
-                    'icon' => 'fa-file-text',
+                    'label' => 'Reporte de asistencia',
+                    'description' => 'Consolida asistencias, atrasos y faltas por rango, curso o estudiante.',
+                    'url' => baseUrl('reportes/asistencia'),
+                    'icon' => 'fa-calendar-check-o',
+                    'permission' => 'asistencia.supervisar',
                 ],
             ]
         );

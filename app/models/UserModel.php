@@ -70,7 +70,7 @@ class UserModel extends Model
         }
 
         $whereSql = $conditions !== [] ? 'WHERE ' . implode(' AND ', $conditions) : '';
-        $limit = max(1, min($limit, 100));
+        $limit = max(1, min($limit, 500));
         $statement = $this->db->prepare(
             "SELECT u.usuid, u.perid, u.usunombre, u.usuestado, p.percedula, p.pernombres, p.perapellidos
              FROM {$this->table} u
@@ -186,6 +186,10 @@ class UserModel extends Model
         $existing = $this->findByPerson($personId);
 
         if ($existing !== false) {
+            if ($active && empty($existing['usuestado'])) {
+                $this->updateStatus((int) $existing['usuid'], true);
+            }
+
             return [
                 'created' => false,
                 'usuid' => (int) $existing['usuid'],
@@ -316,12 +320,9 @@ class UserModel extends Model
              FROM {$this->table} u
              INNER JOIN rol r ON r.rolnombre = :role_name
              WHERE u.usuid = :user_id
-               AND NOT EXISTS (
-                   SELECT 1
-                   FROM usuario_rol ur
-                   WHERE ur.usuid = u.usuid
-                     AND ur.rolid = r.rolid
-               )"
+             ON CONFLICT (usuid, rolid) DO UPDATE
+             SET usrestado = true,
+                 usrfecha_modificacion = CURRENT_TIMESTAMP"
         );
         $statement->execute([
             'user_id' => $userId,
@@ -396,13 +397,10 @@ class UserModel extends Model
                  SELECT u.usuid, r.rolid, true
                  FROM {$this->table} u
                  INNER JOIN rol r ON r.rolnombre = :role_name
-                 WHERE u.perid = :person_id
-                   AND NOT EXISTS (
-                       SELECT 1
-                       FROM usuario_rol ur
-                       WHERE ur.usuid = u.usuid
-                         AND ur.rolid = r.rolid
-                   )"
+                  WHERE u.perid = :person_id
+                  ON CONFLICT (usuid, rolid) DO UPDATE
+                  SET usrestado = true,
+                      usrfecha_modificacion = CURRENT_TIMESTAMP"
             );
             $statement->execute([
                 'person_id' => $personId,
@@ -429,6 +427,33 @@ class UserModel extends Model
     public function assignRoleByPerson(int $personId, string $roleName): void
     {
         $this->syncRoleByPerson($personId, $roleName, true);
+    }
+
+    public function hasAnyRoleName(int $userId, array $roleNames): bool
+    {
+        $normalizedRoleNames = array_values(array_filter(array_map(
+            static fn (string $roleName): string => trim($roleName),
+            $roleNames
+        )));
+
+        if ($userId <= 0 || $normalizedRoleNames === []) {
+            return false;
+        }
+
+        $placeholders = implode(', ', array_fill(0, count($normalizedRoleNames), '?'));
+        $statement = $this->db->prepare(
+            "SELECT 1
+             FROM usuario_rol ur
+             INNER JOIN rol r ON r.rolid = ur.rolid
+             WHERE ur.usuid = ?
+               AND ur.usrestado = true
+               AND r.rolestado = true
+               AND r.rolnombre IN ({$placeholders})
+             LIMIT 1"
+        );
+        $statement->execute(array_merge([$userId], $normalizedRoleNames));
+
+        return $statement->fetchColumn() !== false;
     }
 
     public function verifyPassword(array $user, string $plainPassword): bool

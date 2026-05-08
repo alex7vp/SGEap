@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Controllers\AuthController;
+use App\Controllers\AttendanceController;
 use App\Controllers\ConfigurationController;
 use App\Controllers\CourseController;
 use App\Controllers\GradeController;
@@ -29,6 +30,7 @@ return static function (Router $router): void {
     $router->get('/academico', [ModuleController::class, 'academic']);
     $router->get('/configuracion', [ModuleController::class, 'configuration']);
     $router->get('/reportes', [ModuleController::class, 'reports']);
+    $router->get('/reportes/asistencia', [AttendanceController::class, 'reports']);
     $router->get('/seguridad', [ModuleController::class, 'security']);
     $router->post('/logout', [AuthController::class, 'logout']);
 
@@ -87,6 +89,7 @@ return static function (Router $router): void {
     $router->get('/personal/editar', [PersonalController::class, 'edit']);
     $router->get('/grados', [GradeController::class, 'index']);
     $router->get('/matriculas', [MatriculationController::class, 'index']);
+    $router->get('/matriculas/editar', [MatriculationController::class, 'edit']);
     $router->get('/matriculas/persona', [MatriculationController::class, 'findPerson']);
     $router->get('/cursos', [CourseController::class, 'index']);
     $router->get('/grados/crear', [GradeController::class, 'create']);
@@ -101,13 +104,42 @@ return static function (Router $router): void {
     $router->post('/personal/actualizar', [PersonalController::class, 'update']);
     $router->post('/grados', [GradeController::class, 'store']);
     $router->post('/matriculas', [MatriculationController::class, 'store']);
+    $router->post('/matriculas/actualizar', [MatriculationController::class, 'update']);
     $router->post('/matriculas/estado', [MatriculationController::class, 'toggleStatus']);
+    $router->post('/matriculas/sincronizar-accesos', [MatriculationController::class, 'syncAccesses']);
+    $router->post('/matriculas/sincronizar-accesos/matricula', [MatriculationController::class, 'syncMatriculationAccesses']);
     $router->post('/cursos', [CourseController::class, 'store']);
     $router->post('/cursos/estado', [CourseController::class, 'toggleStatus']);
     $router->post('/grados/actualizar', [GradeController::class, 'update']);
     $router->post('/grados/eliminar', [GradeController::class, 'destroy']);
     $router->post('/personas/actualizar', [PersonController::class, 'update']);
     $router->post('/personas/eliminar', [PersonController::class, 'destroy']);
+
+    $router->get('/asistencia/configuracion', [AttendanceController::class, 'configuration']);
+    $router->get('/asistencia/registro', [AttendanceController::class, 'register']);
+    $router->get('/asistencia/calendario', [AttendanceController::class, 'calendar']);
+    $router->get('/asistencia/justificaciones', [AttendanceController::class, 'justifications']);
+    $router->get('/asistencia/supervision', [AttendanceController::class, 'supervision']);
+    $router->get('/asistencia/mi-asistencia', [AttendanceController::class, 'ownAttendance']);
+    $router->get('/asistencia/representante', [AttendanceController::class, 'representativeAttendance']);
+    $router->post('/asistencia/calendario', [AttendanceController::class, 'saveCalendar']);
+    $router->post('/asistencia/justificaciones', [AttendanceController::class, 'storeJustification']);
+    $router->post('/asistencia/justificaciones/revisar', [AttendanceController::class, 'reviewJustification']);
+    $router->post('/asistencia/justificaciones/anular', [AttendanceController::class, 'annulJustification']);
+    $router->post('/asistencia/sesiones', [AttendanceController::class, 'openSession']);
+    $router->post('/asistencia/sesiones/anular', [AttendanceController::class, 'annulSession']);
+    $router->post('/asistencia/sesiones/cerrar', [AttendanceController::class, 'closeSession']);
+    $router->post('/asistencia/registros', [AttendanceController::class, 'saveRegister']);
+    $router->post('/asistencia/areas', [AttendanceController::class, 'storeArea']);
+    $router->post('/asistencia/areas/actualizar', [AttendanceController::class, 'updateArea']);
+    $router->post('/asistencia/areas/estado', [AttendanceController::class, 'toggleArea']);
+    $router->post('/asistencia/asignaturas', [AttendanceController::class, 'storeSubject']);
+    $router->post('/asistencia/asignaturas/actualizar', [AttendanceController::class, 'updateSubject']);
+    $router->post('/asistencia/asignaturas/estado', [AttendanceController::class, 'toggleSubject']);
+    $router->post('/asistencia/materias', [AttendanceController::class, 'storeCourseSubject']);
+    $router->post('/asistencia/materias/estado', [AttendanceController::class, 'toggleCourseSubject']);
+    $router->post('/asistencia/materias/docentes', [AttendanceController::class, 'assignTeacher']);
+    $router->post('/asistencia/materias/docentes/retirar', [AttendanceController::class, 'removeTeacher']);
 
     $router->get('/estudiantes', [StudentController::class, 'index']);
     $router->get('/estudiantes/buscar', [StudentController::class, 'search']);

@@ -83,7 +83,7 @@ class SecurityController extends Controller
             return;
         }
 
-        $users = $userModel->allDetailed($term, $status, 50);
+        $users = $userModel->allDetailed($term, $status, 300);
 
         header('Content-Type: application/json; charset=UTF-8');
         echo json_encode([
@@ -91,7 +91,7 @@ class SecurityController extends Controller
             'isEmpty' => empty($users),
             'emptyHtml' => '<div class="empty-state">No se encontraron usuarios con ese filtro.</div>',
             'count' => count($users),
-            'limited' => count($users) >= 50,
+            'limited' => count($users) >= 300,
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     }
 

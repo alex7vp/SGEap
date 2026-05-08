@@ -704,7 +704,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 const count = typeof payload.count === 'number' ? payload.count : securityUserTableBody.querySelectorAll('tr').length;
-                securityUserStatus.textContent = count + ' registro(s)' + (payload.limited ? ' | refine el filtro' : '');
+                securityUserStatus.textContent = count + ' registro(s)' + (payload.limited ? ' | hay mas resultados, busque por cedula o nombre' : '');
             } catch (error) {
                 securityUserStatus.textContent = 'Error al filtrar';
             }

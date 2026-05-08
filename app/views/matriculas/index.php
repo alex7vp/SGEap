@@ -852,6 +852,13 @@ $healthConditionTemplate = ob_get_clean();
     <section class="security-assignment-block" id="matriculas-registradas">
         <header class="security-assignment-header">
             <div><h3>Gestion de matriculas</h3><p>Listado de matriculas correspondientes al periodo actual. Desde aqui puedes habilitar o inhabilitar estudiantes matriculados.</p></div>
+            <form
+                method="POST"
+                action="<?= htmlspecialchars(baseUrl('matriculas/sincronizar-accesos'), ENT_QUOTES, 'UTF-8'); ?>"
+                onsubmit="return confirm('Se crearan o reactivaran usuarios para estudiantes y representantes con matricula activa. Desea continuar?');"
+            >
+                <button class="btn-secondary btn-auto" type="submit">Sincronizar usuarios</button>
+            </form>
         </header>
         <?php if (!empty($matriculaListFeedback)): ?>
             <div class="catalog-feedback security-feedback-global">
@@ -866,7 +873,7 @@ $healthConditionTemplate = ob_get_clean();
         <?php else: ?>
             <div class="table-wrap">
                 <table class="data-table">
-                    <thead><tr><th>Estudiante</th><th>Curso</th><th>Representante</th><th>Matricula</th><th>Fecha</th><th>Foto</th><th>Habilitacion</th><th>Acciones</th></tr></thead>
+                    <thead><tr><th>Estudiante</th><th>Curso</th><th>Representante</th><th>Matricula</th><th>Fecha</th><th>Foto</th><th>Habilitacion</th><th>Usuario</th><th>Acciones</th></tr></thead>
                     <tbody>
                         <?php foreach ($matriculas as $matricula): ?>
                             <tr>
@@ -882,7 +889,20 @@ $healthConditionTemplate = ob_get_clean();
                                     </span>
                                 </td>
                                 <td>
+                                    <?php if (empty($matricula['student_usuid'])): ?>
+                                        <span class="state-pill state-pill-inactive">Sin usuario</span>
+                                    <?php else: ?>
+                                        <span class="state-pill <?= !empty($matricula['student_usuestado']) ? 'state-pill-active' : 'state-pill-inactive'; ?>">
+                                            <?= !empty($matricula['student_usuestado']) ? 'Usuario activo' : 'Usuario inactivo'; ?>
+                                        </span>
+                                        <span class="cell-subtitle"><?= htmlspecialchars((string) $matricula['student_usunombre'], ENT_QUOTES, 'UTF-8'); ?></span>
+                                    <?php endif; ?>
+                                </td>
+                                <td>
                                     <div class="actions-group">
+                                        <?php if (!empty($canEditMatriculas)): ?>
+                                            <a class="btn-secondary btn-auto" href="<?= htmlspecialchars(baseUrl('matriculas/editar?id=' . (string) $matricula['matid']), ENT_QUOTES, 'UTF-8'); ?>">Editar</a>
+                                        <?php endif; ?>
                                         <form method="POST" action="<?= htmlspecialchars(baseUrl('matriculas/estado'), ENT_QUOTES, 'UTF-8'); ?>">
                                             <input type="hidden" name="matid" value="<?= htmlspecialchars((string) $matricula['matid'], ENT_QUOTES, 'UTF-8'); ?>">
                                             <input type="hidden" name="redirect_to" value="/matriculas?panel=gestion#matriculas-registradas">
@@ -890,6 +910,16 @@ $healthConditionTemplate = ob_get_clean();
                                                 <?= !empty($matricula['estestado']) ? 'Inhabilitar' : 'Habilitar'; ?>
                                             </button>
                                         </form>
+                                        <?php if (!empty($matricula['estestado']) && (empty($matricula['student_usuid']) || empty($matricula['student_usuestado']))): ?>
+                                            <form
+                                                method="POST"
+                                                action="<?= htmlspecialchars(baseUrl('matriculas/sincronizar-accesos/matricula'), ENT_QUOTES, 'UTF-8'); ?>"
+                                                onsubmit="return confirm('Se creara o reactivara el usuario de esta matricula. Desea continuar?');"
+                                            >
+                                                <input type="hidden" name="matid" value="<?= htmlspecialchars((string) $matricula['matid'], ENT_QUOTES, 'UTF-8'); ?>">
+                                                <button class="btn-secondary btn-auto" type="submit">Sincronizar usuario</button>
+                                            </form>
+                                        <?php endif; ?>
                                     </div>
                                 </td>
                             </tr>
