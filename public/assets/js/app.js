@@ -2700,6 +2700,77 @@ document.addEventListener('DOMContentLoaded', () => {
         updateStudentSortButtons();
     }
 
+    const matriculaSearchInput = document.querySelector('[data-matricula-search]');
+    const matriculaCourseFilter = document.querySelector('[data-matricula-course-filter]');
+    const matriculaStatusFilter = document.querySelector('[data-matricula-status-filter]');
+    const matriculaUserFilter = document.querySelector('[data-matricula-user-filter]');
+    const matriculaTableBody = document.querySelector('[data-matricula-table-body]');
+    const matriculaTableWrapper = document.querySelector('[data-matricula-table-wrapper]');
+    const matriculaEmptyWrapper = document.querySelector('[data-matricula-list-wrapper]');
+    const matriculaStatus = document.querySelector('[data-matricula-search-status]');
+
+    if (
+        matriculaSearchInput instanceof HTMLInputElement
+        && matriculaCourseFilter instanceof HTMLSelectElement
+        && matriculaStatusFilter instanceof HTMLSelectElement
+        && matriculaUserFilter instanceof HTMLSelectElement
+        && matriculaTableBody instanceof HTMLTableSectionElement
+        && matriculaTableWrapper instanceof HTMLElement
+        && matriculaEmptyWrapper instanceof HTMLElement
+        && matriculaStatus instanceof HTMLElement
+    ) {
+        let matriculaDebounceTimer = null;
+
+        const runMatriculaSearch = async () => {
+            const baseUrl = matriculaSearchInput.dataset.matriculaSearchUrl || '';
+
+            if (baseUrl === '') {
+                return;
+            }
+
+            const url = new URL(baseUrl, window.location.origin);
+            url.searchParams.set('q', matriculaSearchInput.value.trim());
+            url.searchParams.set('curid', matriculaCourseFilter.value);
+            url.searchParams.set('emdid', matriculaStatusFilter.value);
+            url.searchParams.set('usuario', matriculaUserFilter.value);
+            matriculaStatus.textContent = 'Buscando...';
+
+            try {
+                const response = await fetch(url.toString(), {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                });
+
+                if (!response.ok) {
+                    throw new Error('Matriculation search request failed');
+                }
+
+                const payload = await response.json();
+                matriculaTableBody.innerHTML = payload.html || '';
+                matriculaTableWrapper.hidden = !!payload.isEmpty;
+                matriculaEmptyWrapper.hidden = !payload.isEmpty;
+                matriculaEmptyWrapper.innerHTML = payload.isEmpty ? (payload.emptyHtml || '<div class="empty-state">No se encontraron matriculas.</div>') : '';
+                matriculaStatus.textContent = String(payload.count || 0) + ' registro(s)';
+            } catch (error) {
+                matriculaStatus.textContent = 'Error al filtrar';
+            }
+        };
+
+        const queueMatriculaSearch = () => {
+            if (matriculaDebounceTimer !== null) {
+                window.clearTimeout(matriculaDebounceTimer);
+            }
+
+            matriculaDebounceTimer = window.setTimeout(runMatriculaSearch, 250);
+        };
+
+        matriculaSearchInput.addEventListener('input', queueMatriculaSearch);
+        matriculaCourseFilter.addEventListener('change', runMatriculaSearch);
+        matriculaStatusFilter.addEventListener('change', runMatriculaSearch);
+        matriculaUserFilter.addEventListener('change', runMatriculaSearch);
+    }
+
     const searchInput = document.querySelector('[data-person-search]');
     const tableBody = document.querySelector('[data-person-table-body]');
     const tableWrapper = document.querySelector('[data-person-table-wrapper]');

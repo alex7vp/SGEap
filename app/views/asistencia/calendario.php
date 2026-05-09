@@ -8,6 +8,10 @@ $hours = range(1, 7);
 $calendarDay = is_array($calendarDay ?? null) ? $calendarDay : false;
 $calendarDetails = is_array($calendarDetails ?? null) ? $calendarDetails : [];
 $calendarMonthDays = is_array($calendarMonthDays ?? null) ? $calendarMonthDays : [];
+$classDateRange = is_array($classDateRange ?? null) ? $classDateRange : null;
+$classRangeStart = (string) ($classDateRange['start'] ?? '');
+$classRangeEnd = (string) ($classDateRange['end'] ?? '');
+$classRangeConfigured = !empty($classDateRange['configured']);
 $selectedType = (string) ($calendarDay['catipo_jornada'] ?? 'NORMAL');
 $selectedLimit = (string) ($calendarDay['cahora_limite'] ?? '');
 $monthStartTimestamp = strtotime((string) $monthStart);
@@ -31,8 +35,19 @@ $nextMonth = date('Y-m', strtotime('+1 month', $monthStartTimestamp));
 $firstWeekday = (int) date('N', $monthStartTimestamp);
 $daysInMonth = (int) date('t', $monthStartTimestamp);
 $dayNumber = 1;
+$selectedDateInsideClassRange = $classRangeStart === ''
+    || $classRangeEnd === ''
+    || ((string) $selectedDate >= $classRangeStart && (string) $selectedDate <= $classRangeEnd);
 ?>
-<p class="module-note">Los dias sin configuracion quedan suspendidos por defecto. Haga clic en una fecha para habilitarla como jornada normal, reducida o especial.</p>
+<p class="module-note">
+    Los dias sin configuracion quedan suspendidos por defecto. Haga clic en una fecha dentro del rango de clases para habilitarla como jornada normal, reducida o especial.
+    <?php if ($classRangeStart !== '' && $classRangeEnd !== ''): ?>
+        Rango de clases: <strong><?= htmlspecialchars($classRangeStart, ENT_QUOTES, 'UTF-8'); ?></strong> a <strong><?= htmlspecialchars($classRangeEnd, ENT_QUOTES, 'UTF-8'); ?></strong>.
+        <?php if (!$classRangeConfigured): ?>
+            Este rango usa temporalmente las fechas del periodo; puede ajustarlo en configuracion de asistencia.
+        <?php endif; ?>
+    <?php endif; ?>
+</p>
 
 <?php if ($currentPeriod === null): ?>
     <div class="empty-state">No hay un periodo lectivo seleccionado. Elige uno desde el chip de periodo en el navbar para continuar.</div>
@@ -43,14 +58,30 @@ $dayNumber = 1;
                 <h3>Calendario de asistencia</h3>
                 <p>Periodo actual: <strong><?= htmlspecialchars((string) $currentPeriod['pledescripcion'], ENT_QUOTES, 'UTF-8'); ?></strong>.</p>
             </div>
-            <div class="actions-group">
-                <a class="btn-secondary btn-auto" href="<?= htmlspecialchars(baseUrl('asistencia/calendario?mes=' . $previousMonth), ENT_QUOTES, 'UTF-8'); ?>">Anterior</a>
-                <a class="btn-secondary btn-auto" href="<?= htmlspecialchars(baseUrl('asistencia/calendario?mes=' . $nextMonth), ENT_QUOTES, 'UTF-8'); ?>">Siguiente</a>
-            </div>
         </header>
 
-        <div class="calendar-month">
-            <h3><?= htmlspecialchars($monthTitle, ENT_QUOTES, 'UTF-8'); ?></h3>
+        <div class="calendar-month" id="calendario-mes">
+            <div class="calendar-month-heading">
+                <a
+                    class="calendar-nav-button"
+                    href="<?= htmlspecialchars(baseUrl('asistencia/calendario?mes=' . $previousMonth . '#calendario-mes'), ENT_QUOTES, 'UTF-8'); ?>"
+                    title="Mes anterior"
+                    aria-label="Mes anterior"
+                >
+                    <i class="fa fa-chevron-left" aria-hidden="true"></i>
+                    <span class="sr-only">Mes anterior</span>
+                </a>
+                <h3><?= htmlspecialchars($monthTitle, ENT_QUOTES, 'UTF-8'); ?></h3>
+                <a
+                    class="calendar-nav-button"
+                    href="<?= htmlspecialchars(baseUrl('asistencia/calendario?mes=' . $nextMonth . '#calendario-mes'), ENT_QUOTES, 'UTF-8'); ?>"
+                    title="Mes siguiente"
+                    aria-label="Mes siguiente"
+                >
+                    <i class="fa fa-chevron-right" aria-hidden="true"></i>
+                    <span class="sr-only">Mes siguiente</span>
+                </a>
+            </div>
             <div class="calendar-grid calendar-grid-header">
                 <?php foreach (['Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sabado', 'Domingo'] as $weekday): ?>
                     <div><?= htmlspecialchars($weekday, ENT_QUOTES, 'UTF-8'); ?></div>
@@ -66,15 +97,22 @@ $dayNumber = 1;
                         $day = $calendarMonthDays[$date] ?? null;
                         $type = is_array($day) ? (string) $day['catipo_jornada'] : 'SUSPENDIDA';
                         $enabled = is_array($day) && !empty($day['cahabilitado']);
+                        $isWeekend = (int) date('N', strtotime($date)) >= 6;
+                        $insideClassRange = $classRangeStart === '' || $classRangeEnd === '' || ($date >= $classRangeStart && $date <= $classRangeEnd);
+                        $typeClass = 'is-type-' . strtolower($enabled ? $type : 'SUSPENDIDA');
                         $dayUrl = baseUrl('asistencia/calendario?mes=' . (string) $selectedMonth . '&fecha=' . $date . '#jornada-dialog');
+                        $dayTag = $insideClassRange ? 'a' : 'div';
+                        $dayHref = $insideClassRange ? ' href="' . htmlspecialchars($dayUrl, ENT_QUOTES, 'UTF-8') . '"' : '';
                         ?>
-                        <a
-                            class="calendar-day <?= $enabled ? 'is-enabled' : 'is-suspended'; ?> <?= $date === (string) $selectedDate ? 'is-selected' : ''; ?>"
-                            href="<?= htmlspecialchars($dayUrl, ENT_QUOTES, 'UTF-8'); ?>"
+                        <<?= $dayTag; ?>
+                            class="calendar-day <?= $enabled ? 'is-enabled' : 'is-suspended'; ?> <?= $isWeekend ? 'is-weekend' : ''; ?> <?= !$insideClassRange ? 'is-outside-range' : ''; ?> <?= htmlspecialchars($typeClass, ENT_QUOTES, 'UTF-8'); ?> <?= $date === (string) $selectedDate ? 'is-selected' : ''; ?>"
+                            <?= $dayHref; ?>
                         >
                             <strong><?= $dayNumber; ?></strong>
-                            <span><?= htmlspecialchars($enabled ? $type : 'SUSPENDIDA', ENT_QUOTES, 'UTF-8'); ?></span>
-                        </a>
+                            <?php if ($enabled): ?>
+                                <span><?= htmlspecialchars($type, ENT_QUOTES, 'UTF-8'); ?></span>
+                            <?php endif; ?>
+                        </<?= $dayTag; ?>>
                         <?php $dayNumber++; ?>
                     <?php endif; ?>
                 <?php endfor; ?>
@@ -82,6 +120,7 @@ $dayNumber = 1;
         </div>
     </section>
 
+    <?php if ($selectedDateInsideClassRange): ?>
     <dialog class="calendar-dialog" id="jornada-dialog">
         <form
             method="POST"
@@ -155,7 +194,7 @@ $dayNumber = 1;
                             <?php foreach ($courses as $course): ?>
                                 <?php $courseId = (int) $course['curid']; ?>
                                 <tr>
-                                    <td><?= htmlspecialchars((string) $course['nednombre'] . ' | ' . $course['granombre'] . ' ' . $course['prlnombre'], ENT_QUOTES, 'UTF-8'); ?></td>
+                                    <td><?= htmlspecialchars((string) $course['granombre'] . ' ' . $course['prlnombre'], ENT_QUOTES, 'UTF-8'); ?></td>
                                     <?php foreach ($hours as $hour): ?>
                                         <?php $checked = !empty($calendarDetails[$courseId][$hour]['cadhabilitado']); ?>
                                         <td>
@@ -179,6 +218,7 @@ $dayNumber = 1;
             </div>
         </form>
     </dialog>
+    <?php endif; ?>
 
     <section class="security-assignment-block">
         <header class="security-assignment-header">
@@ -209,7 +249,11 @@ $dayNumber = 1;
                                         <?= htmlspecialchars((string) $day['cafecha'], ENT_QUOTES, 'UTF-8'); ?>
                                     </a>
                                 </td>
-                                <td><?= htmlspecialchars((string) $day['catipo_jornada'], ENT_QUOTES, 'UTF-8'); ?></td>
+                                <td>
+                                    <span class="calendar-status-pill <?= htmlspecialchars('is-type-' . strtolower((string) $day['catipo_jornada']), ENT_QUOTES, 'UTF-8'); ?>">
+                                        <?= htmlspecialchars((string) $day['catipo_jornada'], ENT_QUOTES, 'UTF-8'); ?>
+                                    </span>
+                                </td>
                                 <td><?= htmlspecialchars((string) ($day['cahora_limite'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></td>
                                 <td><?= htmlspecialchars((string) ($day['caobservacion'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></td>
                             </tr>

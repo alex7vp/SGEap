@@ -851,13 +851,16 @@ $healthConditionTemplate = ob_get_clean();
     <?php if (!$isTemporaryMatriculation && $activePanel === 'gestion'): ?>
     <section class="security-assignment-block" id="matriculas-registradas">
         <header class="security-assignment-header">
-            <div><h3>Gestion de matriculas</h3><p>Listado de matriculas correspondientes al periodo actual. Desde aqui puedes habilitar o inhabilitar estudiantes matriculados.</p></div>
+            <div><h3>Gestion de matriculas</h3><p>Listado de matriculas correspondientes al periodo actual. Desde aqui puedes habilitar, editar y sincronizar accesos.</p></div>
             <form
                 method="POST"
                 action="<?= htmlspecialchars(baseUrl('matriculas/sincronizar-accesos'), ENT_QUOTES, 'UTF-8'); ?>"
                 onsubmit="return confirm('Se crearan o reactivaran usuarios para estudiantes y representantes con matricula activa. Desea continuar?');"
             >
-                <button class="btn-secondary btn-auto" type="submit">Sincronizar usuarios</button>
+                <button class="btn-secondary btn-auto" type="submit">
+                    <i class="fa fa-refresh" aria-hidden="true"></i>
+                    <span>Sincronizar usuarios</span>
+                </button>
             </form>
         </header>
         <?php if (!empty($matriculaListFeedback)): ?>
@@ -871,62 +874,67 @@ $healthConditionTemplate = ob_get_clean();
         <?php if (empty($matriculas)): ?>
             <div class="empty-state">Todavia no hay matriculas registradas para este periodo.</div>
         <?php else: ?>
-            <div class="table-wrap">
+            <div class="student-filter-bar matricula-filter-bar">
+                <div class="form-group">
+                    <div class="input-group">
+                        <span class="input-addon">Buscar</span>
+                        <input
+                            type="search"
+                            placeholder="Cedula, estudiante, representante, usuario o curso"
+                            data-matricula-search
+                            data-matricula-search-url="<?= htmlspecialchars(baseUrl('matriculas/buscar'), ENT_QUOTES, 'UTF-8'); ?>"
+                        >
+                    </div>
+                </div>
+                <div class="form-group">
+                    <div class="input-group">
+                        <span class="input-addon">Curso</span>
+                        <select data-matricula-course-filter>
+                            <option value="">Todos</option>
+                            <?php foreach (($managementCourses ?? []) as $course): ?>
+                                <option value="<?= htmlspecialchars((string) $course['curid'], ENT_QUOTES, 'UTF-8'); ?>">
+                                    <?= htmlspecialchars((string) ($course['granombre'] . ' ' . $course['prlnombre']), ENT_QUOTES, 'UTF-8'); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <div class="input-group">
+                        <span class="input-addon">Estado</span>
+                        <select data-matricula-status-filter>
+                            <option value="">Todos</option>
+                            <?php foreach (($enrollmentStatuses ?? []) as $status): ?>
+                                <option value="<?= htmlspecialchars((string) $status['emdid'], ENT_QUOTES, 'UTF-8'); ?>">
+                                    <?= htmlspecialchars((string) $status['emdnombre'], ENT_QUOTES, 'UTF-8'); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <div class="input-group">
+                        <span class="input-addon">Usuario</span>
+                        <select data-matricula-user-filter>
+                            <option value="">Todos</option>
+                            <option value="activo">Activo</option>
+                            <option value="inactivo">Inactivo</option>
+                            <option value="sin_usuario">Sin usuario</option>
+                        </select>
+                    </div>
+                </div>
+                <span class="table-status" data-matricula-search-status><?= count($matriculas); ?> registro(s)</span>
+            </div>
+
+            <div class="table-wrap" data-matricula-table-wrapper>
                 <table class="data-table">
-                    <thead><tr><th>Estudiante</th><th>Curso</th><th>Representante</th><th>Matricula</th><th>Fecha</th><th>Foto</th><th>Habilitacion</th><th>Usuario</th><th>Acciones</th></tr></thead>
-                    <tbody>
-                        <?php foreach ($matriculas as $matricula): ?>
-                            <tr>
-                                <td><span class="cell-title"><?= htmlspecialchars((string) $matricula['percedula'], ENT_QUOTES, 'UTF-8'); ?></span><span class="cell-subtitle"><strong><?= htmlspecialchars((string) $matricula['perapellidos'], ENT_QUOTES, 'UTF-8'); ?></strong> <?= htmlspecialchars((string) $matricula['pernombres'], ENT_QUOTES, 'UTF-8'); ?></span></td>
-                                <td><?= htmlspecialchars((string) ($matricula['nednombre'] . ' | ' . $matricula['granombre'] . ' | ' . $matricula['prlnombre']), ENT_QUOTES, 'UTF-8'); ?></td>
-                                <td><?= htmlspecialchars(trim((string) (($matricula['rep_apellidos'] ?? '') . ' ' . ($matricula['rep_nombres'] ?? '')) . (($matricula['rep_parentesco'] ?? '') !== '' ? ' (' . $matricula['rep_parentesco'] . ')' : '')), ENT_QUOTES, 'UTF-8'); ?></td>
-                                <td><?= htmlspecialchars((string) $matricula['emdnombre'], ENT_QUOTES, 'UTF-8'); ?></td>
-                                <td><?= htmlspecialchars((string) $matricula['matfecha'], ENT_QUOTES, 'UTF-8'); ?></td>
-                                <td><?php if (!empty($matricula['matfoto'])): ?><a class="text-link" href="<?= htmlspecialchars(asset((string) $matricula['matfoto']), ENT_QUOTES, 'UTF-8'); ?>" target="_blank" rel="noopener noreferrer">Ver foto</a><?php else: ?>Sin foto<?php endif; ?></td>
-                                <td>
-                                    <span class="state-pill <?= !empty($matricula['estestado']) ? 'state-pill-active' : 'state-pill-inactive'; ?>">
-                                        <?= !empty($matricula['estestado']) ? 'Habilitada' : 'Inhabilitada'; ?>
-                                    </span>
-                                </td>
-                                <td>
-                                    <?php if (empty($matricula['student_usuid'])): ?>
-                                        <span class="state-pill state-pill-inactive">Sin usuario</span>
-                                    <?php else: ?>
-                                        <span class="state-pill <?= !empty($matricula['student_usuestado']) ? 'state-pill-active' : 'state-pill-inactive'; ?>">
-                                            <?= !empty($matricula['student_usuestado']) ? 'Usuario activo' : 'Usuario inactivo'; ?>
-                                        </span>
-                                        <span class="cell-subtitle"><?= htmlspecialchars((string) $matricula['student_usunombre'], ENT_QUOTES, 'UTF-8'); ?></span>
-                                    <?php endif; ?>
-                                </td>
-                                <td>
-                                    <div class="actions-group">
-                                        <?php if (!empty($canEditMatriculas)): ?>
-                                            <a class="btn-secondary btn-auto" href="<?= htmlspecialchars(baseUrl('matriculas/editar?id=' . (string) $matricula['matid']), ENT_QUOTES, 'UTF-8'); ?>">Editar</a>
-                                        <?php endif; ?>
-                                        <form method="POST" action="<?= htmlspecialchars(baseUrl('matriculas/estado'), ENT_QUOTES, 'UTF-8'); ?>">
-                                            <input type="hidden" name="matid" value="<?= htmlspecialchars((string) $matricula['matid'], ENT_QUOTES, 'UTF-8'); ?>">
-                                            <input type="hidden" name="redirect_to" value="/matriculas?panel=gestion#matriculas-registradas">
-                                            <button class="btn-primary btn-auto" type="submit">
-                                                <?= !empty($matricula['estestado']) ? 'Inhabilitar' : 'Habilitar'; ?>
-                                            </button>
-                                        </form>
-                                        <?php if (!empty($matricula['estestado']) && (empty($matricula['student_usuid']) || empty($matricula['student_usuestado']))): ?>
-                                            <form
-                                                method="POST"
-                                                action="<?= htmlspecialchars(baseUrl('matriculas/sincronizar-accesos/matricula'), ENT_QUOTES, 'UTF-8'); ?>"
-                                                onsubmit="return confirm('Se creara o reactivara el usuario de esta matricula. Desea continuar?');"
-                                            >
-                                                <input type="hidden" name="matid" value="<?= htmlspecialchars((string) $matricula['matid'], ENT_QUOTES, 'UTF-8'); ?>">
-                                                <button class="btn-secondary btn-auto" type="submit">Sincronizar usuario</button>
-                                            </form>
-                                        <?php endif; ?>
-                                    </div>
-                                </td>
-                            </tr>
-                        <?php endforeach; ?>
+                    <thead><tr><th>Estudiante</th><th>Curso</th><th>Representante</th><th>Estado matricula</th><th>Usuario</th><th>Acciones</th></tr></thead>
+                    <tbody data-matricula-table-body>
+                        <?php require BASE_PATH . '/app/views/matriculas/_rows.php'; ?>
                     </tbody>
                 </table>
             </div>
+            <div data-matricula-list-wrapper hidden></div>
         <?php endif; ?>
     </section>
     <?php endif; ?>

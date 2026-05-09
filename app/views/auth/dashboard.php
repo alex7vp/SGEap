@@ -24,6 +24,12 @@ $canOwnMatriculation = $can('estudiante.mi_matricula');
 $canRepresentativeStudents = $can('representante.estudiantes');
 $canOwnAttendance = $can('asistencia.ver_propia');
 $canRepresentativeAttendance = $can('asistencia.representante.ver');
+$canAttendanceModule = $can('asistencia.calendario.gestionar')
+    || $can('asistencia.registrar')
+    || $can('asistencia.supervisar')
+    || $can('justificaciones.gestionar')
+    || $canOwnAttendance
+    || $canRepresentativeAttendance;
 
 $metricCards = [
     [
@@ -62,6 +68,7 @@ $metricCards = [
 $metricCards = array_values(array_filter($metricCards, static fn (array $card): bool => !empty($card['visible'])));
 
 $quickLinks = [
+    ['visible' => $canAttendanceModule, 'label' => 'Modulo asistencia', 'url' => baseUrl('asistencia')],
     ['visible' => $canOwnMatriculation, 'label' => 'Mi matricula', 'url' => baseUrl('mi-matricula')],
     ['visible' => $canOwnAttendance, 'label' => 'Mi asistencia', 'url' => baseUrl('asistencia/mi-asistencia')],
     ['visible' => $canRepresentativeStudents, 'label' => 'Mis estudiantes', 'url' => baseUrl('dashboard')],

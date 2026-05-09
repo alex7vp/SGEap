@@ -38,8 +38,27 @@ class ModuleController extends Controller
                     'permission' => 'matriculas.gestionar',
                 ],
                 [
+                    'label' => 'Asistencia',
+                    'description' => 'Centraliza configuracion, calendario, registro, supervision, justificaciones y reportes.',
+                    'url' => baseUrl('asistencia'),
+                    'icon' => 'fa-calendar-check-o',
+                    'permission' => 'asistencia.calendario.gestionar|asistencia.registrar|asistencia.supervisar|justificaciones.gestionar|asistencia.ver_propia|asistencia.representante.ver',
+                ],
+            ]
+        );
+    }
+
+    public function attendance(): void
+    {
+        $this->renderModuleHome(
+            'academico',
+            'asistencia_home',
+            'Asistencia',
+            'Agrupa la configuracion operativa, calendario, registro, supervision, justificaciones y consultas de asistencia.',
+            [
+                [
                     'label' => 'Configuracion de asistencia',
-                    'description' => 'Administra areas, asignaturas, materias por curso y docentes asignados.',
+                    'description' => 'Define el rango real de inicio y fin de clases usado por el calendario.',
                     'url' => baseUrl('asistencia/configuracion'),
                     'icon' => 'fa-calendar-check-o',
                     'permission' => 'asistencia.calendario.gestionar',
@@ -72,6 +91,27 @@ class ModuleController extends Controller
                     'icon' => 'fa-check-square-o',
                     'permission' => 'asistencia.registrar',
                 ],
+                [
+                    'label' => 'Reporte de asistencia',
+                    'description' => 'Consolida asistencias, atrasos y faltas por rango, curso o estudiante.',
+                    'url' => baseUrl('reportes/asistencia'),
+                    'icon' => 'fa-bar-chart',
+                    'permission' => 'asistencia.supervisar',
+                ],
+                [
+                    'label' => 'Mi asistencia',
+                    'description' => 'Consulta el resumen mensual y el detalle de asistencia del estudiante.',
+                    'url' => baseUrl('asistencia/mi-asistencia'),
+                    'icon' => 'fa-calendar-check-o',
+                    'permission' => 'asistencia.ver_propia',
+                ],
+                [
+                    'label' => 'Asistencia representados',
+                    'description' => 'Consulta asistencia de los estudiantes vinculados al representante.',
+                    'url' => baseUrl('asistencia/representante'),
+                    'icon' => 'fa-calendar-o',
+                    'permission' => 'asistencia.representante.ver',
+                ],
             ]
         );
     }
@@ -99,6 +139,25 @@ class ModuleController extends Controller
                     'permission' => 'configuracion.gestionar',
                 ],
                 [
+                    'label' => 'Configuracion academica',
+                    'description' => 'Agrupa periodos, grados, cursos, matricula, materias, docentes y parametros academicos.',
+                    'url' => baseUrl('configuracion/academica'),
+                    'icon' => 'fa-sitemap',
+                    'permission' => 'configuracion.gestionar|catalogos.gestionar|cursos.gestionar|matriculas.documentos|asistencia.calendario.gestionar',
+                ],
+            ]
+        );
+    }
+
+    public function academicConfiguration(): void
+    {
+        $this->renderModuleHome(
+            'configuracion',
+            'configuracion_academica',
+            'Configuracion academica',
+            'Centraliza las configuraciones que intervienen en los procesos academicos, de matricula y asistencia.',
+            [
+                [
                     'label' => 'Periodos lectivos',
                     'description' => 'Define periodos, vigencias y el periodo activo oficial.',
                     'url' => baseUrl('configuracion/periodos'),
@@ -125,6 +184,41 @@ class ModuleController extends Controller
                     'url' => baseUrl('cursos'),
                     'icon' => 'fa-book',
                     'permission' => 'cursos.gestionar',
+                ],
+                [
+                    'label' => 'Areas academicas',
+                    'description' => 'Gestiona las areas usadas para organizar las asignaturas institucionales.',
+                    'url' => null,
+                    'icon' => 'fa-folder-open',
+                    'permission' => 'asistencia.calendario.gestionar',
+                ],
+                [
+                    'label' => 'Asignaturas',
+                    'description' => 'Administra las materias base por area academica.',
+                    'url' => null,
+                    'icon' => 'fa-bookmark',
+                    'permission' => 'asistencia.calendario.gestionar',
+                ],
+                [
+                    'label' => 'Materias por curso',
+                    'description' => 'Relaciona asignaturas con los cursos activos del periodo.',
+                    'url' => null,
+                    'icon' => 'fa-list-ol',
+                    'permission' => 'asistencia.calendario.gestionar',
+                ],
+                [
+                    'label' => 'Asignacion de docentes',
+                    'description' => 'Vincula docentes con las materias que dictan en cada curso.',
+                    'url' => null,
+                    'icon' => 'fa-user-plus',
+                    'permission' => 'asistencia.calendario.gestionar',
+                ],
+                [
+                    'label' => 'Configuracion de asistencia',
+                    'description' => 'Define el rango real de clases usado por el calendario de asistencia.',
+                    'url' => baseUrl('asistencia/configuracion'),
+                    'icon' => 'fa-calendar-check-o',
+                    'permission' => 'asistencia.calendario.gestionar',
                 ],
             ]
         );

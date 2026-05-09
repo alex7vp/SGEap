@@ -63,6 +63,7 @@ class MatriculationController extends Controller
             'enrollmentStatuses' => $matriculationModel->allEnrollmentStatuses(),
             'documents' => $documents,
             'matriculas' => $viewedPeriod !== null ? $matriculationModel->allByPeriod((int) $viewedPeriod['pleid']) : [],
+            'managementCourses' => is_array($viewedPeriod) ? $matriculationModel->allCoursesByPeriod((int) $viewedPeriod['pleid']) : [],
             'canEditMatriculas' => $this->canEditMatriculations($user),
             'success' => null,
             'error' => null,
@@ -70,6 +71,40 @@ class MatriculationController extends Controller
             'matriculaListFeedback' => $this->matriculaListFeedback(),
             'old' => $this->oldFormData(),
         ]);
+    }
+
+    public function search(): void
+    {
+        $user = $this->requireAuth();
+
+        header('Content-Type: application/json; charset=UTF-8');
+
+        $period = currentAcademicPeriod();
+        $periodId = is_array($period) ? (int) $period['pleid'] : 0;
+
+        if ($periodId <= 0) {
+            echo json_encode([
+                'html' => '',
+                'count' => 0,
+                'isEmpty' => true,
+                'emptyHtml' => '<div class="empty-state">Debe seleccionar un periodo lectivo.</div>',
+            ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            return;
+        }
+
+        $matriculas = (new MatriculationModel())->allByPeriod($periodId, [
+            'q' => trim((string) ($_GET['q'] ?? '')),
+            'curid' => (int) ($_GET['curid'] ?? 0),
+            'emdid' => (int) ($_GET['emdid'] ?? 0),
+            'usuario' => trim((string) ($_GET['usuario'] ?? '')),
+        ]);
+
+        echo json_encode([
+            'html' => $this->matriculationRowsHtml($matriculas, $this->canEditMatriculations($user)),
+            'count' => count($matriculas),
+            'isEmpty' => $matriculas === [],
+            'emptyHtml' => '<div class="empty-state">No se encontraron matriculas con esos filtros.</div>',
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     }
 
     public function store(): void
@@ -412,6 +447,9 @@ class MatriculationController extends Controller
             $this->redirect('/matriculas?panel=gestion#matriculas-registradas');
         }
 
+        $section = trim((string) ($_GET['seccion'] ?? ''));
+        $panel = trim((string) ($_GET['panel'] ?? ''));
+        $sections = $this->matriculationEditSections();
         $matriculationModel = new MatriculationModel();
         $matricula = $matriculationModel->findForEdit($matriculaId);
 
@@ -420,17 +458,62 @@ class MatriculationController extends Controller
             $this->redirect('/matriculas?panel=gestion#matriculas-registradas');
         }
 
-        $this->view('matriculas.edit', [
+        $studentModel = new StudentModel();
+        $profile = $studentModel->profile((int) $matricula['estid'], (int) $matricula['pleid']);
+
+        if ($profile === false) {
+            $this->flashMatriculaListFeedback('error', 'No se pudo cargar la ficha completa del estudiante.');
+            $this->redirect('/matriculas?panel=gestion#matriculas-registradas');
+        }
+
+        $baseViewData = [
             'appName' => config('app')['name'] ?? 'SGEap',
-            'pageTitle' => 'Editar matricula',
+            'pageTitle' => $section !== '' && isset($sections[$section]) ? $sections[$section] : 'Editar matricula',
             'currentSection' => 'matriculas',
             'user' => $user,
-            'currentPeriod' => currentAcademicPeriod(),
+            'currentPeriod' => [
+                'pleid' => (int) ($matricula['pleid'] ?? 0),
+                'pledescripcion' => (string) ($matricula['pledescripcion'] ?? ''),
+            ],
             'matricula' => $matricula,
+            'profile' => $profile,
             'courses' => $matriculationModel->allCoursesByPeriod((int) $matricula['pleid']),
             'enrollmentStatuses' => $matriculationModel->allEnrollmentStatuses(),
             'enrollmentTypes' => $matriculationModel->allEnrollmentTypes(),
             'feedback' => $this->matriculaEditFeedback(),
+        ];
+
+        if ($section === '' || !isset($sections[$section])) {
+            $this->view('matriculas.edit', $baseViewData + [
+                'sections' => $sections,
+            ]);
+            return;
+        }
+
+        $this->view('estudiantes.module', $baseViewData + [
+            'section' => $section,
+            'panel' => $section === 'salud' ? $this->healthPanel($panel) : '',
+            'sectionTitle' => $sections[$section],
+            'relationships' => $matriculationModel->allRelationships(),
+            'civilStatuses' => $matriculationModel->allCivilStatuses(),
+            'instructionLevels' => $matriculationModel->allInstructionLevels(),
+            'bloodGroups' => $matriculationModel->allBloodGroups(),
+            'medicalCareTypes' => $matriculationModel->allMedicalCareTypes(),
+            'healthConditionTypes' => $matriculationModel->allHealthConditionTypes(),
+            'insuranceProviders' => $matriculationModel->allInsuranceProviders(),
+            'pregnancyTypes' => $matriculationModel->allPregnancyTypes(),
+            'birthTypes' => $matriculationModel->allBirthTypes(),
+            'documentsCatalog' => $matriculationModel->allActiveDocuments(),
+            'success' => sessionFlash('success'),
+            'error' => sessionFlash('error'),
+            'profileUrlOverride' => baseUrl('matriculas/editar?id=' . $matriculaId),
+            'moduleBaseUrlOverride' => static fn (string $moduleSection, string $modulePanel = ''): string => baseUrl(
+                'matriculas/editar?id=' . $matriculaId . '&seccion=' . $moduleSection . ($modulePanel !== '' ? '&panel=' . $modulePanel : '')
+            ),
+            'moduleFormAction' => 'matriculas/actualizar-modulo',
+            'extraHiddenFields' => [
+                'matid' => $matriculaId,
+            ],
         ]);
     }
 
@@ -468,6 +551,54 @@ class MatriculationController extends Controller
 
         $this->flashMatriculaListFeedback('success', 'Matricula actualizada correctamente.');
         $this->redirect('/matriculas?panel=gestion#matriculas-registradas');
+    }
+
+    public function updateModule(): void
+    {
+        $user = $this->requireAuth();
+
+        if (!$this->canEditMatriculations($user)) {
+            $this->flashMatriculaListFeedback('error', 'Solo Administrador y Secretaria pueden editar matriculas.');
+            $this->redirect('/matriculas?panel=gestion#matriculas-registradas');
+        }
+
+        $matriculaId = (int) ($_POST['matid'] ?? 0);
+        $section = trim((string) ($_POST['section'] ?? ''));
+        $panel = trim((string) ($_POST['panel'] ?? ''));
+        $sections = $this->matriculationEditSections();
+
+        if ($matriculaId <= 0 || !isset($sections[$section])) {
+            sessionFlash('error', 'El modulo solicitado no es valido.');
+            $this->redirect('/matriculas?panel=gestion#matriculas-registradas');
+        }
+
+        $matricula = (new MatriculationModel())->findForEdit($matriculaId);
+
+        if ($matricula === false) {
+            sessionFlash('error', 'No se encontro la matricula solicitada.');
+            $this->redirect('/matriculas?panel=gestion#matriculas-registradas');
+        }
+
+        try {
+            $data = $this->moduleFormData($section, $panel);
+
+            if ($section === 'matricula') {
+                (new MatriculationModel())->updateMatriculationData($matriculaId, $data);
+            } else {
+                (new StudentModel())->updateModule(
+                    (int) $matricula['estid'],
+                    $section,
+                    $data,
+                    (int) $matricula['pleid']
+                );
+            }
+        } catch (\Throwable $exception) {
+            sessionFlash('error', 'No se pudo actualizar el modulo: ' . $exception->getMessage());
+            $this->redirect($this->matriculaModuleRedirectPath($matriculaId, $section, $panel));
+        }
+
+        sessionFlash('success', 'Modulo actualizado correctamente.');
+        $this->redirect($this->matriculaModuleRedirectPath($matriculaId, $section, $panel));
     }
 
     public function syncAccesses(): void
@@ -1492,6 +1623,205 @@ class MatriculationController extends Controller
             (int) ($user['usuid'] ?? 0),
             ['Administrador', 'Secretaria']
         );
+    }
+
+    private function matriculationRowsHtml(array $matriculas, bool $canEditMatriculas): string
+    {
+        ob_start();
+        require BASE_PATH . '/app/views/matriculas/_rows.php';
+
+        return (string) ob_get_clean();
+    }
+
+    private function matriculationEditSections(): array
+    {
+        return [
+            'estudiante' => 'Datos del estudiante',
+            'matricula' => 'Matricula',
+            'representante' => 'Representante',
+            'familiares' => 'Familiares',
+            'salud' => 'Salud',
+            'academico' => 'Contexto academico',
+            'recursos' => 'Recursos tecnologicos',
+            'facturacion' => 'Facturacion',
+            'documentos' => 'Documentos',
+            'historial' => 'Historial de matriculas',
+        ];
+    }
+
+    private function healthPanel(string $panel): string
+    {
+        return in_array($panel, ['general', 'condiciones', 'historia-vital', 'mediciones'], true) ? $panel : '';
+    }
+
+    private function matriculaModuleRedirectPath(int $matriculaId, string $section, string $panel): string
+    {
+        $healthPanel = $section === 'salud' ? $this->healthPanel($panel) : '';
+        $path = '/matriculas/editar?id=' . $matriculaId . '&seccion=' . $section;
+
+        if ($healthPanel !== '') {
+            $path .= '&panel=' . $healthPanel;
+        }
+
+        if ($healthPanel === 'mediciones') {
+            $path .= '#nueva-medicion';
+        }
+
+        return $path;
+    }
+
+    private function moduleFormData(string $section, string $panel = ''): array
+    {
+        if ($section === 'estudiante') {
+            return [
+                'estid' => (int) ($_POST['estid'] ?? 0),
+                'perid' => 0,
+                'matid' => 0,
+                'curid' => (int) ($_POST['curid'] ?? 0),
+                'percedula' => trim((string) ($_POST['percedula'] ?? '')),
+                'pernombres' => trim((string) ($_POST['pernombres'] ?? '')),
+                'perapellidos' => trim((string) ($_POST['perapellidos'] ?? '')),
+                'persexo' => trim((string) ($_POST['persexo'] ?? '')),
+                'perfechanacimiento' => trim((string) ($_POST['perfechanacimiento'] ?? '')),
+                'pertelefono1' => trim((string) ($_POST['pertelefono1'] ?? '')),
+                'pertelefono2' => trim((string) ($_POST['pertelefono2'] ?? '')),
+                'percorreo' => trim((string) ($_POST['percorreo'] ?? '')),
+                'perprofesion' => trim((string) ($_POST['perprofesion'] ?? '')),
+                'perocupacion' => trim((string) ($_POST['perocupacion'] ?? '')),
+                'estlugarnacimiento' => trim((string) ($_POST['estlugarnacimiento'] ?? '')),
+                'estdireccion' => trim((string) ($_POST['estdireccion'] ?? '')),
+                'estparroquia' => trim((string) ($_POST['estparroquia'] ?? '')),
+                'estestado' => ($_POST['estestado'] ?? '1') === '1',
+            ];
+        }
+
+        if ($section === 'matricula') {
+            return [
+                'curid' => (int) ($_POST['curid'] ?? 0),
+                'matfecha' => trim((string) ($_POST['matfecha'] ?? '')),
+                'emdid' => (int) ($_POST['emdid'] ?? 0),
+                'tmaid' => (int) ($_POST['tmaid'] ?? 0),
+            ];
+        }
+
+        if ($section === 'representante') {
+            return [
+                'perid' => (int) ($_POST['perid'] ?? 0),
+                'pteid' => (int) ($_POST['pteid'] ?? 0),
+                'percedula' => trim((string) ($_POST['percedula'] ?? '')),
+                'pernombres' => trim((string) ($_POST['pernombres'] ?? '')),
+                'perapellidos' => trim((string) ($_POST['perapellidos'] ?? '')),
+                'pertelefono1' => trim((string) ($_POST['pertelefono1'] ?? '')),
+                'pertelefono2' => trim((string) ($_POST['pertelefono2'] ?? '')),
+                'percorreo' => trim((string) ($_POST['percorreo'] ?? '')),
+                'persexo' => trim((string) ($_POST['persexo'] ?? '')),
+                'perfechanacimiento' => trim((string) ($_POST['perfechanacimiento'] ?? '')),
+                'eciid' => (int) ($_POST['eciid'] ?? 0),
+                'istid' => (int) ($_POST['istid'] ?? 0),
+                'perprofesion' => trim((string) ($_POST['perprofesion'] ?? '')),
+                'perocupacion' => trim((string) ($_POST['perocupacion'] ?? '')),
+                'perlugardetrabajo' => trim((string) ($_POST['perlugardetrabajo'] ?? '')),
+                'perhablaingles' => isset($_POST['perhablaingles']),
+            ];
+        }
+
+        if ($section === 'familiares') {
+            return ['families' => (array) ($_POST['families'] ?? [])];
+        }
+
+        if ($section === 'salud') {
+            return $this->healthModuleFormData($panel);
+        }
+
+        if ($section === 'academico') {
+            return [
+                'ecafechaingresoinstitucion' => trim((string) ($_POST['ecafechaingresoinstitucion'] ?? '')),
+                'ecaharepetidoanios' => isset($_POST['ecaharepetidoanios']),
+                'ecadetallerepeticion' => trim((string) ($_POST['ecadetallerepeticion'] ?? '')),
+                'ecaasignaturaspreferencia' => trim((string) ($_POST['ecaasignaturaspreferencia'] ?? '')),
+                'ecaasignaturasdificultad' => trim((string) ($_POST['ecaasignaturasdificultad'] ?? '')),
+                'ecaactividadesextras' => trim((string) ($_POST['ecaactividadesextras'] ?? '')),
+            ];
+        }
+
+        if ($section === 'recursos') {
+            return [
+                'mrtinternet' => isset($_POST['mrtinternet']),
+                'mrtcomputador' => isset($_POST['mrtcomputador']),
+                'mrtlaptop' => isset($_POST['mrtlaptop']),
+                'mrttablet' => isset($_POST['mrttablet']),
+                'mrtcelular' => isset($_POST['mrtcelular']),
+                'mrtimpresora' => isset($_POST['mrtimpresora']),
+            ];
+        }
+
+        if ($section === 'facturacion') {
+            return [
+                'mfcnombre' => trim((string) ($_POST['mfcnombre'] ?? '')),
+                'mfctipoidentificacion' => mb_strtoupper(trim((string) ($_POST['mfctipoidentificacion'] ?? 'CEDULA'))),
+                'mfcidentificacion' => preg_replace('/\D+/', '', (string) ($_POST['mfcidentificacion'] ?? '')) ?? '',
+                'mfcdireccion' => trim((string) ($_POST['mfcdireccion'] ?? '')),
+                'mfccorreo' => trim((string) ($_POST['mfccorreo'] ?? '')),
+                'mfctelefono' => trim((string) ($_POST['mfctelefono'] ?? '')),
+            ];
+        }
+
+        if ($section === 'documentos') {
+            return [
+                'documents_catalog' => (new MatriculationModel())->allActiveDocuments(),
+                'documents' => array_map('intval', array_keys((array) ($_POST['documents'] ?? []))),
+            ];
+        }
+
+        return [];
+    }
+
+    private function healthModuleFormData(string $panel): array
+    {
+        $healthPanel = $this->healthPanel($panel);
+        $data = ['health_panel' => $healthPanel];
+
+        if ($healthPanel === 'general') {
+            $data += [
+                'gsid' => (int) ($_POST['gsid'] ?? 0),
+                'amid' => (int) ($_POST['amid'] ?? 0),
+                'ecstienediscapacidad' => isset($_POST['ecstienediscapacidad']),
+                'ecsdetallediscapacidad' => trim((string) ($_POST['ecsdetallediscapacidad'] ?? '')),
+                'insurance' => [
+                    'smid' => (int) ($_POST['insurance']['smid'] ?? 0),
+                    'msmtelefono' => trim((string) ($_POST['insurance']['msmtelefono'] ?? '')),
+                    'msmobservacion' => trim((string) ($_POST['insurance']['msmobservacion'] ?? '')),
+                ],
+            ];
+        } elseif ($healthPanel === 'condiciones') {
+            $data['health_conditions'] = (array) ($_POST['health_conditions'] ?? []);
+        } elseif ($healthPanel === 'historia-vital') {
+            $data['vital_history'] = [
+                'ehvedadmadre' => trim((string) ($_POST['vital_history']['ehvedadmadre'] ?? '')),
+                'ehvcomplicacionesembarazo' => trim((string) ($_POST['vital_history']['ehvcomplicacionesembarazo'] ?? '')),
+                'ehvmedicacionembarazo' => trim((string) ($_POST['vital_history']['ehvmedicacionembarazo'] ?? '')),
+                'teid' => (int) ($_POST['vital_history']['teid'] ?? 0),
+                'tpid' => (int) ($_POST['vital_history']['tpid'] ?? 0),
+                'ehvdetalleembarazo' => trim((string) ($_POST['vital_history']['ehvdetalleembarazo'] ?? '')),
+                'ehvpesonacer' => trim((string) ($_POST['vital_history']['ehvpesonacer'] ?? '')),
+                'ehvtallanacer' => trim((string) ($_POST['vital_history']['ehvtallanacer'] ?? '')),
+                'ehvedadcaminar' => trim((string) ($_POST['vital_history']['ehvedadcaminar'] ?? '')),
+                'ehvedadhablar' => trim((string) ($_POST['vital_history']['ehvedadhablar'] ?? '')),
+                'ehvperiodolactancia' => trim((string) ($_POST['vital_history']['ehvperiodolactancia'] ?? '')),
+                'ehvedadbiberon' => trim((string) ($_POST['vital_history']['ehvedadbiberon'] ?? '')),
+                'ehvedadcontrolesfinteres' => trim((string) ($_POST['vital_history']['ehvedadcontrolesfinteres'] ?? '')),
+            ];
+        } elseif ($healthPanel === 'mediciones') {
+            $data['health_measurement'] = [
+                'emspeso' => trim((string) ($_POST['health_measurement']['emspeso'] ?? '')),
+                'emstalla' => trim((string) ($_POST['health_measurement']['emstalla'] ?? '')),
+                'emsimc' => trim((string) ($_POST['health_measurement']['emsimc'] ?? '')),
+                'emsfecha_medicion' => trim((string) ($_POST['health_measurement']['emsfecha_medicion'] ?? '')),
+                'emsobservacion' => trim((string) ($_POST['health_measurement']['emsobservacion'] ?? '')),
+            ];
+        }
+
+        return $data;
     }
 
     private function flashMatriculaEditFeedback(string $type, string $message): void

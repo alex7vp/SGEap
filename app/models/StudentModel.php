@@ -468,7 +468,7 @@ class StudentModel extends Model
     private function matriculationsByStudent(int $studentId): array
     {
         $statement = $this->db->prepare(
-            "SELECT m.matfecha, em.emdnombre, pl.pledescripcion,
+            "SELECT m.matfecha, em.emdnombre, tm.tmanombre, pl.pledescripcion,
                     CONCAT(g.granombre, ' ', pr.prlnombre) AS curso
              FROM matricula m
              INNER JOIN curso c ON c.curid = m.curid
@@ -476,6 +476,7 @@ class StudentModel extends Model
              INNER JOIN grado g ON g.graid = c.graid
              INNER JOIN paralelo pr ON pr.prlid = c.prlid
              INNER JOIN estado_matricula em ON em.emdid = m.emdid
+             INNER JOIN tipo_matricula tm ON tm.tmaid = m.tmaid
              WHERE m.estid = :student_id
              ORDER BY pl.plefechainicio DESC, m.matfecha DESC"
         );

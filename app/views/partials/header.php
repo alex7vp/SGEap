@@ -22,11 +22,6 @@ $topModules = [
         'url' => baseUrl('configuracion'),
         'icon' => 'fa-cogs',
     ],
-    'reportes' => [
-        'label' => 'Reportes',
-        'url' => baseUrl('reportes'),
-        'icon' => 'fa-bar-chart',
-    ],
     'seguridad' => [
         'label' => 'Seguridad',
         'url' => baseUrl('seguridad'),
@@ -38,8 +33,6 @@ $sectionModuleMap = [
     'dashboard' => 'inicio',
     'matricula_temporal' => 'inicio',
     'mi_matricula' => 'inicio',
-    'asistencia_propia' => 'inicio',
-    'asistencia_representante' => 'inicio',
     'academico_home' => 'academico',
     'personas' => 'academico',
     'estudiantes' => 'academico',
@@ -48,12 +41,16 @@ $sectionModuleMap = [
     'personal_register' => 'academico',
     'personal_assignment' => 'academico',
     'personal_listing' => 'academico',
+    'asistencia_home' => 'academico',
     'asistencia_configuracion' => 'academico',
     'asistencia_calendario' => 'academico',
     'asistencia_justificaciones' => 'academico',
     'asistencia_supervision' => 'academico',
     'asistencia_registro' => 'academico',
+    'asistencia_propia' => 'academico',
+    'asistencia_representante' => 'academico',
     'configuracion_home' => 'configuracion',
+    'configuracion_academica' => 'configuracion',
     'catalogos' => 'configuracion',
     'grados' => 'configuracion',
     'institucion' => 'configuracion',
@@ -62,7 +59,7 @@ $sectionModuleMap = [
     'configuracion_matricula_documentos' => 'configuracion',
     'cursos' => 'configuracion',
     'reportes_home' => 'reportes',
-    'reporte_asistencia' => 'reportes',
+    'reporte_asistencia' => 'academico',
     'seguridad_home' => 'seguridad',
     'seguridad_catalogos' => 'seguridad',
     'seguridad_usuarios' => 'seguridad',
@@ -93,18 +90,6 @@ $sidebarModules = [
                 'url' => baseUrl('mi-matricula'),
                 'icon' => 'fa-address-card-o',
             ],
-            [
-                'key' => 'asistencia_propia',
-                'label' => 'Mi asistencia',
-                'url' => baseUrl('asistencia/mi-asistencia'),
-                'icon' => 'fa-calendar-check-o',
-            ],
-            [
-                'key' => 'asistencia_representante',
-                'label' => 'Asistencia representados',
-                'url' => baseUrl('asistencia/representante'),
-                'icon' => 'fa-calendar-o',
-            ],
         ],
     ],
     'academico' => [
@@ -132,34 +117,10 @@ $sidebarModules = [
                         'icon' => 'fa-address-card',
                     ],
                     [
-                        'key' => 'asistencia_configuracion',
-                        'label' => 'Configuracion de asistencia',
-                        'url' => baseUrl('asistencia/configuracion'),
+                        'key' => 'asistencia_home',
+                        'label' => 'Asistencia',
+                        'url' => baseUrl('asistencia'),
                         'icon' => 'fa-calendar-check-o',
-                    ],
-                    [
-                        'key' => 'asistencia_calendario',
-                        'label' => 'Calendario de asistencia',
-                        'url' => baseUrl('asistencia/calendario'),
-                        'icon' => 'fa-calendar',
-                    ],
-                    [
-                        'key' => 'asistencia_justificaciones',
-                        'label' => 'Justificaciones',
-                        'url' => baseUrl('asistencia/justificaciones'),
-                        'icon' => 'fa-file-text-o',
-                    ],
-                    [
-                        'key' => 'asistencia_supervision',
-                        'label' => 'Supervision de asistencia',
-                        'url' => baseUrl('asistencia/supervision'),
-                        'icon' => 'fa-search',
-                    ],
-                    [
-                        'key' => 'asistencia_registro',
-                        'label' => 'Registrar asistencia',
-                        'url' => baseUrl('asistencia/registro'),
-                        'icon' => 'fa-check-square-o',
                     ],
                 ],
             ],
@@ -169,7 +130,7 @@ $sidebarModules = [
         'title' => 'Configuracion',
         'groups' => [
             [
-                'title' => 'Catalogos',
+                'title' => 'General',
                 'items' => [
                     [
                         'key' => 'catalogos',
@@ -177,64 +138,19 @@ $sidebarModules = [
                         'url' => baseUrl('configuracion/catalogos'),
                         'icon' => 'fa-list-alt',
                     ],
-                ],
-            ],
-            [
-                'title' => 'Institucion',
-                'items' => [
                     [
                         'key' => 'institucion',
                         'label' => 'Datos institucionales',
                         'url' => baseUrl('configuracion/institucion'),
                         'icon' => 'fa-university',
                     ],
-                ],
-            ],
-            [
-                'title' => 'Periodo lectivo',
-                'items' => [
                     [
-                        'key' => 'periodos',
-                        'label' => 'Periodos lectivos',
-                        'url' => baseUrl('configuracion/periodos'),
-                        'icon' => 'fa-calendar',
-                    ],
-                    [
-                        'key' => 'configuracion_matricula',
-                        'label' => 'Configuracion de matricula',
-                        'url' => baseUrl('configuracion/matricula'),
-                        'icon' => 'fa-wpforms',
-                    ],
-                    [
-                        'key' => 'configuracion_matricula_documentos',
-                        'label' => 'Documentos de matricula',
-                        'url' => baseUrl('configuracion/matricula/documentos'),
-                        'icon' => 'fa-file-pdf-o',
-                    ],
-                    [
-                        'key' => 'grados',
-                        'label' => 'Grados',
-                        'url' => baseUrl('grados'),
+                        'key' => 'configuracion_academica',
+                        'label' => 'Configuracion academica',
+                        'url' => baseUrl('configuracion/academica'),
                         'icon' => 'fa-sitemap',
                     ],
-                    [
-                        'key' => 'cursos',
-                        'label' => 'Cursos por periodo',
-                        'url' => baseUrl('cursos'),
-                        'icon' => 'fa-book',
-                    ],
                 ],
-            ],
-        ],
-    ],
-    'reportes' => [
-        'title' => 'Reportes',
-        'items' => [
-            [
-                'key' => 'reporte_asistencia',
-                'label' => 'Reporte de asistencia',
-                'url' => baseUrl('reportes/asistencia'),
-                'icon' => 'fa-calendar-check-o',
             ],
         ],
     ],
@@ -332,19 +248,21 @@ $permissionMap = [
     'representante_estudiantes' => 'representante.estudiantes',
     'asistencia_propia' => 'asistencia.ver_propia',
     'asistencia_representante' => 'asistencia.representante.ver',
-    'academico_home' => ['estudiantes.gestionar', 'personas.gestionar', 'matriculas.gestionar', 'asistencia.calendario.gestionar', 'asistencia.registrar', 'asistencia.supervisar', 'justificaciones.gestionar'],
+    'academico_home' => ['estudiantes.gestionar', 'personas.gestionar', 'matriculas.gestionar', 'asistencia.calendario.gestionar', 'asistencia.registrar', 'asistencia.supervisar', 'justificaciones.gestionar', 'asistencia.ver_propia', 'asistencia.representante.ver'],
     'estudiantes' => 'estudiantes.gestionar',
     'personal' => 'personas.gestionar',
     'personal_register' => 'personas.gestionar',
     'personal_assignment' => 'personas.gestionar',
     'personal_listing' => 'personas.gestionar',
     'matriculas' => 'matriculas.gestionar',
+    'asistencia_home' => ['asistencia.calendario.gestionar', 'asistencia.registrar', 'asistencia.supervisar', 'justificaciones.gestionar', 'asistencia.ver_propia', 'asistencia.representante.ver'],
     'asistencia_configuracion' => 'asistencia.calendario.gestionar',
     'asistencia_calendario' => 'asistencia.calendario.gestionar',
     'asistencia_justificaciones' => 'justificaciones.gestionar',
     'asistencia_supervision' => 'asistencia.supervisar',
     'asistencia_registro' => 'asistencia.registrar',
-    'configuracion_home' => ['configuracion.gestionar', 'catalogos.gestionar', 'cursos.gestionar', 'matriculas.documentos'],
+    'configuracion_home' => ['configuracion.gestionar', 'catalogos.gestionar', 'cursos.gestionar', 'matriculas.documentos', 'asistencia.calendario.gestionar'],
+    'configuracion_academica' => ['configuracion.gestionar', 'catalogos.gestionar', 'cursos.gestionar', 'matriculas.documentos', 'asistencia.calendario.gestionar'],
     'catalogos' => 'catalogos.gestionar',
     'institucion' => 'configuracion.gestionar',
     'periodos' => 'configuracion.gestionar',
@@ -377,9 +295,8 @@ $canAccess = static function (string $key) use ($permissionMap, $userPermissions
 };
 $modulePermissions = [
     'inicio' => ['dashboard.ver', 'matricula_temporal.ver', 'representante.matricula_nueva', 'estudiante.mi_matricula', 'representante.estudiantes', 'asistencia.ver_propia', 'asistencia.representante.ver'],
-    'academico' => ['estudiantes.gestionar', 'personas.gestionar', 'matriculas.gestionar', 'asistencia.calendario.gestionar', 'asistencia.registrar', 'asistencia.supervisar', 'justificaciones.gestionar'],
-    'configuracion' => ['configuracion.gestionar', 'catalogos.gestionar', 'cursos.gestionar', 'matriculas.documentos'],
-    'reportes' => ['dashboard.ver', 'asistencia.supervisar'],
+    'academico' => ['estudiantes.gestionar', 'personas.gestionar', 'matriculas.gestionar', 'asistencia.calendario.gestionar', 'asistencia.registrar', 'asistencia.supervisar', 'justificaciones.gestionar', 'asistencia.ver_propia', 'asistencia.representante.ver'],
+    'configuracion' => ['configuracion.gestionar', 'catalogos.gestionar', 'cursos.gestionar', 'matriculas.documentos', 'asistencia.calendario.gestionar'],
     'seguridad' => ['seguridad.usuarios', 'seguridad.roles_permisos', 'usuarios_temporales.gestionar'],
 ];
 $canAccessModule = static function (string $moduleKey) use ($modulePermissions, $userPermissions, $representativeNewStudentEnabled): bool {
@@ -570,8 +487,26 @@ foreach ($logoPatterns as $logoPattern) {
                     <div class="sidebar-group">
                         <span class="sidebar-group-title"><?= htmlspecialchars((string) ($group['title'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></span>
                         <?php foreach (($group['items'] ?? []) as $item): ?>
+                            <?php
+                            $itemKey = (string) ($item['key'] ?? '');
+                            $isActiveSidebarItem = ($currentSection ?? '') === $itemKey
+                                || ($itemKey === 'asistencia_home' && str_starts_with((string) ($currentSection ?? ''), 'asistencia_'))
+                                || ($itemKey === 'asistencia_home' && ($currentSection ?? '') === 'reporte_asistencia')
+                                || (
+                                    $itemKey === 'configuracion_academica'
+                                    && in_array((string) ($currentSection ?? ''), [
+                                        'configuracion_academica',
+                                        'periodos',
+                                        'configuracion_matricula',
+                                        'configuracion_matricula_documentos',
+                                        'grados',
+                                        'cursos',
+                                        'asistencia_configuracion',
+                                    ], true)
+                                );
+                            ?>
                             <a
-                                class="<?= ($currentSection ?? '') === $item['key'] ? 'is-active' : ''; ?>"
+                                class="<?= $isActiveSidebarItem ? 'is-active' : ''; ?>"
                                 href="<?= htmlspecialchars($item['url'], ENT_QUOTES, 'UTF-8'); ?>"
                             >
                                 <i class="fa <?= htmlspecialchars((string) ($item['icon'] ?? 'fa-circle'), ENT_QUOTES, 'UTF-8'); ?>" aria-hidden="true"></i>

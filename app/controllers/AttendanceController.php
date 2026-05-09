@@ -18,9 +18,11 @@ class AttendanceController extends Controller
         $user = $this->requireAuth();
         $period = currentAcademicPeriod();
         $attendanceModel = new AttendanceModel();
-        $courseModel = new CourseModel();
 
         $periodId = $period !== null ? (int) $period['pleid'] : 0;
+        $attendanceConfiguration = $periodId > 0
+            ? $attendanceModel->attendanceConfigurationByPeriod($periodId)
+            : false;
 
         $this->view('asistencia.configuracion', [
             'appName' => config('app')['name'] ?? 'SGEap',
@@ -28,20 +30,40 @@ class AttendanceController extends Controller
             'currentSection' => 'asistencia_configuracion',
             'user' => $user,
             'currentPeriod' => $period,
-            'areas' => $attendanceModel->areas(),
-            'activeAreas' => $attendanceModel->activeAreas(),
-            'subjects' => $attendanceModel->subjects(),
-            'activeSubjects' => $attendanceModel->activeSubjects(),
-            'courses' => $periodId > 0 ? array_values(array_filter(
-                $courseModel->allByPeriod($periodId),
-                static fn (array $course): bool => !empty($course['curestado'])
-            )) : [],
-            'courseSubjects' => $periodId > 0 ? $attendanceModel->courseSubjectsByPeriod($periodId) : [],
-            'teachers' => $attendanceModel->activeTeachers(),
-            'teacherAssignments' => $periodId > 0 ? $attendanceModel->activeTeacherAssignmentsByCourseSubject($periodId) : [],
+            'attendanceConfiguration' => $attendanceConfiguration,
             'success' => sessionFlash('success'),
             'error' => sessionFlash('error'),
         ]);
+    }
+
+    public function saveConfiguration(): void
+    {
+        $user = $this->requireAuth();
+        $period = currentAcademicPeriod();
+
+        if ($period === null) {
+            sessionFlash('error', 'Debe seleccionar un periodo lectivo antes de configurar asistencia.');
+            $this->redirect('/asistencia/configuracion');
+        }
+
+        $startDate = trim((string) ($_POST['coafecha_inicio_clases'] ?? ''));
+        $endDate = trim((string) ($_POST['coafecha_fin_clases'] ?? ''));
+        $note = trim((string) ($_POST['coaobservacion'] ?? ''));
+
+        try {
+            (new AttendanceModel())->saveAttendanceConfiguration(
+                (int) $period['pleid'],
+                $startDate,
+                $endDate,
+                $note,
+                (int) ($user['usuid'] ?? 0)
+            );
+            sessionFlash('success', 'Configuracion de asistencia actualizada correctamente.');
+        } catch (Throwable $exception) {
+            sessionFlash('error', $exception->getMessage());
+        }
+
+        $this->redirect('/asistencia/configuracion');
     }
 
     public function register(): void
@@ -97,6 +119,7 @@ class AttendanceController extends Controller
         $monthStart = $month . '-01';
         $monthEnd = date('Y-m-t', strtotime($monthStart));
         $periodId = $period !== null ? (int) $period['pleid'] : 0;
+        $classDateRange = $periodId > 0 ? $attendanceModel->classDateRangeByPeriod($periodId) : null;
         $calendarDay = $periodId > 0 ? $attendanceModel->calendarDayByDate($periodId, $date) : false;
         $calendarDetails = $calendarDay !== false
             ? $attendanceModel->calendarDetailsByDay((int) $calendarDay['caid'])
@@ -112,6 +135,7 @@ class AttendanceController extends Controller
             'selectedMonth' => $month,
             'monthStart' => $monthStart,
             'monthEnd' => $monthEnd,
+            'classDateRange' => $classDateRange,
             'calendarDay' => $calendarDay,
             'calendarDetails' => $calendarDetails,
             'calendarMonthDays' => $periodId > 0 ? $attendanceModel->calendarDaysByRange($periodId, $monthStart, $monthEnd) : [],
@@ -429,7 +453,14 @@ class AttendanceController extends Controller
         $details = is_array($_POST['detalle'] ?? null) ? $_POST['detalle'] : [];
 
         try {
-            (new AttendanceModel())->saveCalendarDay(
+            $attendanceModel = new AttendanceModel();
+
+            if (!$attendanceModel->dateIsInsideClassRange((int) $period['pleid'], $date)) {
+                sessionFlash('error', 'La fecha seleccionada esta fuera del rango de clases configurado.');
+                $this->redirect('/asistencia/calendario?mes=' . $month . '#calendario-mes');
+            }
+
+            $attendanceModel->saveCalendarDay(
                 (int) $period['pleid'],
                 $date,
                 $type,
@@ -443,7 +474,7 @@ class AttendanceController extends Controller
             sessionFlash('error', 'No se pudo guardar el calendario de asistencia.');
         }
 
-        $this->redirect('/asistencia/calendario?mes=' . $month . '&fecha=' . $date);
+        $this->redirect('/asistencia/calendario?mes=' . $month . '&fecha=' . $date . '#calendario-mes');
     }
 
     public function openSession(): void
@@ -485,6 +516,11 @@ class AttendanceController extends Controller
 
         if ($calendarId === null) {
             sessionFlash('error', 'El dia no esta habilitado para registrar asistencia.');
+            $this->redirect('/asistencia/registro?fecha=' . $date);
+        }
+
+        if (!$attendanceModel->dateIsInsideClassRange((int) $period['pleid'], $date)) {
+            sessionFlash('error', 'La fecha seleccionada esta fuera del rango de clases configurado.');
             $this->redirect('/asistencia/registro?fecha=' . $date);
         }
 

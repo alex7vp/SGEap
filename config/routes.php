@@ -28,7 +28,9 @@ return static function (Router $router): void {
     $router->get('/representante/estudiante', [StudentController::class, 'representativeStudent']);
     $router->get('/representante/estudiante/modulo', [StudentController::class, 'representativeStudentModule']);
     $router->get('/academico', [ModuleController::class, 'academic']);
+    $router->get('/asistencia', [ModuleController::class, 'attendance']);
     $router->get('/configuracion', [ModuleController::class, 'configuration']);
+    $router->get('/configuracion/academica', [ModuleController::class, 'academicConfiguration']);
     $router->get('/reportes', [ModuleController::class, 'reports']);
     $router->get('/reportes/asistencia', [AttendanceController::class, 'reports']);
     $router->get('/seguridad', [ModuleController::class, 'security']);
@@ -90,6 +92,7 @@ return static function (Router $router): void {
     $router->get('/grados', [GradeController::class, 'index']);
     $router->get('/matriculas', [MatriculationController::class, 'index']);
     $router->get('/matriculas/editar', [MatriculationController::class, 'edit']);
+    $router->get('/matriculas/buscar', [MatriculationController::class, 'search']);
     $router->get('/matriculas/persona', [MatriculationController::class, 'findPerson']);
     $router->get('/cursos', [CourseController::class, 'index']);
     $router->get('/grados/crear', [GradeController::class, 'create']);
@@ -105,6 +108,7 @@ return static function (Router $router): void {
     $router->post('/grados', [GradeController::class, 'store']);
     $router->post('/matriculas', [MatriculationController::class, 'store']);
     $router->post('/matriculas/actualizar', [MatriculationController::class, 'update']);
+    $router->post('/matriculas/actualizar-modulo', [MatriculationController::class, 'updateModule']);
     $router->post('/matriculas/estado', [MatriculationController::class, 'toggleStatus']);
     $router->post('/matriculas/sincronizar-accesos', [MatriculationController::class, 'syncAccesses']);
     $router->post('/matriculas/sincronizar-accesos/matricula', [MatriculationController::class, 'syncMatriculationAccesses']);
@@ -122,6 +126,7 @@ return static function (Router $router): void {
     $router->get('/asistencia/supervision', [AttendanceController::class, 'supervision']);
     $router->get('/asistencia/mi-asistencia', [AttendanceController::class, 'ownAttendance']);
     $router->get('/asistencia/representante', [AttendanceController::class, 'representativeAttendance']);
+    $router->post('/asistencia/configuracion', [AttendanceController::class, 'saveConfiguration']);
     $router->post('/asistencia/calendario', [AttendanceController::class, 'saveCalendar']);
     $router->post('/asistencia/justificaciones', [AttendanceController::class, 'storeJustification']);
     $router->post('/asistencia/justificaciones/revisar', [AttendanceController::class, 'reviewJustification']);

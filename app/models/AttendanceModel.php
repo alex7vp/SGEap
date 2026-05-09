@@ -10,6 +10,121 @@ use RuntimeException;
 
 class AttendanceModel extends Model
 {
+    public function attendanceConfigurationByPeriod(int $periodId): array|false
+    {
+        $statement = $this->db->prepare(
+            "SELECT coaid, pleid, coafecha_inicio_clases, coafecha_fin_clases,
+                    coaobservacion, usuid_registro
+             FROM configuracion_asistencia
+             WHERE pleid = :period_id
+             LIMIT 1"
+        );
+        $statement->execute(['period_id' => $periodId]);
+
+        return $statement->fetch();
+    }
+
+    public function saveAttendanceConfiguration(
+        int $periodId,
+        string $classStartDate,
+        string $classEndDate,
+        string $note,
+        int $userId
+    ): void {
+        if ($periodId <= 0) {
+            throw new RuntimeException('Debe seleccionar un periodo lectivo valido.');
+        }
+
+        if (!$this->isIsoDate($classStartDate) || !$this->isIsoDate($classEndDate)) {
+            throw new RuntimeException('Las fechas de inicio y fin de clases no son validas.');
+        }
+
+        if ($classEndDate < $classStartDate) {
+            throw new RuntimeException('La fecha de fin de clases no puede ser anterior al inicio.');
+        }
+
+        $periodStatement = $this->db->prepare(
+            "SELECT plefechainicio, plefechafin
+             FROM periodo_lectivo
+             WHERE pleid = :period_id
+             LIMIT 1"
+        );
+        $periodStatement->execute(['period_id' => $periodId]);
+        $period = $periodStatement->fetch();
+
+        if ($period === false) {
+            throw new RuntimeException('El periodo lectivo seleccionado no existe.');
+        }
+
+        if ($classStartDate < (string) $period['plefechainicio'] || $classEndDate > (string) $period['plefechafin']) {
+            throw new RuntimeException('El rango de clases debe estar dentro de las fechas del periodo lectivo.');
+        }
+
+        $statement = $this->db->prepare(
+            "INSERT INTO configuracion_asistencia (
+                pleid, coafecha_inicio_clases, coafecha_fin_clases, coaobservacion, usuid_registro
+             ) VALUES (
+                :period_id, :class_start_date, :class_end_date, :note, :user_id
+             )
+             ON CONFLICT (pleid) DO UPDATE
+             SET coafecha_inicio_clases = EXCLUDED.coafecha_inicio_clases,
+                 coafecha_fin_clases = EXCLUDED.coafecha_fin_clases,
+                 coaobservacion = EXCLUDED.coaobservacion,
+                 usuid_registro = EXCLUDED.usuid_registro,
+                 coafecha_modificacion = CURRENT_TIMESTAMP"
+        );
+        $statement->execute([
+            'period_id' => $periodId,
+            'class_start_date' => $classStartDate,
+            'class_end_date' => $classEndDate,
+            'note' => $note !== '' ? $note : null,
+            'user_id' => $userId,
+        ]);
+    }
+
+    public function classDateRangeByPeriod(int $periodId): ?array
+    {
+        $configuration = $this->attendanceConfigurationByPeriod($periodId);
+
+        if ($configuration !== false) {
+            return [
+                'start' => (string) $configuration['coafecha_inicio_clases'],
+                'end' => (string) $configuration['coafecha_fin_clases'],
+                'configured' => true,
+            ];
+        }
+
+        $statement = $this->db->prepare(
+            "SELECT plefechainicio, plefechafin
+             FROM periodo_lectivo
+             WHERE pleid = :period_id
+             LIMIT 1"
+        );
+        $statement->execute(['period_id' => $periodId]);
+        $period = $statement->fetch();
+
+        if ($period === false) {
+            return null;
+        }
+
+        return [
+            'start' => (string) $period['plefechainicio'],
+            'end' => (string) $period['plefechafin'],
+            'configured' => false,
+        ];
+    }
+
+    public function dateIsInsideClassRange(int $periodId, string $date): bool
+    {
+        $range = $this->classDateRangeByPeriod($periodId);
+
+        if ($range === null) {
+            return false;
+        }
+
+        return $date >= $range['start'] && $date <= $range['end'];
+    }
+
     public function areas(): array
     {
         $statement = $this->db->query(
@@ -1378,5 +1493,16 @@ class AttendanceModel extends Model
 
             throw $exception;
         }
+    }
+
+    private function isIsoDate(string $date): bool
+    {
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+            return false;
+        }
+
+        [$year, $month, $day] = array_map('intval', explode('-', $date));
+
+        return checkdate($month, $day, $year);
     }
 }

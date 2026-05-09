@@ -23,6 +23,7 @@ $academicContext = is_array($profile['academic_context'] ?? null) ? $profile['ac
 $resources = is_array($profile['resources'] ?? null) ? $profile['resources'] : [];
 $billing = is_array($profile['billing'] ?? null) ? $profile['billing'] : [];
 $documents = is_array($profile['documents'] ?? null) ? $profile['documents'] : [];
+$matriculations = is_array($profile['matriculations'] ?? null) ? $profile['matriculations'] : [];
 $isOwnProfile = !empty($isOwnProfile);
 $readOnly = !empty($readOnly);
 
@@ -95,10 +96,12 @@ $imcDescription = static function (mixed $value, mixed $birthDate = null, mixed 
 };
 $studentId = (int) ($student['estid'] ?? 0);
 $studentName = trim((string) (($student['perapellidos'] ?? '') . ' ' . ($student['pernombres'] ?? '')));
-$profileUrl = $isOwnProfile ? baseUrl('mi-matricula') : baseUrl('estudiantes/ver?id=' . $studentId);
-$moduleBaseUrl = static fn (string $section, string $panel = ''): string => $isOwnProfile
+$profileUrl = $profileUrlOverride ?? ($isOwnProfile ? baseUrl('mi-matricula') : baseUrl('estudiantes/ver?id=' . $studentId));
+$moduleBaseUrl = $moduleBaseUrlOverride ?? static fn (string $section, string $panel = ''): string => $isOwnProfile
     ? baseUrl('mi-matricula/modulo?seccion=' . $section . ($panel !== '' ? '&panel=' . $panel : ''))
     : baseUrl('estudiantes/modulo?id=' . $studentId . '&seccion=' . $section . ($panel !== '' ? '&panel=' . $panel : ''));
+$moduleFormAction = (string) ($moduleFormAction ?? 'estudiantes/modulo/actualizar');
+$extraHiddenFields = is_array($extraHiddenFields ?? null) ? $extraHiddenFields : [];
 $acceptedDocuments = [];
 
 foreach ($documents as $document) {
@@ -184,9 +187,12 @@ $healthConditionTemplate .= '</select></div></div>'
         <div class="alert alert-success">Vista de consulta. Los cambios deben solicitarse a secretaria o administracion.</div>
     <?php endif; ?>
 
-    <form class="data-form student-module-form <?= $readOnly ? 'is-readonly' : ''; ?>" method="POST" action="<?= $h(baseUrl('estudiantes/modulo/actualizar')); ?>">
+    <form class="data-form student-module-form <?= $readOnly ? 'is-readonly' : ''; ?>" method="POST" action="<?= $h(baseUrl($moduleFormAction)); ?>">
         <input type="hidden" name="estid" value="<?= $h($studentId); ?>">
         <input type="hidden" name="section" value="<?= $h($section); ?>">
+        <?php foreach ($extraHiddenFields as $fieldName => $fieldValue): ?>
+            <input type="hidden" name="<?= $h($fieldName); ?>" value="<?= $h($fieldValue); ?>">
+        <?php endforeach; ?>
         <?php if ($section === 'salud' && $panel !== ''): ?>
             <input type="hidden" name="panel" value="<?= $h($panel); ?>">
         <?php endif; ?>
@@ -405,6 +411,35 @@ $healthConditionTemplate .= '</select></div></div>'
                     </label>
                 <?php endforeach; ?>
             </div>
+        <?php elseif ($section === 'historial'): ?>
+            <?php if ($matriculations === []): ?>
+                <p class="empty-state">No existen matriculas registradas para este estudiante.</p>
+            <?php else: ?>
+                <div class="table-wrap">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Periodo</th>
+                                <th>Curso</th>
+                                <th>Tipo</th>
+                                <th>Estado</th>
+                                <th>Fecha</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($matriculations as $row): ?>
+                                <tr>
+                                    <td><?= $h($row['pledescripcion'] ?? ''); ?></td>
+                                    <td><?= $h($row['curso'] ?? ''); ?></td>
+                                    <td><?= $h($row['tmanombre'] ?? ''); ?></td>
+                                    <td><?= $h($row['emdnombre'] ?? ''); ?></td>
+                                    <td><?= $h($row['matfecha'] ?? ''); ?></td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            <?php endif; ?>
         <?php endif; ?>
 
         <?php if ($readOnly): ?></fieldset><?php endif; ?>
@@ -414,6 +449,8 @@ $healthConditionTemplate .= '</select></div></div>'
             <?php elseif ($section === 'salud' && $panel !== ''): ?>
                 <a class="btn-secondary btn-auto" href="<?= $h($moduleBaseUrl('salud')); ?>">Volver a salud</a>
                 <?php if (!$readOnly): ?><button type="submit" class="btn-primary btn-auto">Guardar cambios</button><?php endif; ?>
+            <?php elseif ($section === 'historial'): ?>
+                <a class="btn-secondary btn-auto" href="<?= $h($profileUrl); ?>">Volver a la ficha</a>
             <?php elseif (!($section === 'salud' && $panel === '')): ?>
                 <a class="btn-secondary btn-auto" href="<?= $h($profileUrl); ?>"><?= $readOnly ? 'Volver a la ficha' : 'Cancelar'; ?></a>
                 <?php if (!$readOnly): ?><button type="submit" class="btn-primary btn-auto">Guardar cambios</button><?php endif; ?>

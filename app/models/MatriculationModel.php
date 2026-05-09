@@ -145,8 +145,48 @@ class MatriculationModel extends Model
         return $types[0];
     }
 
-    public function allByPeriod(int $periodId): array
+    public function allByPeriod(int $periodId, array $filters = []): array
     {
+        $conditions = ['c.pleid = :period_id'];
+        $params = ['period_id' => $periodId];
+        $search = trim((string) ($filters['q'] ?? ''));
+        $courseId = (int) ($filters['curid'] ?? 0);
+        $statusId = (int) ($filters['emdid'] ?? 0);
+        $userState = trim((string) ($filters['usuario'] ?? ''));
+
+        if ($search !== '') {
+            $conditions[] = "(
+                p.percedula ILIKE :search
+                OR p.pernombres ILIKE :search
+                OR p.perapellidos ILIKE :search
+                OR COALESCE(rp.pernombres, '') ILIKE :search
+                OR COALESCE(rp.perapellidos, '') ILIKE :search
+                OR COALESCE(u.usunombre, '') ILIKE :search
+                OR COALESCE(g.granombre, '') ILIKE :search
+                OR COALESCE(pr.prlnombre, '') ILIKE :search
+            )";
+            $params['search'] = '%' . $search . '%';
+        }
+
+        if ($courseId > 0) {
+            $conditions[] = 'm.curid = :course_id';
+            $params['course_id'] = $courseId;
+        }
+
+        if ($statusId > 0) {
+            $conditions[] = 'm.emdid = :status_id';
+            $params['status_id'] = $statusId;
+        }
+
+        if ($userState === 'activo') {
+            $conditions[] = 'u.usuid IS NOT NULL AND u.usuestado = true';
+        } elseif ($userState === 'inactivo') {
+            $conditions[] = 'u.usuid IS NOT NULL AND u.usuestado = false';
+        } elseif ($userState === 'sin_usuario') {
+            $conditions[] = 'u.usuid IS NULL';
+        }
+
+        $whereSql = implode(' AND ', $conditions);
         $statement = $this->db->prepare(
             "SELECT m.matid, m.matfecha, m.matfoto,
                     p.percedula, p.perapellidos, p.pernombres,
@@ -175,10 +215,10 @@ class MatriculationModel extends Model
              LEFT JOIN persona rp ON rp.perid = mr.perid
              LEFT JOIN usuario ru ON ru.perid = rp.perid
              LEFT JOIN parentesco pt ON pt.pteid = mr.pteid
-             WHERE c.pleid = :period_id
+             WHERE {$whereSql}
              ORDER BY m.matfecha DESC, p.perapellidos ASC, p.pernombres ASC"
         );
-        $statement->execute(['period_id' => $periodId]);
+        $statement->execute($params);
 
         return $statement->fetchAll();
     }
