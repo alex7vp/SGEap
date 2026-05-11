@@ -114,12 +114,25 @@ class AttendanceController extends Controller
         $period = currentAcademicPeriod();
         $attendanceModel = new AttendanceModel();
         $courseModel = new CourseModel();
-        $month = $this->validMonthOrCurrent((string) ($_GET['mes'] ?? date('Y-m')));
-        $date = $this->validDateOrToday((string) ($_GET['fecha'] ?? $month . '-01'));
-        $monthStart = $month . '-01';
-        $monthEnd = date('Y-m-t', strtotime($monthStart));
         $periodId = $period !== null ? (int) $period['pleid'] : 0;
         $classDateRange = $periodId > 0 ? $attendanceModel->classDateRangeByPeriod($periodId) : null;
+        $availableMonths = $classDateRange !== null
+            ? $this->monthsBetween((string) $classDateRange['start'], (string) $classDateRange['end'])
+            : [];
+        $month = $this->validMonthOrCurrent((string) ($_GET['mes'] ?? date('Y-m')));
+
+        if ($availableMonths !== [] && !in_array($month, $availableMonths, true)) {
+            $month = $this->nearestMonthInRange($month, $availableMonths);
+        }
+
+        $monthStart = $month . '-01';
+        $monthEnd = date('Y-m-t', strtotime($monthStart));
+        $date = $this->validDateOrToday((string) ($_GET['fecha'] ?? $this->firstSelectableDateForMonth($monthStart, $monthEnd, $classDateRange)));
+
+        if (!$this->dateInsideClassRange($date, $classDateRange)) {
+            $date = $this->firstSelectableDateForMonth($monthStart, $monthEnd, $classDateRange);
+        }
+
         $calendarDay = $periodId > 0 ? $attendanceModel->calendarDayByDate($periodId, $date) : false;
         $calendarDetails = $calendarDay !== false
             ? $attendanceModel->calendarDetailsByDay((int) $calendarDay['caid'])
@@ -136,6 +149,7 @@ class AttendanceController extends Controller
             'monthStart' => $monthStart,
             'monthEnd' => $monthEnd,
             'classDateRange' => $classDateRange,
+            'availableMonths' => $availableMonths,
             'calendarDay' => $calendarDay,
             'calendarDetails' => $calendarDetails,
             'calendarMonthDays' => $periodId > 0 ? $attendanceModel->calendarDaysByRange($periodId, $monthStart, $monthEnd) : [],
@@ -900,6 +914,80 @@ class AttendanceController extends Controller
         }
 
         return date('Y-m');
+    }
+
+    private function monthsBetween(string $startDate, string $endDate): array
+    {
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $startDate) || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $endDate)) {
+            return [];
+        }
+
+        $start = new \DateTimeImmutable(substr($startDate, 0, 7) . '-01');
+        $end = new \DateTimeImmutable(substr($endDate, 0, 7) . '-01');
+
+        if ($end < $start) {
+            return [];
+        }
+
+        $months = [];
+
+        for ($cursor = $start; $cursor <= $end; $cursor = $cursor->modify('+1 month')) {
+            $months[] = $cursor->format('Y-m');
+        }
+
+        return $months;
+    }
+
+    private function nearestMonthInRange(string $month, array $availableMonths): string
+    {
+        $firstMonth = (string) reset($availableMonths);
+        $lastMonth = (string) end($availableMonths);
+
+        if ($month < $firstMonth) {
+            return $firstMonth;
+        }
+
+        if ($month > $lastMonth) {
+            return $lastMonth;
+        }
+
+        return $firstMonth;
+    }
+
+    private function firstSelectableDateForMonth(string $monthStart, string $monthEnd, ?array $classDateRange): string
+    {
+        if ($classDateRange === null) {
+            return $monthStart;
+        }
+
+        $rangeStart = (string) ($classDateRange['start'] ?? '');
+        $rangeEnd = (string) ($classDateRange['end'] ?? '');
+
+        if ($rangeStart === '' || $rangeEnd === '') {
+            return $monthStart;
+        }
+
+        if ($rangeStart >= $monthStart && $rangeStart <= $monthEnd) {
+            return $rangeStart;
+        }
+
+        if ($rangeEnd >= $monthStart && $rangeEnd <= $monthEnd) {
+            return min($monthStart, $rangeEnd);
+        }
+
+        return $monthStart;
+    }
+
+    private function dateInsideClassRange(string $date, ?array $classDateRange): bool
+    {
+        if ($classDateRange === null) {
+            return true;
+        }
+
+        $rangeStart = (string) ($classDateRange['start'] ?? '');
+        $rangeEnd = (string) ($classDateRange['end'] ?? '');
+
+        return $rangeStart === '' || $rangeEnd === '' || ($date >= $rangeStart && $date <= $rangeEnd);
     }
 
     private function studentAttendanceView(

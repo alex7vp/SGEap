@@ -3062,6 +3062,23 @@ thead .role-user-sticky {
     font-size: 0.88rem;
 }
 
+.calendar-nav-button.is-disabled {
+    cursor: not-allowed;
+    opacity: 0.45;
+    color: var(--muted);
+    background: #f4f7f9;
+    box-shadow: none;
+    transform: none;
+}
+
+.calendar-nav-button.is-disabled:hover,
+.calendar-nav-button.is-disabled:focus-visible {
+    border-color: var(--border-strong);
+    background: #f4f7f9;
+    color: var(--muted);
+    transform: none;
+}
+
 .calendar-month-heading {
     display: grid;
     grid-template-columns: 34px minmax(0, 1fr) 34px;
@@ -3076,6 +3093,19 @@ thead .role-user-sticky {
     font-weight: 700;
     letter-spacing: 0;
     text-align: center;
+}
+
+.calendar-month-selector {
+    display: flex;
+    justify-content: center;
+}
+
+.calendar-month-selector select {
+    width: min(100%, 280px);
+}
+
+.data-table th [data-hour-master] {
+    margin-top: 4px;
 }
 
 .calendar-grid {

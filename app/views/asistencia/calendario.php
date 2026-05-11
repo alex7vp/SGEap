@@ -9,6 +9,7 @@ $calendarDay = is_array($calendarDay ?? null) ? $calendarDay : false;
 $calendarDetails = is_array($calendarDetails ?? null) ? $calendarDetails : [];
 $calendarMonthDays = is_array($calendarMonthDays ?? null) ? $calendarMonthDays : [];
 $classDateRange = is_array($classDateRange ?? null) ? $classDateRange : null;
+$availableMonths = is_array($availableMonths ?? null) ? $availableMonths : [];
 $classRangeStart = (string) ($classDateRange['start'] ?? '');
 $classRangeEnd = (string) ($classDateRange['end'] ?? '');
 $classRangeConfigured = !empty($classDateRange['configured']);
@@ -32,6 +33,8 @@ $monthNames = [
 $monthTitle = strtoupper($monthNames[(int) date('n', $monthStartTimestamp)] . ' ' . (string) date('Y', $monthStartTimestamp));
 $previousMonth = date('Y-m', strtotime('-1 month', $monthStartTimestamp));
 $nextMonth = date('Y-m', strtotime('+1 month', $monthStartTimestamp));
+$canNavigatePrevious = $availableMonths === [] || in_array($previousMonth, $availableMonths, true);
+$canNavigateNext = $availableMonths === [] || in_array($nextMonth, $availableMonths, true);
 $firstWeekday = (int) date('N', $monthStartTimestamp);
 $daysInMonth = (int) date('t', $monthStartTimestamp);
 $dayNumber = 1;
@@ -62,26 +65,51 @@ $selectedDateInsideClassRange = $classRangeStart === ''
 
         <div class="calendar-month" id="calendario-mes">
             <div class="calendar-month-heading">
-                <a
-                    class="calendar-nav-button"
-                    href="<?= htmlspecialchars(baseUrl('asistencia/calendario?mes=' . $previousMonth . '#calendario-mes'), ENT_QUOTES, 'UTF-8'); ?>"
-                    title="Mes anterior"
-                    aria-label="Mes anterior"
-                >
-                    <i class="fa fa-chevron-left" aria-hidden="true"></i>
-                    <span class="sr-only">Mes anterior</span>
-                </a>
+                <?php if ($canNavigatePrevious): ?>
+                    <a
+                        class="calendar-nav-button"
+                        href="<?= htmlspecialchars(baseUrl('asistencia/calendario?mes=' . $previousMonth . '#calendario-mes'), ENT_QUOTES, 'UTF-8'); ?>"
+                        title="Mes anterior"
+                        aria-label="Mes anterior"
+                    >
+                        <i class="fa fa-chevron-left" aria-hidden="true"></i>
+                        <span class="sr-only">Mes anterior</span>
+                    </a>
+                <?php else: ?>
+                    <span class="calendar-nav-button is-disabled" title="No hay meses anteriores habilitados" aria-label="No hay meses anteriores habilitados">
+                        <i class="fa fa-chevron-left" aria-hidden="true"></i>
+                    </span>
+                <?php endif; ?>
                 <h3><?= htmlspecialchars($monthTitle, ENT_QUOTES, 'UTF-8'); ?></h3>
-                <a
-                    class="calendar-nav-button"
-                    href="<?= htmlspecialchars(baseUrl('asistencia/calendario?mes=' . $nextMonth . '#calendario-mes'), ENT_QUOTES, 'UTF-8'); ?>"
-                    title="Mes siguiente"
-                    aria-label="Mes siguiente"
-                >
-                    <i class="fa fa-chevron-right" aria-hidden="true"></i>
-                    <span class="sr-only">Mes siguiente</span>
-                </a>
+                <?php if ($canNavigateNext): ?>
+                    <a
+                        class="calendar-nav-button"
+                        href="<?= htmlspecialchars(baseUrl('asistencia/calendario?mes=' . $nextMonth . '#calendario-mes'), ENT_QUOTES, 'UTF-8'); ?>"
+                        title="Mes siguiente"
+                        aria-label="Mes siguiente"
+                    >
+                        <i class="fa fa-chevron-right" aria-hidden="true"></i>
+                        <span class="sr-only">Mes siguiente</span>
+                    </a>
+                <?php else: ?>
+                    <span class="calendar-nav-button is-disabled" title="No hay meses siguientes habilitados" aria-label="No hay meses siguientes habilitados">
+                        <i class="fa fa-chevron-right" aria-hidden="true"></i>
+                    </span>
+                <?php endif; ?>
             </div>
+            <?php if (!empty($availableMonths)): ?>
+                <form class="calendar-month-selector" method="GET" action="<?= htmlspecialchars(baseUrl('asistencia/calendario'), ENT_QUOTES, 'UTF-8'); ?>">
+                    <label class="sr-only" for="calendar-month-select">Mes habilitado</label>
+                    <select id="calendar-month-select" name="mes" onchange="this.form.submit()">
+                        <?php foreach ($availableMonths as $monthOption): ?>
+                            <?php $monthOptionTimestamp = strtotime((string) $monthOption . '-01'); ?>
+                            <option value="<?= htmlspecialchars((string) $monthOption, ENT_QUOTES, 'UTF-8'); ?>" <?= (string) $monthOption === (string) $selectedMonth ? 'selected' : ''; ?>>
+                                <?= htmlspecialchars($monthNames[(int) date('n', $monthOptionTimestamp)] . ' ' . (string) date('Y', $monthOptionTimestamp), ENT_QUOTES, 'UTF-8'); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </form>
+            <?php endif; ?>
             <div class="calendar-grid calendar-grid-header">
                 <?php foreach (['Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sabado', 'Domingo'] as $weekday): ?>
                     <div><?= htmlspecialchars($weekday, ENT_QUOTES, 'UTF-8'); ?></div>
@@ -131,7 +159,7 @@ $selectedDateInsideClassRange = $classRangeStart === ''
             <header class="security-assignment-header">
                 <div>
                     <h3>Configurar <?= htmlspecialchars((string) $selectedDate, ENT_QUOTES, 'UTF-8'); ?></h3>
-                    <p>Seleccione el tipo de jornada que se habilitara para este dia. Para dejarlo suspendido, no lo configure.</p>
+                    <p>Seleccione el tipo de jornada que se habilitara para este dia.</p>
                 </div>
                 <button class="btn-secondary btn-auto" value="cancel" formmethod="dialog" type="submit">Cerrar</button>
             </header>
@@ -141,7 +169,7 @@ $selectedDateInsideClassRange = $classRangeStart === ''
                     <div class="input-group">
                         <span class="input-addon">Jornada</span>
                         <select name="catipo_jornada" required>
-                            <?php foreach (['NORMAL', 'REDUCIDA', 'ESPECIAL'] as $type): ?>
+                            <?php foreach (['NORMAL', 'REDUCIDA', 'ESPECIAL', 'SUSPENDIDA'] as $type): ?>
                                 <option value="<?= $type; ?>" <?= $selectedType === $type ? 'selected' : ''; ?>>
                                     <?= htmlspecialchars($type, ENT_QUOTES, 'UTF-8'); ?>
                                 </option>
@@ -175,18 +203,26 @@ $selectedDateInsideClassRange = $classRangeStart === ''
                 </div>
             </div>
 
-            <p class="module-note">En NORMAL se habilitan las 7 horas. En REDUCIDA se habilita hasta la hora limite. En ESPECIAL se usan solo los cursos y horas marcados abajo.</p>
+            <p class="module-note" data-calendar-mode-note>En NORMAL se habilitan las 7 horas. En REDUCIDA se habilita hasta la hora limite. En ESPECIAL se usan solo los cursos y horas marcados abajo. En SUSPENDIDA no se permite registrar asistencia.</p>
 
             <?php if (empty($courses)): ?>
                 <div class="empty-state">No hay cursos activos en el periodo actual.</div>
             <?php else: ?>
-                <div class="table-wrap">
+                <div class="table-wrap" data-calendar-detail-table>
                     <table class="data-table">
                         <thead>
                             <tr>
                                 <th>Curso</th>
                                 <?php foreach ($hours as $hour): ?>
-                                    <th><?= $hour; ?> hora</th>
+                                    <th>
+                                        <div><?= $hour; ?> hora</div>
+                                        <input
+                                            type="checkbox"
+                                            value="<?= $hour; ?>"
+                                            data-hour-master="<?= $hour; ?>"
+                                            aria-label="Seleccionar todos los cursos en <?= $hour; ?> hora"
+                                        >
+                                    </th>
                                 <?php endforeach; ?>
                             </tr>
                         </thead>
@@ -202,6 +238,7 @@ $selectedDateInsideClassRange = $classRangeStart === ''
                                                 type="checkbox"
                                                 name="detalle[<?= $courseId; ?>][]"
                                                 value="<?= $hour; ?>"
+                                                data-hour-checkbox="<?= $hour; ?>"
                                                 <?= $checked ? 'checked' : ''; ?>
                                             >
                                         </td>
@@ -271,6 +308,99 @@ $selectedDateInsideClassRange = $classRangeStart === ''
             if (dialog && window.location.hash === '#jornada-dialog' && typeof dialog.showModal === 'function') {
                 dialog.showModal();
             }
+
+            if (!dialog) {
+                return;
+            }
+
+            var typeSelect = dialog.querySelector('select[name="catipo_jornada"]');
+            var limitSelect = dialog.querySelector('select[name="cahora_limite"]');
+            var detailTable = dialog.querySelector('[data-calendar-detail-table]');
+            var detailCheckboxes = Array.prototype.slice.call(dialog.querySelectorAll('[data-hour-checkbox]'));
+            var hourMasters = Array.prototype.slice.call(dialog.querySelectorAll('[data-hour-master]'));
+            var modeNote = dialog.querySelector('[data-calendar-mode-note]');
+
+            function setCheckboxesForHour(hour, checked) {
+                detailCheckboxes.forEach(function (checkbox) {
+                    if (checkbox.getAttribute('data-hour-checkbox') === String(hour)) {
+                        checkbox.checked = checked;
+                    }
+                });
+            }
+
+            function refreshHourMasters() {
+                hourMasters.forEach(function (master) {
+                    var hour = master.getAttribute('data-hour-master');
+                    var checkboxes = detailCheckboxes.filter(function (checkbox) {
+                        return checkbox.getAttribute('data-hour-checkbox') === hour;
+                    });
+                    var checkedCount = checkboxes.filter(function (checkbox) {
+                        return checkbox.checked;
+                    }).length;
+
+                    master.checked = checkboxes.length > 0 && checkedCount === checkboxes.length;
+                    master.indeterminate = checkedCount > 0 && checkedCount < checkboxes.length;
+                });
+            }
+
+            function applyJourneyMode() {
+                var type = typeSelect ? typeSelect.value : 'NORMAL';
+                var limit = limitSelect && limitSelect.value !== '' ? parseInt(limitSelect.value, 10) : 6;
+                var isSpecial = type === 'ESPECIAL';
+                var isSuspended = type === 'SUSPENDIDA';
+
+                if (detailTable) {
+                    detailTable.style.display = isSuspended ? 'none' : '';
+                }
+
+                detailCheckboxes.forEach(function (checkbox) {
+                    var hour = parseInt(checkbox.getAttribute('data-hour-checkbox') || '0', 10);
+
+                    if (type === 'NORMAL') {
+                        checkbox.checked = true;
+                    } else if (type === 'REDUCIDA') {
+                        checkbox.checked = hour <= limit;
+                    } else if (isSuspended) {
+                        checkbox.checked = false;
+                    }
+
+                    checkbox.disabled = !isSpecial;
+                });
+
+                hourMasters.forEach(function (master) {
+                    master.disabled = !isSpecial;
+                    master.indeterminate = false;
+                });
+
+                if (modeNote) {
+                    modeNote.textContent = isSuspended
+                        ? 'Jornada suspendida: no se mostraran horas ni se permitira registrar asistencia para este dia.'
+                        : 'En NORMAL se habilitan las 7 horas. En REDUCIDA se habilita hasta la hora limite. En ESPECIAL se usan solo los cursos y horas marcados abajo. En SUSPENDIDA no se permite registrar asistencia.';
+                }
+
+                refreshHourMasters();
+            }
+
+            hourMasters.forEach(function (master) {
+                master.addEventListener('change', function () {
+                    setCheckboxesForHour(master.getAttribute('data-hour-master'), master.checked);
+                    refreshHourMasters();
+                });
+            });
+
+            detailCheckboxes.forEach(function (checkbox) {
+                checkbox.addEventListener('change', refreshHourMasters);
+            });
+
+            if (typeSelect) {
+                typeSelect.addEventListener('change', applyJourneyMode);
+            }
+
+            if (limitSelect) {
+                limitSelect.addEventListener('change', applyJourneyMode);
+            }
+
+            applyJourneyMode();
         }());
     </script>
 <?php endif; ?>
