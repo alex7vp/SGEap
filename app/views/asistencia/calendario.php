@@ -177,7 +177,7 @@ $selectedDateInsideClassRange = $classRangeStart === ''
                         </select>
                     </div>
                 </div>
-                <div>
+                <div data-calendar-limit-field>
                     <div class="input-group">
                         <span class="input-addon">Hora limite</span>
                         <select name="cahora_limite">
@@ -203,52 +203,54 @@ $selectedDateInsideClassRange = $classRangeStart === ''
                 </div>
             </div>
 
-            <p class="module-note" data-calendar-mode-note>En NORMAL se habilitan las 7 horas. En REDUCIDA se habilita hasta la hora limite. En ESPECIAL se usan solo los cursos y horas marcados abajo. En SUSPENDIDA no se permite registrar asistencia.</p>
+            <p class="module-note" data-calendar-mode-note>En NORMAL se habilitan todas las horas. En REDUCIDA se habilita hasta la hora limite. En ESPECIAL se usan solo los cursos y horas marcados. En SUSPENDIDA no se permite registrar asistencia.</p>
 
-            <?php if (empty($courses)): ?>
-                <div class="empty-state">No hay cursos activos en el periodo actual.</div>
-            <?php else: ?>
-                <div class="table-wrap" data-calendar-detail-table>
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Curso</th>
-                                <?php foreach ($hours as $hour): ?>
-                                    <th>
-                                        <div><?= $hour; ?> hora</div>
-                                        <input
-                                            type="checkbox"
-                                            value="<?= $hour; ?>"
-                                            data-hour-master="<?= $hour; ?>"
-                                            aria-label="Seleccionar todos los cursos en <?= $hour; ?> hora"
-                                        >
-                                    </th>
-                                <?php endforeach; ?>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php foreach ($courses as $course): ?>
-                                <?php $courseId = (int) $course['curid']; ?>
+            <div data-calendar-detail-block>
+                <?php if (empty($courses)): ?>
+                    <div class="empty-state">No hay cursos activos en el periodo actual.</div>
+                <?php else: ?>
+                    <div class="table-wrap">
+                        <table class="data-table">
+                            <thead>
                                 <tr>
-                                    <td><?= htmlspecialchars((string) $course['granombre'] . ' ' . $course['prlnombre'], ENT_QUOTES, 'UTF-8'); ?></td>
+                                    <th>Curso</th>
                                     <?php foreach ($hours as $hour): ?>
-                                        <?php $checked = !empty($calendarDetails[$courseId][$hour]['cadhabilitado']); ?>
-                                        <td>
+                                        <th>
+                                            <div><?= $hour; ?> hora</div>
                                             <input
                                                 type="checkbox"
-                                                name="detalle[<?= $courseId; ?>][]"
                                                 value="<?= $hour; ?>"
-                                                data-hour-checkbox="<?= $hour; ?>"
-                                                <?= $checked ? 'checked' : ''; ?>
+                                                data-hour-master="<?= $hour; ?>"
+                                                aria-label="Seleccionar todos los cursos en <?= $hour; ?> hora"
                                             >
-                                        </td>
+                                        </th>
                                     <?php endforeach; ?>
                                 </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
-                </div>
-            <?php endif; ?>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($courses as $course): ?>
+                                    <?php $courseId = (int) $course['curid']; ?>
+                                    <tr>
+                                        <td><?= htmlspecialchars((string) $course['granombre'] . ' ' . $course['prlnombre'], ENT_QUOTES, 'UTF-8'); ?></td>
+                                        <?php foreach ($hours as $hour): ?>
+                                            <?php $checked = !empty($calendarDetails[$courseId][$hour]['cadhabilitado']); ?>
+                                            <td>
+                                                <input
+                                                    type="checkbox"
+                                                    name="detalle[<?= $courseId; ?>][]"
+                                                    value="<?= $hour; ?>"
+                                                    data-hour-checkbox="<?= $hour; ?>"
+                                                    <?= $checked ? 'checked' : ''; ?>
+                                                >
+                                            </td>
+                                        <?php endforeach; ?>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                <?php endif; ?>
+            </div>
 
             <div class="actions-row">
                 <button class="btn-primary btn-inline" type="submit">Guardar jornada</button>
@@ -315,7 +317,8 @@ $selectedDateInsideClassRange = $classRangeStart === ''
 
             var typeSelect = dialog.querySelector('select[name="catipo_jornada"]');
             var limitSelect = dialog.querySelector('select[name="cahora_limite"]');
-            var detailTable = dialog.querySelector('[data-calendar-detail-table]');
+            var limitField = dialog.querySelector('[data-calendar-limit-field]');
+            var detailBlock = dialog.querySelector('[data-calendar-detail-block]');
             var detailCheckboxes = Array.prototype.slice.call(dialog.querySelectorAll('[data-hour-checkbox]'));
             var hourMasters = Array.prototype.slice.call(dialog.querySelectorAll('[data-hour-master]'));
             var modeNote = dialog.querySelector('[data-calendar-mode-note]');
@@ -347,10 +350,19 @@ $selectedDateInsideClassRange = $classRangeStart === ''
                 var type = typeSelect ? typeSelect.value : 'NORMAL';
                 var limit = limitSelect && limitSelect.value !== '' ? parseInt(limitSelect.value, 10) : 6;
                 var isSpecial = type === 'ESPECIAL';
+                var isReduced = type === 'REDUCIDA';
                 var isSuspended = type === 'SUSPENDIDA';
 
-                if (detailTable) {
-                    detailTable.style.display = isSuspended ? 'none' : '';
+                if (limitField) {
+                    limitField.style.display = isReduced ? '' : 'none';
+                }
+
+                if (limitSelect) {
+                    limitSelect.disabled = !isReduced;
+                }
+
+                if (detailBlock) {
+                    detailBlock.style.display = isSpecial ? '' : 'none';
                 }
 
                 detailCheckboxes.forEach(function (checkbox) {
@@ -373,9 +385,15 @@ $selectedDateInsideClassRange = $classRangeStart === ''
                 });
 
                 if (modeNote) {
-                    modeNote.textContent = isSuspended
-                        ? 'Jornada suspendida: no se mostraran horas ni se permitira registrar asistencia para este dia.'
-                        : 'En NORMAL se habilitan las 7 horas. En REDUCIDA se habilita hasta la hora limite. En ESPECIAL se usan solo los cursos y horas marcados abajo. En SUSPENDIDA no se permite registrar asistencia.';
+                    if (type === 'NORMAL') {
+                        modeNote.textContent = 'Jornada normal: se habilitan todas las horas para todos los cursos.';
+                    } else if (isReduced) {
+                        modeNote.textContent = 'Jornada reducida: se habilita asistencia hasta la hora limite seleccionada.';
+                    } else if (isSpecial) {
+                        modeNote.textContent = 'Jornada especial: marque solo los cursos y horas en los que se permitira registrar asistencia.';
+                    } else if (isSuspended) {
+                        modeNote.textContent = 'Jornada suspendida: no se permitira registrar asistencia para este dia.';
+                    }
                 }
 
                 refreshHourMasters();
