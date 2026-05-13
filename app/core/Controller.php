@@ -123,6 +123,7 @@ abstract class Controller
             '/configuracion/catalogos' => 'catalogos.gestionar',
             '/configuracion/institucion' => 'configuracion.gestionar',
             '/configuracion/periodos' => 'configuracion.gestionar',
+            '/configuracion/academica/' => 'asistencia.calendario.gestionar',
             '/configuracion/matricula/documentos' => 'matriculas.documentos',
             '/configuracion/matricula' => 'configuracion.gestionar',
             '/seguridad/usuarios/clave' => 'seguridad.usuarios',

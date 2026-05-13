@@ -444,6 +444,59 @@ class AttendanceModel extends Model
         return $statement->fetchAll();
     }
 
+    public function teacherCalendarAvailabilityByRange(int $personId, int $periodId, string $startDate, string $endDate): array
+    {
+        $statement = $this->db->prepare(
+            "SELECT
+                    ca.caid,
+                    ca.cafecha,
+                    ca.catipo_jornada,
+                    ca.cahora_limite,
+                    mcd.mcdid,
+                    mcd.mtcid,
+                    v.curid,
+                    v.mtcnombre_mostrar,
+                    v.granombre,
+                    v.prlnombre,
+                    hours.hour AS sclnumero_hora
+             FROM calendario_asistencia ca
+             INNER JOIN materia_curso_docente mcd ON mcd.perid = :person_id
+             INNER JOIN vw_materia_curso v ON v.mtcid = mcd.mtcid
+             CROSS JOIN generate_series(1, 7) AS hours(hour)
+             WHERE ca.pleid = :period_id
+               AND ca.cahabilitado = true
+               AND ca.cafecha BETWEEN :start_date AND :end_date
+               AND v.pleid = ca.pleid
+               AND v.mtcestado = true
+               AND mcd.mcdestado = true
+               AND mcd.mcdfecha_inicio <= ca.cafecha
+               AND (mcd.mcdfecha_fin IS NULL OR mcd.mcdfecha_fin >= ca.cafecha)
+               AND v.mtcfecha_inicio <= ca.cafecha
+               AND (v.mtcfecha_fin IS NULL OR v.mtcfecha_fin >= ca.cafecha)
+               AND hours.hour <= COALESCE(ca.cahora_limite, 7)
+               AND (
+                   ca.catipo_jornada <> 'ESPECIAL'
+                   OR EXISTS (
+                       SELECT 1
+                       FROM calendario_asistencia_detalle cad
+                       WHERE cad.caid = ca.caid
+                         AND cad.curid = v.curid
+                         AND cad.cadnumero_hora = hours.hour
+                         AND cad.cadhabilitado = true
+                   )
+               )
+             ORDER BY ca.cafecha ASC, v.granombre ASC, v.prlnombre ASC, v.mtcnombre_mostrar ASC, hours.hour ASC"
+        );
+        $statement->execute([
+            'person_id' => $personId,
+            'period_id' => $periodId,
+            'start_date' => $startDate,
+            'end_date' => $endDate,
+        ]);
+
+        return $statement->fetchAll();
+    }
+
     public function reportCourseSubjects(int $periodId): array
     {
         $statement = $this->db->prepare(
@@ -735,6 +788,79 @@ class AttendanceModel extends Model
         return $map;
     }
 
+    public function teacherSessionSummaryByRange(int $personId, int $periodId, string $startDate, string $endDate): array
+    {
+        $statement = $this->db->prepare(
+            "SELECT
+                    ca.cafecha,
+                    COUNT(DISTINCT sc.sclid) AS total_sesiones,
+                    COUNT(ae.aesid) FILTER (
+                        WHERE ae.aesestado IN ('ATRASO', 'FALTA_JUSTIFICADA', 'FALTA_INJUSTIFICADA')
+                    ) AS total_alertas
+             FROM sesion_clase sc
+             INNER JOIN calendario_asistencia ca ON ca.caid = sc.caid
+             INNER JOIN materia_curso_docente mcd ON mcd.mcdid = sc.mcdid
+             LEFT JOIN asistencia_estudiante ae ON ae.sclid = sc.sclid
+             WHERE mcd.perid = :person_id
+               AND ca.pleid = :period_id
+               AND ca.cafecha BETWEEN :start_date AND :end_date
+               AND sc.sclestado <> 'ANULADA'
+             GROUP BY ca.cafecha
+             ORDER BY ca.cafecha ASC"
+        );
+        $statement->execute([
+            'person_id' => $personId,
+            'period_id' => $periodId,
+            'start_date' => $startDate,
+            'end_date' => $endDate,
+        ]);
+
+        $map = [];
+
+        foreach ($statement->fetchAll() as $row) {
+            $map[(string) $row['cafecha']] = $row;
+        }
+
+        return $map;
+    }
+
+    public function teacherSessionsByDate(int $personId, int $periodId, string $date): array
+    {
+        $statement = $this->db->prepare(
+            "SELECT
+                    sc.sclid,
+                    sc.sclnumero_hora,
+                    sc.sclestado,
+                    ca.cafecha,
+                    v.mtcnombre_mostrar,
+                    v.granombre,
+                    v.prlnombre,
+                    COUNT(ae.aesid) AS total_registros,
+                    COUNT(ae.aesid) FILTER (WHERE ae.aesestado = 'ASISTENCIA') AS total_asistencias,
+                    COUNT(ae.aesid) FILTER (WHERE ae.aesestado = 'ATRASO') AS total_atrasos,
+                    COUNT(ae.aesid) FILTER (WHERE ae.aesestado = 'FALTA_JUSTIFICADA') AS total_faltas_justificadas,
+                    COUNT(ae.aesid) FILTER (WHERE ae.aesestado = 'FALTA_INJUSTIFICADA') AS total_faltas_injustificadas
+             FROM sesion_clase sc
+             INNER JOIN calendario_asistencia ca ON ca.caid = sc.caid
+             INNER JOIN vw_materia_curso v ON v.mtcid = sc.mtcid
+             INNER JOIN materia_curso_docente mcd ON mcd.mcdid = sc.mcdid
+             LEFT JOIN asistencia_estudiante ae ON ae.sclid = sc.sclid
+             WHERE mcd.perid = :person_id
+               AND ca.pleid = :period_id
+               AND ca.cafecha = :class_date
+               AND sc.sclestado <> 'ANULADA'
+             GROUP BY sc.sclid, ca.cafecha, v.mtcnombre_mostrar, v.granombre, v.prlnombre
+             ORDER BY sc.sclnumero_hora ASC, v.mtcnombre_mostrar ASC"
+        );
+        $statement->execute([
+            'person_id' => $personId,
+            'period_id' => $periodId,
+            'class_date' => $date,
+        ]);
+
+        return $statement->fetchAll();
+    }
+
     public function supervisedSessions(int $periodId, string $date, int $courseId = 0): array
     {
         $courseFilter = $courseId > 0 ? 'AND v.curid = :course_id' : '';
@@ -1015,6 +1141,309 @@ class AttendanceModel extends Model
         $statement->execute();
 
         return $statement->fetchAll();
+    }
+
+    public function attendanceMatrixReport(
+        int $periodId,
+        string $startDate,
+        string $endDate,
+        int $courseId = 0,
+        int $studentId = 0,
+        int $courseSubjectId = 0,
+        int $teacherPersonId = 0
+    ): array {
+        $courseFilter = $courseId > 0 ? 'AND v.curid = :course_id' : '';
+        $studentFilter = $studentId > 0 ? 'AND ae.estid = :student_id' : '';
+        $courseSubjectFilter = $courseSubjectId > 0 ? 'AND sc.mtcid = :course_subject_id' : '';
+        $teacherFilter = $teacherPersonId > 0 ? 'AND mcd.perid = :teacher_person_id' : '';
+        $statement = $this->db->prepare(
+            "SELECT
+                    ae.estid,
+                    v.curid,
+                    p.percedula,
+                    p.perapellidos,
+                    p.pernombres,
+                    v.granombre,
+                    v.prlnombre,
+                    ca.cafecha,
+                    COUNT(*) FILTER (WHERE ae.aesestado = 'ASISTENCIA') AS total_asistencias,
+                    COUNT(*) FILTER (WHERE ae.aesestado = 'ATRASO') AS total_atrasos,
+                    COUNT(*) FILTER (WHERE ae.aesestado = 'FALTA_JUSTIFICADA') AS total_faltas_justificadas,
+                    COUNT(*) FILTER (WHERE ae.aesestado = 'FALTA_INJUSTIFICADA') AS total_faltas_injustificadas
+             FROM asistencia_estudiante ae
+             INNER JOIN estudiante e ON e.estid = ae.estid
+             INNER JOIN persona p ON p.perid = e.perid
+             INNER JOIN sesion_clase sc ON sc.sclid = ae.sclid
+             INNER JOIN materia_curso_docente mcd ON mcd.mcdid = sc.mcdid
+             INNER JOIN calendario_asistencia ca ON ca.caid = sc.caid
+             INNER JOIN vw_materia_curso v ON v.mtcid = sc.mtcid
+             WHERE ca.pleid = :period_id
+               AND ca.cafecha BETWEEN :start_date AND :end_date
+               AND sc.sclestado <> 'ANULADA'
+               {$courseFilter}
+               {$studentFilter}
+               {$courseSubjectFilter}
+               {$teacherFilter}
+             GROUP BY ae.estid, v.curid, p.percedula, p.perapellidos, p.pernombres,
+                      v.granombre, v.prlnombre, ca.cafecha
+             ORDER BY v.granombre ASC, v.prlnombre ASC, p.perapellidos ASC, p.pernombres ASC, ca.cafecha ASC"
+        );
+        $statement->bindValue(':period_id', $periodId, PDO::PARAM_INT);
+        $statement->bindValue(':start_date', $startDate, PDO::PARAM_STR);
+        $statement->bindValue(':end_date', $endDate, PDO::PARAM_STR);
+
+        if ($courseId > 0) {
+            $statement->bindValue(':course_id', $courseId, PDO::PARAM_INT);
+        }
+
+        if ($studentId > 0) {
+            $statement->bindValue(':student_id', $studentId, PDO::PARAM_INT);
+        }
+
+        if ($courseSubjectId > 0) {
+            $statement->bindValue(':course_subject_id', $courseSubjectId, PDO::PARAM_INT);
+        }
+
+        if ($teacherPersonId > 0) {
+            $statement->bindValue(':teacher_person_id', $teacherPersonId, PDO::PARAM_INT);
+        }
+
+        $statement->execute();
+        $dates = [];
+        $rows = [];
+
+        foreach ($statement->fetchAll() as $record) {
+            $date = (string) $record['cafecha'];
+            $studentKey = (string) $record['estid'] . '-' . (string) $record['curid'];
+            $dates[$date] = $date;
+
+            if (!isset($rows[$studentKey])) {
+                $rows[$studentKey] = [
+                    'estid' => (int) $record['estid'],
+                    'curid' => (int) $record['curid'],
+                    'percedula' => (string) $record['percedula'],
+                    'perapellidos' => (string) $record['perapellidos'],
+                    'pernombres' => (string) $record['pernombres'],
+                    'granombre' => (string) $record['granombre'],
+                    'prlnombre' => (string) $record['prlnombre'],
+                    'dias' => [],
+                    'total_asistencias' => 0,
+                    'total_atrasos' => 0,
+                    'total_faltas_justificadas' => 0,
+                    'total_faltas_injustificadas' => 0,
+                ];
+            }
+
+            $attendanceCount = (int) $record['total_asistencias'];
+            $lateCount = (int) $record['total_atrasos'];
+            $justifiedCount = (int) $record['total_faltas_justificadas'];
+            $unjustifiedCount = (int) $record['total_faltas_injustificadas'];
+            $codes = [];
+
+            if ($attendanceCount > 0 || $lateCount > 0) {
+                $codes[] = 'As';
+            }
+
+            if ($lateCount > 0) {
+                $codes[] = 'A';
+            }
+
+            if ($justifiedCount > 0) {
+                $codes[] = 'FJ';
+            }
+
+            if ($unjustifiedCount > 0) {
+                $codes[] = 'FI';
+            }
+
+            $rows[$studentKey]['dias'][$date] = implode('/', $codes);
+            $rows[$studentKey]['total_asistencias'] += ($attendanceCount > 0 || $lateCount > 0) ? 1 : 0;
+            $rows[$studentKey]['total_atrasos'] += $lateCount > 0 ? 1 : 0;
+            $rows[$studentKey]['total_faltas_justificadas'] += $justifiedCount > 0 ? 1 : 0;
+            $rows[$studentKey]['total_faltas_injustificadas'] += $unjustifiedCount > 0 ? 1 : 0;
+        }
+
+        ksort($dates);
+
+        return [
+            'dates' => array_values($dates),
+            'rows' => array_values($rows),
+        ];
+    }
+
+    public function studentAttendanceHourlyMatrixReport(
+        int $periodId,
+        string $startDate,
+        string $endDate,
+        int $studentId,
+        int $courseId = 0,
+        int $courseSubjectId = 0,
+        int $teacherPersonId = 0
+    ): array {
+        $courseFilter = $courseId > 0 ? 'AND v.curid = :course_id' : '';
+        $courseSubjectFilter = $courseSubjectId > 0 ? 'AND sc.mtcid = :course_subject_id' : '';
+        $teacherFilter = $teacherPersonId > 0 ? 'AND mcd.perid = :teacher_person_id' : '';
+        $statement = $this->db->prepare(
+            "SELECT
+                    ca.cafecha,
+                    sc.sclnumero_hora,
+                    ae.aesestado
+             FROM asistencia_estudiante ae
+             INNER JOIN sesion_clase sc ON sc.sclid = ae.sclid
+             INNER JOIN materia_curso_docente mcd ON mcd.mcdid = sc.mcdid
+             INNER JOIN calendario_asistencia ca ON ca.caid = sc.caid
+             INNER JOIN vw_materia_curso v ON v.mtcid = sc.mtcid
+             WHERE ca.pleid = :period_id
+               AND ae.estid = :student_id
+               AND ca.cafecha BETWEEN :start_date AND :end_date
+               AND sc.sclestado <> 'ANULADA'
+               {$courseFilter}
+               {$courseSubjectFilter}
+               {$teacherFilter}
+             ORDER BY ca.cafecha ASC, sc.sclnumero_hora ASC"
+        );
+        $statement->bindValue(':period_id', $periodId, PDO::PARAM_INT);
+        $statement->bindValue(':student_id', $studentId, PDO::PARAM_INT);
+        $statement->bindValue(':start_date', $startDate, PDO::PARAM_STR);
+        $statement->bindValue(':end_date', $endDate, PDO::PARAM_STR);
+
+        if ($courseId > 0) {
+            $statement->bindValue(':course_id', $courseId, PDO::PARAM_INT);
+        }
+
+        if ($courseSubjectId > 0) {
+            $statement->bindValue(':course_subject_id', $courseSubjectId, PDO::PARAM_INT);
+        }
+
+        if ($teacherPersonId > 0) {
+            $statement->bindValue(':teacher_person_id', $teacherPersonId, PDO::PARAM_INT);
+        }
+
+        $statement->execute();
+        $months = [];
+        $stateCodes = [
+            'ASISTENCIA' => 'As',
+            'ATRASO' => 'At',
+            'FALTA_JUSTIFICADA' => 'FJ',
+            'FALTA_INJUSTIFICADA' => 'FI',
+        ];
+        $start = new \DateTimeImmutable($startDate);
+        $end = new \DateTimeImmutable($endDate);
+
+        for ($cursor = $start; $cursor <= $end; $cursor = $cursor->modify('+1 day')) {
+            $date = $cursor->format('Y-m-d');
+            $month = $cursor->format('Y-m');
+
+            if (!isset($months[$month])) {
+                $months[$month] = [
+                    'month' => $month,
+                    'dates' => [],
+                    'summary' => [
+                        'asistidos' => 0,
+                        'faltas_justificadas' => 0,
+                        'faltas_injustificadas' => 0,
+                        'atrasos' => 0,
+                    ],
+                ];
+            }
+
+            $months[$month]['dates'][$date] = [
+                'date' => $date,
+                'hours' => [],
+                'flags' => [
+                    'asistencia' => false,
+                    'atraso' => false,
+                    'falta_justificada' => false,
+                    'falta_injustificada' => false,
+                ],
+            ];
+        }
+
+        foreach ($statement->fetchAll() as $record) {
+            $date = (string) $record['cafecha'];
+            $month = substr($date, 0, 7);
+            $hour = (int) $record['sclnumero_hora'];
+            $status = (string) $record['aesestado'];
+
+            if ($hour < 1 || $hour > 7) {
+                continue;
+            }
+
+            if (!isset($months[$month])) {
+                $months[$month] = [
+                    'month' => $month,
+                    'dates' => [],
+                    'summary' => [
+                        'asistidos' => 0,
+                        'faltas_justificadas' => 0,
+                        'faltas_injustificadas' => 0,
+                        'atrasos' => 0,
+                    ],
+                ];
+            }
+
+            if (!isset($months[$month]['dates'][$date])) {
+                $months[$month]['dates'][$date] = [
+                    'date' => $date,
+                    'hours' => [],
+                    'flags' => [
+                        'asistencia' => false,
+                        'atraso' => false,
+                        'falta_justificada' => false,
+                        'falta_injustificada' => false,
+                    ],
+                ];
+            }
+
+            $months[$month]['dates'][$date]['hours'][$hour] = $stateCodes[$status] ?? '';
+
+            if ($status === 'ASISTENCIA') {
+                $months[$month]['dates'][$date]['flags']['asistencia'] = true;
+            } elseif ($status === 'ATRASO') {
+                $months[$month]['dates'][$date]['flags']['atraso'] = true;
+            } elseif ($status === 'FALTA_JUSTIFICADA') {
+                $months[$month]['dates'][$date]['flags']['falta_justificada'] = true;
+            } elseif ($status === 'FALTA_INJUSTIFICADA') {
+                $months[$month]['dates'][$date]['flags']['falta_injustificada'] = true;
+            }
+        }
+
+        foreach ($months as &$month) {
+            $month['summary'] = [
+                'asistidos' => 0,
+                'faltas_justificadas' => 0,
+                'faltas_injustificadas' => 0,
+                'atrasos' => 0,
+            ];
+
+            foreach ($month['dates'] as &$date) {
+                $flags = is_array($date['flags'] ?? null) ? $date['flags'] : [];
+
+                if (!empty($flags['asistencia']) || !empty($flags['atraso'])) {
+                    $month['summary']['asistidos']++;
+                }
+
+                if (!empty($flags['falta_justificada'])) {
+                    $month['summary']['faltas_justificadas']++;
+                }
+
+                if (!empty($flags['falta_injustificada'])) {
+                    $month['summary']['faltas_injustificadas']++;
+                }
+
+                if (!empty($flags['atraso'])) {
+                    $month['summary']['atrasos']++;
+                }
+
+                unset($date['flags']);
+            }
+            unset($date);
+
+            $month['dates'] = array_values($month['dates']);
+        }
+        unset($month);
+
+        return array_values($months);
     }
 
     public function saveAttendance(int $sessionId, array $records, int $userId): void

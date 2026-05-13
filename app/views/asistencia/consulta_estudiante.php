@@ -7,11 +7,54 @@ require BASE_PATH . '/app/views/partials/header.php';
 $availableStudents = is_array($availableStudents ?? null) ? $availableStudents : [];
 $summaryDays = is_array($summaryDays ?? null) ? $summaryDays : [];
 $attendanceDetail = is_array($attendanceDetail ?? null) ? $attendanceDetail : [];
+$classDateRange = is_array($classDateRange ?? null) ? $classDateRange : null;
+$availableMonths = is_array($availableMonths ?? null) ? $availableMonths : [];
 $selectedStudentId = (int) ($selectedStudentId ?? 0);
 $selectedDate = (string) ($selectedDate ?? '');
 $selectedMonth = (string) ($selectedMonth ?? date('Y-m'));
-$previousMonth = date('Y-m', strtotime($selectedMonth . '-01 -1 month'));
-$nextMonth = date('Y-m', strtotime($selectedMonth . '-01 +1 month'));
+$monthStartTimestamp = strtotime((string) $monthStart);
+$previousMonth = date('Y-m', strtotime('-1 month', $monthStartTimestamp));
+$nextMonth = date('Y-m', strtotime('+1 month', $monthStartTimestamp));
+$canNavigatePrevious = $availableMonths === [] || in_array($previousMonth, $availableMonths, true);
+$canNavigateNext = $availableMonths === [] || in_array($nextMonth, $availableMonths, true);
+$firstWeekday = (int) date('N', $monthStartTimestamp);
+$daysInMonth = (int) date('t', $monthStartTimestamp);
+$dayNumber = 1;
+$summaryDaysByDate = [];
+$monthNames = [
+    1 => 'Enero',
+    2 => 'Febrero',
+    3 => 'Marzo',
+    4 => 'Abril',
+    5 => 'Mayo',
+    6 => 'Junio',
+    7 => 'Julio',
+    8 => 'Agosto',
+    9 => 'Septiembre',
+    10 => 'Octubre',
+    11 => 'Noviembre',
+    12 => 'Diciembre',
+];
+$monthTitle = strtoupper($monthNames[(int) date('n', $monthStartTimestamp)] . ' ' . date('Y', $monthStartTimestamp));
+
+foreach ($summaryDays as $day) {
+    $summaryDaysByDate[(string) $day['cafecha']] = $day;
+}
+
+$monthlyTotals = [
+    'asistencias' => 0,
+    'atrasos' => 0,
+    'faltas_justificadas' => 0,
+    'faltas_injustificadas' => 0,
+];
+
+foreach ($summaryDays as $day) {
+    $monthlyTotals['asistencias'] += ((int) ($day['total_asistencias'] ?? 0) > 0 || (int) ($day['total_atrasos'] ?? 0) > 0) ? 1 : 0;
+    $monthlyTotals['atrasos'] += (int) ($day['total_atrasos'] ?? 0) > 0 ? 1 : 0;
+    $monthlyTotals['faltas_justificadas'] += (int) ($day['total_faltas_justificadas'] ?? 0) > 0 ? 1 : 0;
+    $monthlyTotals['faltas_injustificadas'] += (int) ($day['total_faltas_injustificadas'] ?? 0) > 0 ? 1 : 0;
+}
+
 $statusLabels = [
     'OK' => 'OK',
     'ALERTA' => 'Alerta',
@@ -25,7 +68,7 @@ $basePath = (string) (($currentSection ?? '') === 'asistencia_representante'
     : 'asistencia/mi-asistencia');
 $studentQuery = $selectedStudentId > 0 && $availableStudents !== [] ? '&estid=' . $selectedStudentId : '';
 ?>
-<p class="module-note">La vista diaria muestra solo el resumen. El detalle por hora y materia aparece al abrir una fecha.</p>
+<p class="module-note">Seleccione un dia con registro en el calendario para ver el detalle por hora y materia.</p>
 
 <?php if ($currentPeriod === null): ?>
     <div class="empty-state">No hay un periodo lectivo seleccionado. Elige uno desde el chip de periodo en el navbar para continuar.</div>
@@ -56,74 +99,130 @@ $studentQuery = $selectedStudentId > 0 && $availableStudents !== [] ? '&estid=' 
                         </div>
                     </div>
                 <?php endif; ?>
-                <div>
-                    <div class="input-group">
-                        <span class="input-addon">Mes</span>
-                        <input type="month" name="mes" value="<?= htmlspecialchars($selectedMonth, ENT_QUOTES, 'UTF-8'); ?>">
-                    </div>
+            </div>
+            <?php if ($availableStudents !== []): ?>
+                <div class="actions-row">
+                    <button class="btn-primary btn-inline" type="submit">Consultar</button>
                 </div>
-            </div>
-            <div class="actions-row">
-                <button class="btn-primary btn-inline" type="submit">Consultar</button>
-                <a class="btn-secondary btn-inline" href="<?= htmlspecialchars(baseUrl($basePath . '?mes=' . $previousMonth . $studentQuery), ENT_QUOTES, 'UTF-8'); ?>">Anterior</a>
-                <a class="btn-secondary btn-inline" href="<?= htmlspecialchars(baseUrl($basePath . '?mes=' . $nextMonth . $studentQuery), ENT_QUOTES, 'UTF-8'); ?>">Siguiente</a>
-            </div>
+            <?php endif; ?>
         </form>
     </section>
 
     <section class="security-assignment-block">
         <header class="security-assignment-header">
             <div>
-                <h3>Mes <?= htmlspecialchars($selectedMonth, ENT_QUOTES, 'UTF-8'); ?></h3>
+                <h3>Calendario de asistencia</h3>
                 <p>OK indica que no hay atrasos ni faltas registradas ese dia.</p>
             </div>
         </header>
 
+        <div class="calendar-month student-attendance-calendar">
+            <div class="calendar-month-heading">
+                <?php if ($canNavigatePrevious): ?>
+                    <a
+                        class="calendar-nav-button"
+                        href="<?= htmlspecialchars(baseUrl($basePath . '?mes=' . $previousMonth . $studentQuery . '#calendario-asistencia'), ENT_QUOTES, 'UTF-8'); ?>"
+                        title="Mes anterior"
+                        aria-label="Mes anterior"
+                    >
+                        <i class="fa fa-chevron-left" aria-hidden="true"></i>
+                        <span class="sr-only">Mes anterior</span>
+                    </a>
+                <?php else: ?>
+                    <span class="calendar-nav-button is-disabled" title="No hay meses anteriores habilitados" aria-label="No hay meses anteriores habilitados">
+                        <i class="fa fa-chevron-left" aria-hidden="true"></i>
+                    </span>
+                <?php endif; ?>
+                <h3 id="calendario-asistencia"><?= htmlspecialchars($monthTitle, ENT_QUOTES, 'UTF-8'); ?></h3>
+                <?php if ($canNavigateNext): ?>
+                    <a
+                        class="calendar-nav-button"
+                        href="<?= htmlspecialchars(baseUrl($basePath . '?mes=' . $nextMonth . $studentQuery . '#calendario-asistencia'), ENT_QUOTES, 'UTF-8'); ?>"
+                        title="Mes siguiente"
+                        aria-label="Mes siguiente"
+                    >
+                        <i class="fa fa-chevron-right" aria-hidden="true"></i>
+                        <span class="sr-only">Mes siguiente</span>
+                    </a>
+                <?php else: ?>
+                    <span class="calendar-nav-button is-disabled" title="No hay meses siguientes habilitados" aria-label="No hay meses siguientes habilitados">
+                        <i class="fa fa-chevron-right" aria-hidden="true"></i>
+                    </span>
+                <?php endif; ?>
+            </div>
+            <div class="calendar-grid calendar-grid-header">
+                <?php foreach (['Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sabado', 'Domingo'] as $weekday): ?>
+                    <div><?= htmlspecialchars($weekday, ENT_QUOTES, 'UTF-8'); ?></div>
+                <?php endforeach; ?>
+            </div>
+            <div class="calendar-grid">
+                <?php for ($cell = 1; $cell <= 42; $cell++): ?>
+                    <?php if ($cell < $firstWeekday || $dayNumber > $daysInMonth): ?>
+                        <div class="calendar-day is-empty"></div>
+                    <?php else: ?>
+                        <?php
+                        $date = (string) $selectedMonth . '-' . str_pad((string) $dayNumber, 2, '0', STR_PAD_LEFT);
+                        $day = $summaryDaysByDate[$date] ?? null;
+                        $enabled = is_array($day);
+                        $hasAlert = $enabled
+                            && ((int) ($day['total_atrasos'] ?? 0) > 0
+                                || (int) ($day['total_faltas_justificadas'] ?? 0) > 0
+                                || (int) ($day['total_faltas_injustificadas'] ?? 0) > 0);
+                        $isWeekend = (int) date('N', strtotime($date)) >= 6;
+                        $detailUrl = baseUrl($basePath . '?mes=' . $selectedMonth . $studentQuery . '&fecha=' . $date . '#detalle');
+                        $dayTag = $enabled ? 'a' : 'div';
+                        $dayHref = $enabled ? ' href="' . htmlspecialchars($detailUrl, ENT_QUOTES, 'UTF-8') . '"' : '';
+                        ?>
+                        <<?= $dayTag; ?>
+                            class="calendar-day <?= $enabled ? 'is-enabled' : 'is-suspended'; ?> <?= $hasAlert ? 'is-attendance-alert' : 'is-attendance-ok'; ?> <?= $isWeekend ? 'is-weekend' : ''; ?> <?= $date === $selectedDate ? 'is-selected' : ''; ?>"
+                            <?= $dayHref; ?>
+                        >
+                            <strong><?= $dayNumber; ?></strong>
+                            <?php if ($enabled): ?>
+                                <span class="student-calendar-status">
+                                    <i class="fa <?= $hasAlert ? 'fa-exclamation-triangle' : 'fa-check-circle'; ?>" aria-hidden="true"></i>
+                                    <?= htmlspecialchars($hasAlert ? 'Alerta' : 'OK', ENT_QUOTES, 'UTF-8'); ?>
+                                </span>
+                            <?php endif; ?>
+                        </<?= $dayTag; ?>>
+                        <?php $dayNumber++; ?>
+                    <?php endif; ?>
+                <?php endfor; ?>
+            </div>
+        </div>
+
         <?php if ($summaryDays === []): ?>
             <div class="empty-state">No existen registros de asistencia para el mes seleccionado.</div>
         <?php else: ?>
-            <div class="table-wrap">
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>Fecha</th>
-                            <th>Resumen</th>
-                            <th>Asistencias</th>
-                            <th>Atrasos</th>
-                            <th>F. justificadas</th>
-                            <th>F. injustificadas</th>
-                            <th>Detalle</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php foreach ($summaryDays as $day): ?>
-                            <?php
-                            $date = (string) $day['cafecha'];
-                            $detailUrl = baseUrl($basePath . '?mes=' . $selectedMonth . $studentQuery . '&fecha=' . $date . '#detalle');
-                            ?>
-                            <tr>
-                                <td><?= htmlspecialchars($date, ENT_QUOTES, 'UTF-8'); ?></td>
-                                <td><?= htmlspecialchars($statusLabels[(string) $day['resumen_estado']] ?? (string) $day['resumen_estado'], ENT_QUOTES, 'UTF-8'); ?></td>
-                                <td><?= (int) $day['total_asistencias']; ?></td>
-                                <td><?= (int) $day['total_atrasos']; ?></td>
-                                <td><?= (int) $day['total_faltas_justificadas']; ?></td>
-                                <td><?= (int) $day['total_faltas_injustificadas']; ?></td>
-                                <td><a class="btn-secondary btn-inline" href="<?= htmlspecialchars($detailUrl, ENT_QUOTES, 'UTF-8'); ?>">Ver</a></td>
-                            </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
+            <div class="attendance-month-summary">
+                <div>
+                    <span>Asistencias</span>
+                    <strong><?= (int) $monthlyTotals['asistencias']; ?></strong>
+                </div>
+                <div>
+                    <span>Atrasos</span>
+                    <strong><?= (int) $monthlyTotals['atrasos']; ?></strong>
+                </div>
+                <div>
+                    <span>F. justificadas</span>
+                    <strong><?= (int) $monthlyTotals['faltas_justificadas']; ?></strong>
+                </div>
+                <div>
+                    <span>F. injustificadas</span>
+                    <strong><?= (int) $monthlyTotals['faltas_injustificadas']; ?></strong>
+                </div>
             </div>
         <?php endif; ?>
     </section>
 
     <?php if ($selectedDate !== ''): ?>
-        <section class="security-assignment-block" id="detalle">
+        <dialog class="calendar-dialog attendance-detail-dialog" id="detalle">
             <header class="security-assignment-header">
                 <div>
                     <h3>Detalle del <?= htmlspecialchars($selectedDate, ENT_QUOTES, 'UTF-8'); ?></h3>
                     <p>Registro por hora, materia y docente.</p>
                 </div>
+                <button class="btn-secondary btn-auto" type="button" data-attendance-detail-close>Cerrar</button>
             </header>
 
             <?php if ($attendanceDetail === []): ?>
@@ -156,8 +255,31 @@ $studentQuery = $selectedStudentId > 0 && $availableStudents !== [] ? '&estid=' 
                     </table>
                 </div>
             <?php endif; ?>
-        </section>
+        </dialog>
     <?php endif; ?>
+
+    <script>
+        (function () {
+            var dialog = document.getElementById('detalle');
+            var closeButton = document.querySelector('[data-attendance-detail-close]');
+
+            if (!dialog) {
+                return;
+            }
+
+            if (typeof dialog.showModal === 'function') {
+                dialog.showModal();
+            }
+
+            if (closeButton) {
+                closeButton.addEventListener('click', function () {
+                    if (typeof dialog.close === 'function') {
+                        dialog.close('cancel');
+                    }
+                });
+            }
+        }());
+    </script>
 <?php endif; ?>
 
 <?php require BASE_PATH . '/app/views/partials/footer.php'; ?>

@@ -3200,6 +3200,30 @@ thead .role-user-sticky {
     box-shadow: inset 3px 0 0 var(--success);
 }
 
+.calendar-day.is-attendance-ok {
+    box-shadow: inset 3px 0 0 #111111;
+}
+
+.calendar-day.is-attendance-alert {
+    box-shadow: inset 3px 0 0 #555555;
+}
+
+.student-calendar-status {
+    gap: 4px;
+}
+
+.student-calendar-status .fa {
+    font-size: 0.72rem;
+}
+
+.calendar-day.is-attendance-ok .student-calendar-status .fa {
+    color: #15803d;
+}
+
+.calendar-day.is-attendance-alert .student-calendar-status .fa {
+    color: #d97706;
+}
+
 .calendar-day.is-type-reducida {
     box-shadow: inset 3px 0 0 #d97706;
 }
@@ -3258,6 +3282,53 @@ thead .role-user-sticky {
     box-shadow: none;
 }
 
+.student-attendance-calendar .calendar-day.is-suspended,
+.teacher-register-calendar .calendar-day.is-suspended {
+    background: #eef3f7;
+    color: #8a99a8;
+    box-shadow: none;
+}
+
+.student-attendance-calendar .calendar-day.is-suspended strong,
+.teacher-register-calendar .calendar-day.is-suspended strong {
+    color: #8a99a8;
+}
+
+.student-attendance-calendar .calendar-day.is-suspended:hover,
+.teacher-register-calendar .calendar-day.is-suspended:hover {
+    background: #eef3f7;
+    color: #8a99a8;
+    transform: none;
+}
+
+.teacher-calendar-hours {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.teacher-calendar-hour {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    margin: 0;
+    padding: 1px 4px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: #ffffff;
+    color: var(--primary);
+    font-size: 0.65rem;
+    font-weight: 700;
+    line-height: 1.2;
+    cursor: pointer;
+}
+
+.teacher-calendar-hour input {
+    width: 10px;
+    height: 10px;
+    margin: 0;
+}
+
 .calendar-dialog {
     width: min(980px, calc(100vw - 32px));
     max-height: calc(100vh - 40px);
@@ -3268,8 +3339,233 @@ thead .role-user-sticky {
     box-shadow: 0 24px 70px rgba(15, 76, 129, 0.28);
 }
 
+.calendar-dialog.teacher-session-dialog {
+    width: min(720px, calc(100vw - 32px));
+}
+
+.calendar-dialog.attendance-save-dialog {
+    width: min(520px, calc(100vw - 32px));
+}
+
+.calendar-dialog.attendance-detail-dialog {
+    width: min(860px, calc(100vw - 32px));
+}
+
+.calendar-dialog [data-calendar-detail-block] .data-table th,
+.calendar-dialog [data-calendar-detail-block] .data-table td {
+    padding: 2px 4px;
+    font-size: 0.68rem;
+    line-height: 1.1;
+    text-align: center;
+}
+
+.calendar-dialog [data-calendar-detail-block] .data-table {
+    width: auto;
+    min-width: 0;
+    margin: 0 auto;
+}
+
+.calendar-dialog [data-calendar-detail-block] .data-table th:first-child,
+.calendar-dialog [data-calendar-detail-block] .data-table td:first-child {
+    width: 24px;
+    min-width: 24px;
+    max-width: 24px;
+    text-align: center;
+}
+
+.calendar-dialog [data-calendar-detail-block] .data-table th:nth-child(2),
+.calendar-dialog [data-calendar-detail-block] .data-table td:nth-child(2) {
+    min-width: 150px;
+    max-width: 190px;
+    text-align: left;
+}
+
+.calendar-dialog [data-calendar-detail-block] .data-table th:nth-child(n+3),
+.calendar-dialog [data-calendar-detail-block] .data-table td:nth-child(n+3) {
+    width: 36px;
+    min-width: 36px;
+    max-width: 36px;
+}
+
+.calendar-dialog [data-hour-master],
+.calendar-dialog [data-hour-checkbox],
+.calendar-dialog [data-course-master] {
+    width: 11px;
+    height: 11px;
+    margin: 0;
+}
+
 .calendar-dialog::backdrop {
     background: rgba(12, 53, 88, 0.42);
+}
+
+.report-table-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 12px;
+    margin: 0 0 12px;
+    padding: 8px 10px;
+    border: 1px solid #8a8a8a;
+    background: #f5f5f5;
+}
+
+.report-table-legend div {
+    display: flex;
+    gap: 5px;
+    align-items: baseline;
+}
+
+.report-table-legend dt {
+    color: #333333;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.report-table-legend dd {
+    margin: 0;
+    color: #111111;
+    font-size: 0.82rem;
+    font-weight: 600;
+}
+
+.attendance-month-summary {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.attendance-month-summary div {
+    border: 1px solid #8a8a8a;
+    background: #f5f5f5;
+    padding: 8px 10px;
+}
+
+.attendance-month-summary span {
+    display: block;
+    color: #333333;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.attendance-month-summary strong {
+    display: block;
+    margin-top: 4px;
+    color: #111111;
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.attendance-matrix-table {
+    width: auto;
+    min-width: 100%;
+    border-collapse: collapse;
+}
+
+.attendance-matrix-table th,
+.attendance-matrix-table td {
+    border: 1px solid #222222;
+    padding: 3px 5px;
+    background: #ffffff;
+    color: #111111;
+    text-align: center;
+    white-space: nowrap;
+}
+
+.attendance-matrix-table th {
+    background: #eeeeee;
+    color: #000000;
+}
+
+.attendance-matrix-table .matrix-student-column {
+    min-width: 260px;
+    text-align: left;
+}
+
+.attendance-matrix-table .matrix-course-column {
+    min-width: 90px;
+    text-align: left;
+}
+
+.attendance-matrix-table .matrix-day-cell {
+    width: 34px;
+    min-width: 34px;
+    max-width: 34px;
+    font-weight: 400;
+}
+
+.attendance-matrix-table .matrix-total-cell {
+    width: 46px;
+    min-width: 46px;
+    font-weight: 400;
+}
+
+.report-matrix-note {
+    margin: 14px 0 0;
+    color: #111111;
+    font-size: 0.86rem;
+    font-weight: 600;
+}
+
+.student-hourly-matrix-block {
+    margin-bottom: 22px;
+}
+
+.student-hourly-matrix-table {
+    width: auto;
+    min-width: 420px;
+    border-collapse: collapse;
+}
+
+.student-hourly-matrix-table th,
+.student-hourly-matrix-table td,
+.student-hourly-summary-table th,
+.student-hourly-summary-table td {
+    border: 1px solid #222222;
+    padding: 3px 6px;
+    background: #ffffff;
+    color: #111111;
+    text-align: center;
+}
+
+.student-hourly-matrix-table th,
+.student-hourly-summary-table th {
+    background: #eeeeee;
+    color: #000000;
+}
+
+.student-hourly-matrix-table .matrix-date-column,
+.student-hourly-matrix-table th:first-child,
+.student-hourly-matrix-table td:first-child {
+    width: 56px;
+    text-align: left;
+}
+
+.student-hourly-matrix-table th:not(:first-child),
+.student-hourly-matrix-table td:not(:first-child) {
+    width: 48px;
+    min-width: 48px;
+    font-weight: 400;
+}
+
+.student-hourly-summary-table {
+    width: auto;
+    min-width: 260px;
+    margin-top: 4px;
+    border-collapse: collapse;
+}
+
+.student-hourly-summary-table th,
+.student-hourly-summary-table td:first-child {
+    text-align: left;
+}
+
+.student-hourly-summary-table td:last-child {
+    width: 60px;
+    text-align: right;
+    font-weight: 400;
 }
 
 .print-only {
@@ -3295,9 +3591,36 @@ thead .role-user-sticky {
         font-size: 0.58rem;
         padding: 2px 4px;
     }
+
+    .attendance-month-summary {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@page {
+    size: portrait;
+    margin: 10mm;
+}
+
+@page report-landscape {
+    size: landscape;
+    margin: 8mm;
+}
+
+@page report-portrait {
+    size: portrait;
+    margin: 10mm;
 }
 
 @media print {
+    body:has(.report-print-landscape) {
+        page: report-landscape;
+    }
+
+    body:has(.report-print-portrait) {
+        page: report-portrait;
+    }
+
     body {
         background: #ffffff;
         color: #111827;
@@ -3307,7 +3630,8 @@ thead .role-user-sticky {
     .sidebar-card,
     .content-header,
     .print-hidden,
-    .alert {
+    .alert,
+    .report-results-block .security-assignment-header {
         display: none !important;
     }
 
@@ -3350,17 +3674,18 @@ thead .role-user-sticky {
         font-size: 0.82rem;
     }
 
-    .dashboard-grid,
-    .dashboard-metrics-grid {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 8px;
-    }
-
-    .summary-card,
     .security-assignment-block {
         break-inside: avoid;
         padding: 10px;
+    }
+
+    .report-results-block {
+        padding: 0;
+    }
+
+    .report-table-legend {
+        border-color: #222222;
+        background: #ffffff;
     }
 
     .table-wrap {
@@ -3374,6 +3699,57 @@ thead .role-user-sticky {
     .data-table th,
     .data-table td {
         padding: 5px;
+    }
+
+    .attendance-matrix-table {
+        font-size: 0.62rem;
+    }
+
+    body:has(.report-print-landscape) .attendance-matrix-table {
+        font-size: 0.56rem;
+    }
+
+    .attendance-matrix-table th,
+    .attendance-matrix-table td {
+        padding: 3px;
+    }
+
+    body:has(.report-print-landscape) .attendance-matrix-table th,
+    body:has(.report-print-landscape) .attendance-matrix-table td {
+        padding: 2px;
+    }
+
+    .attendance-matrix-table .matrix-student-column {
+        min-width: 180px;
+    }
+
+    body:has(.report-print-landscape) .attendance-matrix-table .matrix-student-column {
+        min-width: 150px;
+    }
+
+    .attendance-matrix-table .matrix-course-column {
+        min-width: 70px;
+    }
+
+    .attendance-matrix-table .matrix-day-cell {
+        width: 24px;
+        min-width: 24px;
+        max-width: 24px;
+    }
+
+    body:has(.report-print-landscape) .attendance-matrix-table .matrix-day-cell {
+        width: 20px;
+        min-width: 20px;
+        max-width: 20px;
+    }
+
+    .student-hourly-matrix-block {
+        break-inside: avoid;
+    }
+
+    .student-hourly-matrix-table,
+    .student-hourly-summary-table {
+        font-size: 0.66rem;
     }
 
     a {

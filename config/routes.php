@@ -41,6 +41,10 @@ return static function (Router $router): void {
     $router->get('/configuracion/periodos', [ConfigurationController::class, 'periods']);
     $router->get('/configuracion/matricula', [ConfigurationController::class, 'matriculationSettings']);
     $router->get('/configuracion/matricula/documentos', [ConfigurationController::class, 'matriculationDocuments']);
+    $router->get('/configuracion/academica/areas', [AttendanceController::class, 'academicAreas']);
+    $router->get('/configuracion/academica/asignaturas', [AttendanceController::class, 'academicSubjects']);
+    $router->get('/configuracion/academica/materias-curso', [AttendanceController::class, 'academicCourseSubjects']);
+    $router->get('/configuracion/academica/docentes', [AttendanceController::class, 'academicTeachers']);
     $router->post('/configuracion/catalogos', [ConfigurationController::class, 'storeCatalogItem']);
     $router->post('/configuracion/institucion', [ConfigurationController::class, 'storeInstitution']);
     $router->post('/configuracion/catalogos/actualizar', [ConfigurationController::class, 'updateCatalogItem']);
@@ -56,6 +60,16 @@ return static function (Router $router): void {
     $router->post('/configuracion/matricula/documentos', [ConfigurationController::class, 'storeMatriculationDocument']);
     $router->post('/configuracion/matricula/documentos/actualizar', [ConfigurationController::class, 'updateMatriculationDocument']);
     $router->post('/configuracion/matricula/documentos/eliminar', [ConfigurationController::class, 'deleteMatriculationDocument']);
+    $router->post('/configuracion/academica/areas', [AttendanceController::class, 'storeArea']);
+    $router->post('/configuracion/academica/areas/actualizar', [AttendanceController::class, 'updateArea']);
+    $router->post('/configuracion/academica/areas/estado', [AttendanceController::class, 'toggleArea']);
+    $router->post('/configuracion/academica/asignaturas', [AttendanceController::class, 'storeSubject']);
+    $router->post('/configuracion/academica/asignaturas/actualizar', [AttendanceController::class, 'updateSubject']);
+    $router->post('/configuracion/academica/asignaturas/estado', [AttendanceController::class, 'toggleSubject']);
+    $router->post('/configuracion/academica/materias-curso', [AttendanceController::class, 'storeCourseSubject']);
+    $router->post('/configuracion/academica/materias-curso/estado', [AttendanceController::class, 'toggleCourseSubject']);
+    $router->post('/configuracion/academica/docentes', [AttendanceController::class, 'assignTeacher']);
+    $router->post('/configuracion/academica/docentes/retirar', [AttendanceController::class, 'removeTeacher']);
 
     $router->get('/seguridad/catalogos', [SecurityController::class, 'catalogs']);
     $router->get('/seguridad/usuarios', [SecurityController::class, 'users']);

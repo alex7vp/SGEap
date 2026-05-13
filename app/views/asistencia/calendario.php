@@ -153,7 +153,6 @@ $selectedDateInsideClassRange = $classRangeStart === ''
         <form
             method="POST"
             action="<?= htmlspecialchars(baseUrl('asistencia/calendario'), ENT_QUOTES, 'UTF-8'); ?>"
-            onsubmit="return confirm('Confirma que desea guardar la configuracion de esta jornada?');"
         >
             <input type="hidden" name="cafecha" value="<?= htmlspecialchars((string) $selectedDate, ENT_QUOTES, 'UTF-8'); ?>">
             <header class="security-assignment-header">
@@ -161,7 +160,7 @@ $selectedDateInsideClassRange = $classRangeStart === ''
                     <h3>Configurar <?= htmlspecialchars((string) $selectedDate, ENT_QUOTES, 'UTF-8'); ?></h3>
                     <p>Seleccione el tipo de jornada que se habilitara para este dia.</p>
                 </div>
-                <button class="btn-secondary btn-auto" value="cancel" formmethod="dialog" type="submit">Cerrar</button>
+                <button class="btn-secondary btn-auto" type="button" data-calendar-dialog-close>Cerrar</button>
             </header>
 
             <div class="form-grid">
@@ -213,6 +212,9 @@ $selectedDateInsideClassRange = $classRangeStart === ''
                         <table class="data-table">
                             <thead>
                                 <tr>
+                                    <th>
+                                        <span class="sr-only">Curso</span>
+                                    </th>
                                     <th>Curso</th>
                                     <?php foreach ($hours as $hour): ?>
                                         <th>
@@ -231,6 +233,13 @@ $selectedDateInsideClassRange = $classRangeStart === ''
                                 <?php foreach ($courses as $course): ?>
                                     <?php $courseId = (int) $course['curid']; ?>
                                     <tr>
+                                        <td>
+                                            <input
+                                                type="checkbox"
+                                                data-course-master="<?= $courseId; ?>"
+                                                aria-label="Seleccionar todas las horas de <?= htmlspecialchars((string) $course['granombre'] . ' ' . $course['prlnombre'], ENT_QUOTES, 'UTF-8'); ?>"
+                                            >
+                                        </td>
                                         <td><?= htmlspecialchars((string) $course['granombre'] . ' ' . $course['prlnombre'], ENT_QUOTES, 'UTF-8'); ?></td>
                                         <?php foreach ($hours as $hour): ?>
                                             <?php $checked = !empty($calendarDetails[$courseId][$hour]['cadhabilitado']); ?>
@@ -240,6 +249,7 @@ $selectedDateInsideClassRange = $classRangeStart === ''
                                                     name="detalle[<?= $courseId; ?>][]"
                                                     value="<?= $hour; ?>"
                                                     data-hour-checkbox="<?= $hour; ?>"
+                                                    data-course-checkbox="<?= $courseId; ?>"
                                                     <?= $checked ? 'checked' : ''; ?>
                                                 >
                                             </td>
@@ -253,55 +263,17 @@ $selectedDateInsideClassRange = $classRangeStart === ''
             </div>
 
             <div class="actions-row">
-                <button class="btn-primary btn-inline" type="submit">Guardar jornada</button>
+                <button
+                    class="btn-primary btn-inline"
+                    type="submit"
+                    onclick="return confirm('Confirma que desea guardar la configuracion de esta jornada?');"
+                >
+                    Guardar jornada
+                </button>
             </div>
         </form>
     </dialog>
     <?php endif; ?>
-
-    <section class="security-assignment-block">
-        <header class="security-assignment-header">
-            <div>
-                <h3>Ultimas jornadas configuradas</h3>
-                <p>Listado reciente del periodo lectivo actual.</p>
-            </div>
-        </header>
-
-        <?php if (empty($calendarDays)): ?>
-            <div class="empty-state">Todavia no hay jornadas habilitadas para este periodo.</div>
-        <?php else: ?>
-            <div class="table-wrap">
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>Fecha</th>
-                            <th>Tipo</th>
-                            <th>Hora limite</th>
-                            <th>Observacion</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php foreach ($calendarDays as $day): ?>
-                            <tr>
-                                <td>
-                                    <a href="<?= htmlspecialchars(baseUrl('asistencia/calendario?mes=' . substr((string) $day['cafecha'], 0, 7) . '&fecha=' . (string) $day['cafecha'] . '#jornada-dialog'), ENT_QUOTES, 'UTF-8'); ?>">
-                                        <?= htmlspecialchars((string) $day['cafecha'], ENT_QUOTES, 'UTF-8'); ?>
-                                    </a>
-                                </td>
-                                <td>
-                                    <span class="calendar-status-pill <?= htmlspecialchars('is-type-' . strtolower((string) $day['catipo_jornada']), ENT_QUOTES, 'UTF-8'); ?>">
-                                        <?= htmlspecialchars((string) $day['catipo_jornada'], ENT_QUOTES, 'UTF-8'); ?>
-                                    </span>
-                                </td>
-                                <td><?= htmlspecialchars((string) ($day['cahora_limite'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></td>
-                                <td><?= htmlspecialchars((string) ($day['caobservacion'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></td>
-                            </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
-            </div>
-        <?php endif; ?>
-    </section>
 
     <script>
         (function () {
@@ -321,11 +293,31 @@ $selectedDateInsideClassRange = $classRangeStart === ''
             var detailBlock = dialog.querySelector('[data-calendar-detail-block]');
             var detailCheckboxes = Array.prototype.slice.call(dialog.querySelectorAll('[data-hour-checkbox]'));
             var hourMasters = Array.prototype.slice.call(dialog.querySelectorAll('[data-hour-master]'));
+            var courseMasters = Array.prototype.slice.call(dialog.querySelectorAll('[data-course-master]'));
             var modeNote = dialog.querySelector('[data-calendar-mode-note]');
+            var closeButton = dialog.querySelector('[data-calendar-dialog-close]');
+
+            function closeDialog() {
+                if (typeof dialog.close === 'function') {
+                    dialog.close('cancel');
+                }
+
+                if (window.location.hash === '#jornada-dialog' && window.history && typeof window.history.replaceState === 'function') {
+                    window.history.replaceState(null, document.title, window.location.pathname + window.location.search);
+                }
+            }
 
             function setCheckboxesForHour(hour, checked) {
                 detailCheckboxes.forEach(function (checkbox) {
                     if (checkbox.getAttribute('data-hour-checkbox') === String(hour)) {
+                        checkbox.checked = checked;
+                    }
+                });
+            }
+
+            function setCheckboxesForCourse(courseId, checked) {
+                detailCheckboxes.forEach(function (checkbox) {
+                    if (checkbox.getAttribute('data-course-checkbox') === String(courseId)) {
                         checkbox.checked = checked;
                     }
                 });
@@ -336,6 +328,21 @@ $selectedDateInsideClassRange = $classRangeStart === ''
                     var hour = master.getAttribute('data-hour-master');
                     var checkboxes = detailCheckboxes.filter(function (checkbox) {
                         return checkbox.getAttribute('data-hour-checkbox') === hour;
+                    });
+                    var checkedCount = checkboxes.filter(function (checkbox) {
+                        return checkbox.checked;
+                    }).length;
+
+                    master.checked = checkboxes.length > 0 && checkedCount === checkboxes.length;
+                    master.indeterminate = checkedCount > 0 && checkedCount < checkboxes.length;
+                });
+            }
+
+            function refreshCourseMasters() {
+                courseMasters.forEach(function (master) {
+                    var courseId = master.getAttribute('data-course-master');
+                    var checkboxes = detailCheckboxes.filter(function (checkbox) {
+                        return checkbox.getAttribute('data-course-checkbox') === courseId;
                     });
                     var checkedCount = checkboxes.filter(function (checkbox) {
                         return checkbox.checked;
@@ -384,6 +391,11 @@ $selectedDateInsideClassRange = $classRangeStart === ''
                     master.indeterminate = false;
                 });
 
+                courseMasters.forEach(function (master) {
+                    master.disabled = !isSpecial;
+                    master.indeterminate = false;
+                });
+
                 if (modeNote) {
                     if (type === 'NORMAL') {
                         modeNote.textContent = 'Jornada normal: se habilitan todas las horas para todos los cursos.';
@@ -397,17 +409,30 @@ $selectedDateInsideClassRange = $classRangeStart === ''
                 }
 
                 refreshHourMasters();
+                refreshCourseMasters();
             }
 
             hourMasters.forEach(function (master) {
                 master.addEventListener('change', function () {
                     setCheckboxesForHour(master.getAttribute('data-hour-master'), master.checked);
                     refreshHourMasters();
+                    refreshCourseMasters();
+                });
+            });
+
+            courseMasters.forEach(function (master) {
+                master.addEventListener('change', function () {
+                    setCheckboxesForCourse(master.getAttribute('data-course-master'), master.checked);
+                    refreshHourMasters();
+                    refreshCourseMasters();
                 });
             });
 
             detailCheckboxes.forEach(function (checkbox) {
-                checkbox.addEventListener('change', refreshHourMasters);
+                checkbox.addEventListener('change', function () {
+                    refreshHourMasters();
+                    refreshCourseMasters();
+                });
             });
 
             if (typeSelect) {
@@ -416,6 +441,10 @@ $selectedDateInsideClassRange = $classRangeStart === ''
 
             if (limitSelect) {
                 limitSelect.addEventListener('change', applyJourneyMode);
+            }
+
+            if (closeButton) {
+                closeButton.addEventListener('click', closeDialog);
             }
 
             applyJourneyMode();
