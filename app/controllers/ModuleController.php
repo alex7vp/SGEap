@@ -42,7 +42,14 @@ class ModuleController extends Controller
                     'description' => 'Centraliza configuracion, calendario, registro, supervision, justificaciones y reportes.',
                     'url' => baseUrl('asistencia'),
                     'icon' => 'fa-calendar-check-o',
-                    'permission' => 'asistencia.calendario.gestionar|asistencia.registrar|asistencia.supervisar|justificaciones.gestionar|asistencia.ver_propia|asistencia.representante.ver',
+                    'permission' => 'asistencia.calendario.gestionar|asistencia.registrar|asistencia.supervisar|justificaciones.gestionar|asistencia.ver_propia|asistencia.representante.ver|novedades.registrar|novedades.supervisar|novedades.ver_propia|novedades.representante.ver',
+                ],
+                [
+                    'label' => 'Registro de novedades',
+                    'description' => 'Registra y consulta novedades en clase, recreos u otros momentos de la jornada.',
+                    'url' => baseUrl('novedades'),
+                    'icon' => 'fa-exclamation-circle',
+                    'permission' => 'novedades.registrar|novedades.supervisar|novedades.ver_propia|novedades.representante.ver',
                 ],
             ]
         );
@@ -111,6 +118,13 @@ class ModuleController extends Controller
                     'url' => baseUrl('asistencia/representante'),
                     'icon' => 'fa-calendar-o',
                     'permission' => 'asistencia.representante.ver',
+                ],
+                [
+                    'label' => 'Registro de novedades',
+                    'description' => 'Registra y consulta novedades de estudiantes usando la jornada del periodo.',
+                    'url' => baseUrl('novedades'),
+                    'icon' => 'fa-exclamation-circle',
+                    'permission' => 'novedades.registrar|novedades.supervisar|novedades.ver_propia|novedades.representante.ver',
                 ],
             ]
         );

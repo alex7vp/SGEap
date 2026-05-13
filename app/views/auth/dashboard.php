@@ -24,12 +24,19 @@ $canOwnMatriculation = $can('estudiante.mi_matricula');
 $canRepresentativeStudents = $can('representante.estudiantes');
 $canOwnAttendance = $can('asistencia.ver_propia');
 $canRepresentativeAttendance = $can('asistencia.representante.ver');
+$canOwnNovelties = $can('novedades.ver_propia');
+$canRepresentativeNovelties = $can('novedades.representante.ver');
+$canNoveltiesModule = $can('novedades.registrar')
+    || $can('novedades.supervisar')
+    || $canOwnNovelties
+    || $canRepresentativeNovelties;
 $canAttendanceModule = $can('asistencia.calendario.gestionar')
     || $can('asistencia.registrar')
     || $can('asistencia.supervisar')
     || $can('justificaciones.gestionar')
     || $canOwnAttendance
-    || $canRepresentativeAttendance;
+    || $canRepresentativeAttendance
+    || $canNoveltiesModule;
 
 $metricCards = [
     [
@@ -69,10 +76,13 @@ $metricCards = array_values(array_filter($metricCards, static fn (array $card): 
 
 $quickLinks = [
     ['visible' => $canAttendanceModule, 'label' => 'Modulo asistencia', 'url' => baseUrl('asistencia')],
+    ['visible' => $canNoveltiesModule, 'label' => 'Registro de novedades', 'url' => baseUrl('novedades')],
     ['visible' => $canOwnMatriculation, 'label' => 'Mi matricula', 'url' => baseUrl('mi-matricula')],
     ['visible' => $canOwnAttendance, 'label' => 'Mi asistencia', 'url' => baseUrl('asistencia/mi-asistencia')],
+    ['visible' => $canOwnNovelties, 'label' => 'Mis novedades', 'url' => baseUrl('novedades/mis-novedades')],
     ['visible' => $canRepresentativeStudents, 'label' => 'Mis estudiantes', 'url' => baseUrl('dashboard')],
     ['visible' => $canRepresentativeAttendance, 'label' => 'Asistencia representados', 'url' => baseUrl('asistencia/representante')],
+    ['visible' => $canRepresentativeNovelties, 'label' => 'Novedades representados', 'url' => baseUrl('novedades/representante')],
     ['visible' => $canPersonas, 'label' => 'Ver personal', 'url' => baseUrl('personal')],
     ['visible' => $canEstudiantes, 'label' => 'Registrar estudiante', 'url' => baseUrl('estudiantes/crear')],
     ['visible' => $canMatriculas && $canCreateMatricula, 'label' => $newMatriculaLabel, 'url' => baseUrl('matriculas?panel=nueva')],

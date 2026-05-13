@@ -49,6 +49,11 @@ $sectionModuleMap = [
     'asistencia_registro' => 'academico',
     'asistencia_propia' => 'academico',
     'asistencia_representante' => 'academico',
+    'novedades_home' => 'academico',
+    'novedades_registro' => 'academico',
+    'novedades_supervision' => 'academico',
+    'novedades_propias' => 'academico',
+    'novedades_representante' => 'academico',
     'configuracion_home' => 'configuracion',
     'configuracion_academica' => 'configuracion',
     'catalogos' => 'configuracion',
@@ -125,6 +130,12 @@ $sidebarModules = [
                         'label' => 'Asistencia',
                         'url' => baseUrl('asistencia'),
                         'icon' => 'fa-calendar-check-o',
+                    ],
+                    [
+                        'key' => 'novedades_home',
+                        'label' => 'Novedades',
+                        'url' => baseUrl('novedades'),
+                        'icon' => 'fa-exclamation-circle',
                     ],
                 ],
             ],
@@ -252,14 +263,19 @@ $permissionMap = [
     'representante_estudiantes' => 'representante.estudiantes',
     'asistencia_propia' => 'asistencia.ver_propia',
     'asistencia_representante' => 'asistencia.representante.ver',
-    'academico_home' => ['estudiantes.gestionar', 'personas.gestionar', 'matriculas.gestionar', 'asistencia.calendario.gestionar', 'asistencia.registrar', 'asistencia.supervisar', 'justificaciones.gestionar', 'asistencia.ver_propia', 'asistencia.representante.ver'],
+    'novedades_home' => ['novedades.registrar', 'novedades.supervisar', 'novedades.ver_propia', 'novedades.representante.ver'],
+    'novedades_registro' => ['novedades.registrar', 'novedades.supervisar'],
+    'novedades_supervision' => 'novedades.supervisar',
+    'novedades_propias' => 'novedades.ver_propia',
+    'novedades_representante' => 'novedades.representante.ver',
+    'academico_home' => ['estudiantes.gestionar', 'personas.gestionar', 'matriculas.gestionar', 'asistencia.calendario.gestionar', 'asistencia.registrar', 'asistencia.supervisar', 'justificaciones.gestionar', 'asistencia.ver_propia', 'asistencia.representante.ver', 'novedades.registrar', 'novedades.supervisar', 'novedades.ver_propia', 'novedades.representante.ver'],
     'estudiantes' => 'estudiantes.gestionar',
     'personal' => 'personas.gestionar',
     'personal_register' => 'personas.gestionar',
     'personal_assignment' => 'personas.gestionar',
     'personal_listing' => 'personas.gestionar',
     'matriculas' => 'matriculas.gestionar',
-    'asistencia_home' => ['asistencia.calendario.gestionar', 'asistencia.registrar', 'asistencia.supervisar', 'justificaciones.gestionar', 'asistencia.ver_propia', 'asistencia.representante.ver'],
+    'asistencia_home' => ['asistencia.calendario.gestionar', 'asistencia.registrar', 'asistencia.supervisar', 'justificaciones.gestionar', 'asistencia.ver_propia', 'asistencia.representante.ver', 'novedades.registrar', 'novedades.supervisar', 'novedades.ver_propia', 'novedades.representante.ver'],
     'asistencia_configuracion' => 'asistencia.calendario.gestionar',
     'asistencia_calendario' => 'asistencia.calendario.gestionar',
     'asistencia_justificaciones' => 'justificaciones.gestionar',
@@ -302,8 +318,8 @@ $canAccess = static function (string $key) use ($permissionMap, $userPermissions
     return false;
 };
 $modulePermissions = [
-    'inicio' => ['dashboard.ver', 'matricula_temporal.ver', 'representante.matricula_nueva', 'estudiante.mi_matricula', 'representante.estudiantes', 'asistencia.ver_propia', 'asistencia.representante.ver'],
-    'academico' => ['estudiantes.gestionar', 'personas.gestionar', 'matriculas.gestionar', 'asistencia.calendario.gestionar', 'asistencia.registrar', 'asistencia.supervisar', 'justificaciones.gestionar', 'asistencia.ver_propia', 'asistencia.representante.ver'],
+    'inicio' => ['dashboard.ver', 'matricula_temporal.ver', 'representante.matricula_nueva', 'estudiante.mi_matricula', 'representante.estudiantes', 'asistencia.ver_propia', 'asistencia.representante.ver', 'novedades.ver_propia', 'novedades.representante.ver'],
+    'academico' => ['estudiantes.gestionar', 'personas.gestionar', 'matriculas.gestionar', 'asistencia.calendario.gestionar', 'asistencia.registrar', 'asistencia.supervisar', 'justificaciones.gestionar', 'asistencia.ver_propia', 'asistencia.representante.ver', 'novedades.registrar', 'novedades.supervisar', 'novedades.ver_propia', 'novedades.representante.ver'],
     'configuracion' => ['configuracion.gestionar', 'catalogos.gestionar', 'cursos.gestionar', 'matriculas.documentos', 'asistencia.calendario.gestionar'],
     'seguridad' => ['seguridad.usuarios', 'seguridad.roles_permisos', 'usuarios_temporales.gestionar'],
 ];
@@ -500,6 +516,7 @@ foreach ($logoPatterns as $logoPattern) {
                             $isActiveSidebarItem = ($currentSection ?? '') === $itemKey
                                 || ($itemKey === 'asistencia_home' && str_starts_with((string) ($currentSection ?? ''), 'asistencia_'))
                                 || ($itemKey === 'asistencia_home' && ($currentSection ?? '') === 'reporte_asistencia')
+                                || ($itemKey === 'novedades_home' && str_starts_with((string) ($currentSection ?? ''), 'novedades_'))
                                 || (
                                     $itemKey === 'configuracion_academica'
                                     && in_array((string) ($currentSection ?? ''), [
