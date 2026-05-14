@@ -251,6 +251,80 @@ function storeMatriculationDocumentFile(array $file, string $documentName): ?str
     return 'docs/matricula/' . $fileName;
 }
 
+function isManagedJustificationDocumentPath(string $path): bool
+{
+    return str_starts_with(ltrim(trim($path), '/'), 'docs/justificaciones/');
+}
+
+function storeJustificationDocumentFile(array $file, string $studentName): ?string
+{
+    $errorCode = (int) ($file['error'] ?? UPLOAD_ERR_NO_FILE);
+
+    if ($errorCode === UPLOAD_ERR_NO_FILE) {
+        return null;
+    }
+
+    if ($errorCode !== UPLOAD_ERR_OK) {
+        throw new \RuntimeException('No se pudo cargar el documento de respaldo.');
+    }
+
+    $tmpName = (string) ($file['tmp_name'] ?? '');
+
+    if ($tmpName === '' || !is_uploaded_file($tmpName)) {
+        throw new \RuntimeException('El documento de respaldo no es valido.');
+    }
+
+    $maxSize = 2 * 1024 * 1024;
+    $fileSize = (int) ($file['size'] ?? 0);
+
+    if ($fileSize <= 0 || $fileSize > $maxSize) {
+        throw new \RuntimeException('El documento de respaldo debe pesar maximo 2 MB.');
+    }
+
+    $originalName = (string) ($file['name'] ?? '');
+    $extension = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
+    $allowedExtensions = ['pdf', 'jpg', 'jpeg', 'png'];
+
+    if (!in_array($extension, $allowedExtensions, true)) {
+        throw new \RuntimeException('El documento de respaldo debe estar en formato PDF, JPG o PNG.');
+    }
+
+    $baseName = preg_replace('/[^a-z0-9]+/i', '-', strtolower(trim($studentName))) ?? '';
+    $baseName = trim($baseName, '-');
+
+    if ($baseName === '') {
+        $baseName = 'justificacion';
+    }
+
+    $targetDirectory = BASE_PATH . '/public/assets/docs/justificaciones';
+
+    if (!is_dir($targetDirectory) && !mkdir($targetDirectory, 0775, true) && !is_dir($targetDirectory)) {
+        throw new \RuntimeException('No se pudo preparar el directorio de documentos de justificacion.');
+    }
+
+    $fileName = $baseName . '-' . date('YmdHis') . '-' . bin2hex(random_bytes(4)) . '.' . $extension;
+    $targetPath = $targetDirectory . '/' . $fileName;
+
+    if (!move_uploaded_file($tmpName, $targetPath)) {
+        throw new \RuntimeException('No se pudo guardar el documento de respaldo.');
+    }
+
+    return 'docs/justificaciones/' . $fileName;
+}
+
+function deleteManagedJustificationDocumentFile(string $path): void
+{
+    if (!isManagedJustificationDocumentPath($path)) {
+        return;
+    }
+
+    $absolutePath = BASE_PATH . '/public/assets/' . ltrim($path, '/');
+
+    if (is_file($absolutePath)) {
+        @unlink($absolutePath);
+    }
+}
+
 function deleteManagedMatriculationDocumentFile(string $path): void
 {
     if (!isManagedMatriculationDocumentPath($path)) {

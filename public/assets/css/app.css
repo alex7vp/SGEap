@@ -2637,6 +2637,33 @@ thead .role-user-sticky {
     margin: 0;
 }
 
+.justification-action-group {
+    display: flex;
+    align-items: stretch;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.justification-action-group form {
+    margin: 0;
+}
+
+.justification-annul-group {
+    padding-right: 10px;
+    border-right: 1px solid var(--border);
+}
+
+.justification-annul-form {
+    display: flex;
+    align-items: stretch;
+    gap: 6px;
+}
+
+.justification-annul-form input {
+    width: 140px;
+    min-height: 30px;
+}
+
 .status-switch {
     display: inline-flex;
     align-items: center;

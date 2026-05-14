@@ -7,6 +7,7 @@ require BASE_PATH . '/app/views/partials/header.php';
 $availableStudents = is_array($availableStudents ?? null) ? $availableStudents : [];
 $summaryDays = is_array($summaryDays ?? null) ? $summaryDays : [];
 $attendanceDetail = is_array($attendanceDetail ?? null) ? $attendanceDetail : [];
+$novelties = is_array($novelties ?? null) ? $novelties : [];
 $classDateRange = is_array($classDateRange ?? null) ? $classDateRange : null;
 $availableMonths = is_array($availableMonths ?? null) ? $availableMonths : [];
 $selectedStudentId = (int) ($selectedStudentId ?? 0);
@@ -21,6 +22,7 @@ $firstWeekday = (int) date('N', $monthStartTimestamp);
 $daysInMonth = (int) date('t', $monthStartTimestamp);
 $dayNumber = 1;
 $summaryDaysByDate = [];
+$noveltiesByDate = [];
 $monthNames = [
     1 => 'Enero',
     2 => 'Febrero',
@@ -39,6 +41,16 @@ $monthTitle = strtoupper($monthNames[(int) date('n', $monthStartTimestamp)] . ' 
 
 foreach ($summaryDays as $day) {
     $summaryDaysByDate[(string) $day['cafecha']] = $day;
+}
+
+foreach ($novelties as $novelty) {
+    $noveltyDate = (string) ($novelty['noefecha'] ?? '');
+
+    if ($noveltyDate === '' || !str_starts_with($noveltyDate, $selectedMonth . '-')) {
+        continue;
+    }
+
+    $noveltiesByDate[$noveltyDate][] = $novelty;
 }
 
 $monthlyTotals = [
@@ -68,7 +80,7 @@ $basePath = (string) (($currentSection ?? '') === 'asistencia_representante'
     : 'asistencia/mi-asistencia');
 $studentQuery = $selectedStudentId > 0 && $availableStudents !== [] ? '&estid=' . $selectedStudentId : '';
 ?>
-<p class="module-note">Seleccione un dia con registro en el calendario para ver el detalle por hora y materia.</p>
+<p class="module-note">Seleccione un dia con registro para ver asistencia y novedades en una sola ventana.</p>
 
 <?php if ($currentPeriod === null): ?>
     <div class="empty-state">No hay un periodo lectivo seleccionado. Elige uno desde el chip de periodo en el navbar para continuar.</div>
@@ -111,8 +123,8 @@ $studentQuery = $selectedStudentId > 0 && $availableStudents !== [] ? '&estid=' 
     <section class="security-assignment-block">
         <header class="security-assignment-header">
             <div>
-                <h3>Calendario de asistencia</h3>
-                <p>OK indica que no hay atrasos ni faltas registradas ese dia.</p>
+                <h3>Calendario de asistencia y novedades</h3>
+                <p>Los dias con asistencia o novedades abren el detalle diario.</p>
             </div>
         </header>
 
@@ -163,9 +175,11 @@ $studentQuery = $selectedStudentId > 0 && $availableStudents !== [] ? '&estid=' 
                         <?php
                         $date = (string) $selectedMonth . '-' . str_pad((string) $dayNumber, 2, '0', STR_PAD_LEFT);
                         $day = $summaryDaysByDate[$date] ?? null;
-                        $enabled = is_array($day);
+                        $dayNovelties = $noveltiesByDate[$date] ?? [];
+                        $enabled = is_array($day) || $dayNovelties !== [];
                         $hasAlert = $enabled
-                            && ((int) ($day['total_atrasos'] ?? 0) > 0
+                            && ($dayNovelties !== []
+                                || (int) ($day['total_atrasos'] ?? 0) > 0
                                 || (int) ($day['total_faltas_justificadas'] ?? 0) > 0
                                 || (int) ($day['total_faltas_injustificadas'] ?? 0) > 0);
                         $isWeekend = (int) date('N', strtotime($date)) >= 6;
@@ -191,8 +205,8 @@ $studentQuery = $selectedStudentId > 0 && $availableStudents !== [] ? '&estid=' 
             </div>
         </div>
 
-        <?php if ($summaryDays === []): ?>
-            <div class="empty-state">No existen registros de asistencia para el mes seleccionado.</div>
+        <?php if ($summaryDays === [] && $noveltiesByDate === []): ?>
+            <div class="empty-state">No existen registros de asistencia ni novedades para el mes seleccionado.</div>
         <?php else: ?>
             <div class="attendance-month-summary">
                 <div>
@@ -220,13 +234,14 @@ $studentQuery = $selectedStudentId > 0 && $availableStudents !== [] ? '&estid=' 
             <header class="security-assignment-header">
                 <div>
                     <h3>Detalle del <?= htmlspecialchars($selectedDate, ENT_QUOTES, 'UTF-8'); ?></h3>
-                    <p>Registro por hora, materia y docente.</p>
+                    <p>Registro diario de asistencia y novedades.</p>
                 </div>
                 <button class="btn-secondary btn-auto" type="button" data-attendance-detail-close>Cerrar</button>
             </header>
 
+            <h3>Asistencia</h3>
             <?php if ($attendanceDetail === []): ?>
-                <div class="empty-state">No hay detalle registrado para la fecha seleccionada.</div>
+                <div class="empty-state">No hay asistencia registrada para la fecha seleccionada.</div>
             <?php else: ?>
                 <div class="table-wrap">
                     <table class="data-table">
@@ -255,6 +270,13 @@ $studentQuery = $selectedStudentId > 0 && $availableStudents !== [] ? '&estid=' 
                     </table>
                 </div>
             <?php endif; ?>
+
+            <h3>Novedades</h3>
+            <?php
+            $novelties = $noveltiesByDate[$selectedDate] ?? [];
+            $showActions = false;
+            require BASE_PATH . '/app/views/novedades/_tabla.php';
+            ?>
         </dialog>
     <?php endif; ?>
 

@@ -127,15 +127,9 @@ $sidebarModules = [
                     ],
                     [
                         'key' => 'asistencia_home',
-                        'label' => 'Asistencia',
+                        'label' => 'Novedades y asistencia',
                         'url' => baseUrl('asistencia'),
                         'icon' => 'fa-calendar-check-o',
-                    ],
-                    [
-                        'key' => 'novedades_home',
-                        'label' => 'Novedades',
-                        'url' => baseUrl('novedades'),
-                        'icon' => 'fa-exclamation-circle',
                     ],
                 ],
             ],
@@ -261,9 +255,8 @@ $permissionMap = [
     'matricula_temporal' => ['matricula_temporal.ver', 'representante.matricula_nueva'],
     'mi_matricula' => 'estudiante.mi_matricula',
     'representante_estudiantes' => 'representante.estudiantes',
-    'asistencia_propia' => 'asistencia.ver_propia',
-    'asistencia_representante' => 'asistencia.representante.ver',
-    'novedades_home' => ['novedades.registrar', 'novedades.supervisar', 'novedades.ver_propia', 'novedades.representante.ver'],
+    'asistencia_propia' => ['asistencia.ver_propia', 'novedades.ver_propia'],
+    'asistencia_representante' => ['asistencia.representante.ver', 'novedades.representante.ver'],
     'novedades_registro' => ['novedades.registrar', 'novedades.supervisar'],
     'novedades_supervision' => 'novedades.supervisar',
     'novedades_propias' => 'novedades.ver_propia',
@@ -516,7 +509,7 @@ foreach ($logoPatterns as $logoPattern) {
                             $isActiveSidebarItem = ($currentSection ?? '') === $itemKey
                                 || ($itemKey === 'asistencia_home' && str_starts_with((string) ($currentSection ?? ''), 'asistencia_'))
                                 || ($itemKey === 'asistencia_home' && ($currentSection ?? '') === 'reporte_asistencia')
-                                || ($itemKey === 'novedades_home' && str_starts_with((string) ($currentSection ?? ''), 'novedades_'))
+                                || ($itemKey === 'asistencia_home' && str_starts_with((string) ($currentSection ?? ''), 'novedades_'))
                                 || (
                                     $itemKey === 'configuracion_academica'
                                     && in_array((string) ($currentSection ?? ''), [

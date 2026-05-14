@@ -38,18 +38,11 @@ class ModuleController extends Controller
                     'permission' => 'matriculas.gestionar',
                 ],
                 [
-                    'label' => 'Asistencia',
-                    'description' => 'Centraliza configuracion, calendario, registro, supervision, justificaciones y reportes.',
+                    'label' => 'Novedades y asistencia',
+                    'description' => 'Centraliza configuracion, calendarios, registro, supervision, justificaciones, reportes y novedades.',
                     'url' => baseUrl('asistencia'),
                     'icon' => 'fa-calendar-check-o',
                     'permission' => 'asistencia.calendario.gestionar|asistencia.registrar|asistencia.supervisar|justificaciones.gestionar|asistencia.ver_propia|asistencia.representante.ver|novedades.registrar|novedades.supervisar|novedades.ver_propia|novedades.representante.ver',
-                ],
-                [
-                    'label' => 'Registro de novedades',
-                    'description' => 'Registra y consulta novedades en clase, recreos u otros momentos de la jornada.',
-                    'url' => baseUrl('novedades'),
-                    'icon' => 'fa-exclamation-circle',
-                    'permission' => 'novedades.registrar|novedades.supervisar|novedades.ver_propia|novedades.representante.ver',
                 ],
             ]
         );
@@ -60,8 +53,8 @@ class ModuleController extends Controller
         $this->renderModuleHome(
             'academico',
             'asistencia_home',
-            'Asistencia',
-            'Agrupa la configuracion operativa, calendario, registro, supervision, justificaciones y consultas de asistencia.',
+            'Novedades y asistencia',
+            'Agrupa la configuracion operativa, calendarios, registro, supervision, justificaciones, reportes y consultas de novedades y asistencia.',
             [
                 [
                     'label' => 'Configuracion de asistencia',
@@ -92,8 +85,15 @@ class ModuleController extends Controller
                     'permission' => 'asistencia.supervisar',
                 ],
                 [
-                    'label' => 'Registrar asistencia',
-                    'description' => 'Registra asistencia por materia asignada y hora de clase.',
+                    'label' => 'Supervision de novedades',
+                    'description' => 'Consulta y anula novedades registradas durante la jornada.',
+                    'url' => baseUrl('novedades/supervision'),
+                    'icon' => 'fa-exclamation-circle',
+                    'permission' => 'novedades.supervisar',
+                ],
+                [
+                    'label' => 'Registro de asistencia y novedades',
+                    'description' => 'Registra asistencia por materia asignada y novedades del estudiante desde un solo calendario.',
                     'url' => baseUrl('asistencia/registro'),
                     'icon' => 'fa-check-square-o',
                     'permission' => 'asistencia.registrar',
@@ -106,25 +106,18 @@ class ModuleController extends Controller
                     'permission' => 'asistencia.supervisar',
                 ],
                 [
-                    'label' => 'Mi asistencia',
-                    'description' => 'Consulta el resumen mensual y el detalle de asistencia del estudiante.',
+                    'label' => 'Mi asistencia y novedades',
+                    'description' => 'Consulta el resumen mensual y el detalle de asistencia y novedades del estudiante.',
                     'url' => baseUrl('asistencia/mi-asistencia'),
                     'icon' => 'fa-calendar-check-o',
-                    'permission' => 'asistencia.ver_propia',
+                    'permission' => 'asistencia.ver_propia|novedades.ver_propia',
                 ],
                 [
-                    'label' => 'Asistencia representados',
-                    'description' => 'Consulta asistencia de los estudiantes vinculados al representante.',
+                    'label' => 'Asistencia y novedades representados',
+                    'description' => 'Consulta asistencia y novedades de los estudiantes vinculados al representante.',
                     'url' => baseUrl('asistencia/representante'),
                     'icon' => 'fa-calendar-o',
-                    'permission' => 'asistencia.representante.ver',
-                ],
-                [
-                    'label' => 'Registro de novedades',
-                    'description' => 'Registra y consulta novedades de estudiantes usando la jornada del periodo.',
-                    'url' => baseUrl('novedades'),
-                    'icon' => 'fa-exclamation-circle',
-                    'permission' => 'novedades.registrar|novedades.supervisar|novedades.ver_propia|novedades.representante.ver',
+                    'permission' => 'asistencia.representante.ver|novedades.representante.ver',
                 ],
             ]
         );

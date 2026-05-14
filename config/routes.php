@@ -152,6 +152,7 @@ return static function (Router $router): void {
     $router->post('/asistencia/calendario', [AttendanceController::class, 'saveCalendar']);
     $router->post('/asistencia/justificaciones', [AttendanceController::class, 'storeJustification']);
     $router->post('/asistencia/justificaciones/revisar', [AttendanceController::class, 'reviewJustification']);
+    $router->post('/asistencia/justificaciones/confirmar', [AttendanceController::class, 'confirmJustification']);
     $router->post('/asistencia/justificaciones/anular', [AttendanceController::class, 'annulJustification']);
     $router->post('/asistencia/sesiones', [AttendanceController::class, 'openSession']);
     $router->post('/asistencia/sesiones/anular', [AttendanceController::class, 'annulSession']);

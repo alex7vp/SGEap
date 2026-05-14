@@ -7,6 +7,7 @@ namespace App\Controllers;
 use App\Core\Controller;
 use App\Models\AttendanceModel;
 use App\Models\CourseModel;
+use App\Models\NoveltyModel;
 use App\Models\PersonalModel;
 use App\Models\StudentModel;
 use Throwable;
@@ -205,10 +206,16 @@ class AttendanceController extends Controller
         }
 
         $teacherSubjectHours = $this->teacherSubjectHoursForDate($availabilityRows, $date);
+        $canRegisterNovelties = $this->hasPermission('novedades.registrar', $user)
+            || $this->hasPermission('novedades.supervisar', $user);
+        $noveltyModel = $canRegisterNovelties ? new NoveltyModel() : null;
+        $noveltyTeacherScope = $this->hasPermission('novedades.supervisar', $user)
+            ? null
+            : ($this->hasPermission('novedades.registrar', $user) ? (int) ($user['perid'] ?? 0) : null);
 
         $this->view('asistencia.registro', [
             'appName' => config('app')['name'] ?? 'SGEap',
-            'pageTitle' => 'Registrar asistencia',
+            'pageTitle' => 'Registro de asistencia y novedades',
             'currentSection' => 'asistencia_registro',
             'user' => $user,
             'currentPeriod' => $period,
@@ -230,6 +237,17 @@ class AttendanceController extends Controller
             'session' => $session,
             'students' => $students,
             'attendance' => $attendance,
+            'canRegisterNovelties' => $canRegisterNovelties,
+            'noveltyTypes' => $noveltyModel !== null ? $noveltyModel->activeTypes() : [],
+            'noveltyStudents' => $periodId > 0 && $noveltyModel !== null
+                ? $noveltyModel->activeMatriculationsForPeriod($periodId, $noveltyTeacherScope)
+                : [],
+            'noveltySessions' => $periodId > 0 && $noveltyModel !== null
+                ? $noveltyModel->sessionsForDate($periodId, $date, $noveltyTeacherScope)
+                : [],
+            'recentNovelties' => $periodId > 0 && $noveltyModel !== null
+                ? $noveltyModel->byPeriod($periodId, $date, 0, $noveltyTeacherScope)
+                : [],
             'success' => sessionFlash('success'),
             'error' => sessionFlash('error'),
         ]);
@@ -295,7 +313,10 @@ class AttendanceController extends Controller
         $user = $this->requireAuth();
         $period = currentAcademicPeriod();
         $attendanceModel = new AttendanceModel();
+        $courseModel = new CourseModel();
         $periodId = $period !== null ? (int) $period['pleid'] : 0;
+        $courseId = (int) ($_GET['curid'] ?? 0);
+        $studentId = (int) ($_GET['estid'] ?? 0);
 
         $this->view('asistencia.justificaciones', [
             'appName' => config('app')['name'] ?? 'SGEap',
@@ -303,7 +324,16 @@ class AttendanceController extends Controller
             'currentSection' => 'asistencia_justificaciones',
             'user' => $user,
             'currentPeriod' => $period,
-            'students' => $periodId > 0 ? $attendanceModel->studentsForJustification($periodId) : [],
+            'selectedCourseId' => $courseId,
+            'selectedStudentId' => $studentId,
+            'courses' => $periodId > 0 ? array_values(array_filter(
+                $courseModel->allByPeriod($periodId),
+                static fn (array $course): bool => !empty($course['curestado'])
+            )) : [],
+            'students' => $periodId > 0 ? $attendanceModel->studentsForJustification($periodId, $courseId) : [],
+            'unjustifiedAbsences' => $periodId > 0
+                ? $attendanceModel->unjustifiedAbsencesForJustification($periodId, $courseId, $studentId)
+                : [],
             'justifications' => $periodId > 0 ? $attendanceModel->justificationsByPeriod($periodId) : [],
             'success' => sessionFlash('success'),
             'error' => sessionFlash('error'),
@@ -366,7 +396,7 @@ class AttendanceController extends Controller
 
         $this->studentAttendanceView(
             'asistencia.ver_propia',
-            'Mi asistencia',
+            'Mi asistencia y novedades',
             'asistencia_propia',
             (int) $student['estid'],
             $period,
@@ -395,7 +425,7 @@ class AttendanceController extends Controller
 
         $this->studentAttendanceView(
             'asistencia.representante.ver',
-            'Asistencia de representados',
+            'Asistencia y novedades de representados',
             'asistencia_representante',
             $selectedStudentId,
             $period,
@@ -559,21 +589,63 @@ class AttendanceController extends Controller
             $this->redirect('/asistencia/justificaciones');
         }
 
-        $studentKey = explode('|', (string) ($_POST['estudiante'] ?? ''));
-        $studentId = (int) ($studentKey[0] ?? 0);
-        $matriculationId = (int) ($studentKey[1] ?? 0);
-        $startDate = $this->validDateOrToday((string) ($_POST['jafecha_inicio'] ?? ''));
-        $endDate = $this->validDateOrToday((string) ($_POST['jafecha_fin'] ?? $startDate));
+        $mode = (string) ($_POST['modo_justificacion'] ?? 'anticipada');
         $reason = trim((string) ($_POST['jamotivo'] ?? ''));
         $note = trim((string) ($_POST['jaobservacion'] ?? ''));
+        $courseId = (int) ($_POST['curid'] ?? 0);
+        $redirectQuery = $courseId > 0 ? '?curid=' . $courseId : '';
 
-        if ($studentId <= 0 || $reason === '' || $endDate < $startDate) {
-            sessionFlash('error', 'Debe seleccionar estudiante, fechas validas y motivo.');
-            $this->redirect('/asistencia/justificaciones');
+        if ($reason === '') {
+            sessionFlash('error', 'Debe ingresar el motivo de la justificacion.');
+            $this->redirect('/asistencia/justificaciones' . $redirectQuery);
         }
 
+        $documentPath = null;
+
         try {
-            (new AttendanceModel())->createJustification([
+            $attendanceModel = new AttendanceModel();
+
+            if ($mode === 'posterior') {
+                $absenceIds = is_array($_POST['faltas'] ?? null) ? $_POST['faltas'] : [];
+                $absences = $attendanceModel->unjustifiedAbsencesByIds((int) $period['pleid'], $absenceIds);
+
+                if ($absences === []) {
+                    sessionFlash('error', 'Debe seleccionar al menos una falta injustificada.');
+                    $this->redirect('/asistencia/justificaciones' . $redirectQuery);
+                }
+
+                $studentIds = array_unique(array_map(static fn (array $row): int => (int) $row['estid'], $absences));
+
+                if (count($studentIds) !== 1) {
+                    sessionFlash('error', 'Seleccione faltas de un solo estudiante para una misma justificacion.');
+                    $this->redirect('/asistencia/justificaciones' . $redirectQuery);
+                }
+
+                $studentId = (int) $studentIds[0];
+                $matriculationId = (int) ($absences[0]['matid'] ?? 0);
+                $dates = array_map(static fn (array $row): string => (string) $row['cafecha'], $absences);
+                sort($dates);
+                $startDate = (string) reset($dates);
+                $endDate = (string) end($dates);
+            } else {
+                $studentKey = explode('|', (string) ($_POST['estudiante'] ?? ''));
+                $studentId = (int) ($studentKey[0] ?? 0);
+                $matriculationId = (int) ($studentKey[1] ?? 0);
+                $startDate = $this->validDateOrToday((string) ($_POST['jafecha_inicio'] ?? ''));
+                $endDate = $this->validDateOrToday((string) ($_POST['jafecha_fin'] ?? $startDate));
+
+                if ($studentId <= 0 || $endDate < $startDate) {
+                    sessionFlash('error', 'Debe seleccionar estudiante y fechas validas.');
+                    $this->redirect('/asistencia/justificaciones' . $redirectQuery);
+                }
+            }
+
+            $documentPath = storeJustificationDocumentFile(
+                is_array($_FILES['jaarchivo'] ?? null) ? $_FILES['jaarchivo'] : ['error' => UPLOAD_ERR_NO_FILE],
+                'estudiante-' . (string) $studentId
+            );
+
+            $attendanceModel->createJustification([
                 'estid' => $studentId,
                 'matid' => $matriculationId,
                 'jafecha_inicio' => $startDate,
@@ -581,14 +653,20 @@ class AttendanceController extends Controller
                 'jatipo' => $startDate === $endDate ? 'DIA' : 'RANGO',
                 'jamotivo' => $reason,
                 'jaobservacion' => $note,
+                'jaarchivo' => $documentPath ?? '',
+                'jaestado' => 'APROBADA',
                 'usuid' => (int) ($user['usuid'] ?? 0),
             ]);
-            sessionFlash('success', 'Justificacion registrada correctamente.');
-        } catch (Throwable) {
-            sessionFlash('error', 'No se pudo registrar la justificacion.');
+            sessionFlash('success', 'Justificacion registrada y aplicada correctamente.');
+        } catch (Throwable $exception) {
+            if ($documentPath !== null) {
+                deleteManagedJustificationDocumentFile($documentPath);
+            }
+
+            sessionFlash('error', 'No se pudo registrar la justificacion: ' . $exception->getMessage());
         }
 
-        $this->redirect('/asistencia/justificaciones');
+        $this->redirect('/asistencia/justificaciones' . $redirectQuery);
     }
 
     public function reviewJustification(): void
@@ -606,6 +684,26 @@ class AttendanceController extends Controller
         try {
             (new AttendanceModel())->reviewJustification($justificationId, $status, (int) ($user['usuid'] ?? 0), $note);
             sessionFlash('success', 'Justificacion revisada correctamente.');
+        } catch (Throwable $exception) {
+            sessionFlash('error', $exception->getMessage());
+        }
+
+        $this->redirect('/asistencia/justificaciones');
+    }
+
+    public function confirmJustification(): void
+    {
+        $user = $this->requireAuth();
+        $justificationId = (int) ($_POST['jaid'] ?? 0);
+
+        if ($justificationId <= 0) {
+            sessionFlash('error', 'La justificacion seleccionada no es valida.');
+            $this->redirect('/asistencia/justificaciones');
+        }
+
+        try {
+            (new AttendanceModel())->confirmJustification($justificationId, (int) ($user['usuid'] ?? 0));
+            sessionFlash('success', 'Justificacion confirmada correctamente.');
         } catch (Throwable $exception) {
             sessionFlash('error', $exception->getMessage());
         }
@@ -692,6 +790,7 @@ class AttendanceController extends Controller
         $courseSubjectId = (int) ($assignmentKey[1] ?? 0);
         $hour = (int) ($_POST['sclnumero_hora'] ?? 0);
         $date = $this->validDateOrToday((string) ($_POST['cafecha'] ?? ''));
+        $nextAction = (string) ($_POST['next_action'] ?? 'attendance');
 
         if ($courseSubjectId <= 0 || $assignmentId <= 0 || $hour < 1 || $hour > 7) {
             sessionFlash('error', 'Debe seleccionar una materia asignada y una hora valida.');
@@ -740,6 +839,10 @@ class AttendanceController extends Controller
         } catch (Throwable) {
             sessionFlash('error', 'No se pudo abrir la sesion de asistencia.');
             $this->redirect('/asistencia/registro?fecha=' . $date);
+        }
+
+        if ($nextAction === 'novelty') {
+            $this->redirect('/asistencia/registro?sclid=' . $sessionId . '&accion=novedad#novedad-dialog');
         }
 
         $this->redirect('/asistencia/registro?sclid=' . $sessionId . '#registro');
@@ -1293,6 +1396,7 @@ class AttendanceController extends Controller
     ): void {
         $periodId = $period !== null ? (int) $period['pleid'] : 0;
         $attendanceModel = new AttendanceModel();
+        $noveltyModel = new NoveltyModel();
         $classDateRange = $periodId > 0 ? $attendanceModel->classDateRangeByPeriod($periodId) : null;
         $availableMonths = $classDateRange !== null
             ? $this->monthsBetween((string) $classDateRange['start'], (string) $classDateRange['end'])
@@ -1328,6 +1432,11 @@ class AttendanceController extends Controller
                 : [],
             'attendanceDetail' => $periodId > 0 && $studentId > 0 && $selectedDate !== ''
                 ? $attendanceModel->studentAttendanceDetail($studentId, $periodId, $selectedDate)
+                : [],
+            'novelties' => $periodId > 0 && $studentId > 0
+                ? ($section === 'asistencia_representante'
+                    ? $noveltyModel->byRepresentative((int) ($user['perid'] ?? 0), $periodId, $studentId)
+                    : $noveltyModel->byStudent($studentId, $periodId))
                 : [],
             'success' => sessionFlash('success'),
             'error' => sessionFlash('error'),

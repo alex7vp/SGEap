@@ -75,14 +75,11 @@ $metricCards = [
 $metricCards = array_values(array_filter($metricCards, static fn (array $card): bool => !empty($card['visible'])));
 
 $quickLinks = [
-    ['visible' => $canAttendanceModule, 'label' => 'Modulo asistencia', 'url' => baseUrl('asistencia')],
-    ['visible' => $canNoveltiesModule, 'label' => 'Registro de novedades', 'url' => baseUrl('novedades')],
+    ['visible' => $canAttendanceModule, 'label' => 'Novedades y asistencia', 'url' => baseUrl('asistencia')],
     ['visible' => $canOwnMatriculation, 'label' => 'Mi matricula', 'url' => baseUrl('mi-matricula')],
-    ['visible' => $canOwnAttendance, 'label' => 'Mi asistencia', 'url' => baseUrl('asistencia/mi-asistencia')],
-    ['visible' => $canOwnNovelties, 'label' => 'Mis novedades', 'url' => baseUrl('novedades/mis-novedades')],
+    ['visible' => $canOwnAttendance || $canOwnNovelties, 'label' => 'Mi asistencia y novedades', 'url' => baseUrl('asistencia/mi-asistencia')],
     ['visible' => $canRepresentativeStudents, 'label' => 'Mis estudiantes', 'url' => baseUrl('dashboard')],
-    ['visible' => $canRepresentativeAttendance, 'label' => 'Asistencia representados', 'url' => baseUrl('asistencia/representante')],
-    ['visible' => $canRepresentativeNovelties, 'label' => 'Novedades representados', 'url' => baseUrl('novedades/representante')],
+    ['visible' => $canRepresentativeAttendance || $canRepresentativeNovelties, 'label' => 'Asistencia y novedades representados', 'url' => baseUrl('asistencia/representante')],
     ['visible' => $canPersonas, 'label' => 'Ver personal', 'url' => baseUrl('personal')],
     ['visible' => $canEstudiantes, 'label' => 'Registrar estudiante', 'url' => baseUrl('estudiantes/crear')],
     ['visible' => $canMatriculas && $canCreateMatricula, 'label' => $newMatriculaLabel, 'url' => baseUrl('matriculas?panel=nueva')],

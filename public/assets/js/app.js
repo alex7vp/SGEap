@@ -131,6 +131,29 @@ document.addEventListener('DOMContentLoaded', () => {
         syncCustomFileInputName();
     }
 
+    document.querySelectorAll('[data-file-input]').forEach((fileInput) => {
+        if (!(fileInput instanceof HTMLInputElement)) {
+            return;
+        }
+
+        const fileInputName = fileInput
+            .closest('.file-input-shell')
+            ?.querySelector('[data-file-input-name]');
+
+        if (!(fileInputName instanceof HTMLElement)) {
+            return;
+        }
+
+        const syncFileInputName = () => {
+            fileInputName.textContent = fileInput.files && fileInput.files.length > 0
+                ? fileInput.files[0].name
+                : 'No se eligio ningun archivo';
+        };
+
+        fileInput.addEventListener('change', syncFileInputName);
+        syncFileInputName();
+    });
+
     if (documentSourceSelector instanceof HTMLElement) {
         const sourceOptions = Array.from(
             documentSourceSelector.querySelectorAll('[data-document-source-option]')

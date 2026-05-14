@@ -16,56 +16,20 @@ class NoveltyController extends Controller
 
     public function index(): void
     {
-        $user = $this->requireAuth();
-        $cards = [
-            [
-                'label' => 'Registrar novedad',
-                'description' => 'Registra novedades en hora clase o fuera de hora clase.',
-                'url' => baseUrl('novedades/registro'),
-                'icon' => 'fa-pencil-square-o',
-                'permission' => 'novedades.registrar|novedades.supervisar',
-            ],
-            [
-                'label' => 'Supervision de novedades',
-                'description' => 'Consulta y anula novedades registradas por periodo.',
-                'url' => baseUrl('novedades/supervision'),
-                'icon' => 'fa-search',
-                'permission' => 'novedades.supervisar',
-            ],
-            [
-                'label' => 'Mis novedades',
-                'description' => 'Consulta las novedades registradas en tu matricula.',
-                'url' => baseUrl('novedades/mis-novedades'),
-                'icon' => 'fa-user',
-                'permission' => 'novedades.ver_propia',
-            ],
-            [
-                'label' => 'Novedades representados',
-                'description' => 'Consulta novedades de estudiantes vinculados al representante.',
-                'url' => baseUrl('novedades/representante'),
-                'icon' => 'fa-users',
-                'permission' => 'novedades.representante.ver',
-            ],
-        ];
-        $cards = array_values(array_filter(
-            $cards,
-            fn (array $card): bool => $this->hasPermission((string) $card['permission'], $user)
-        ));
-
-        $this->view('module.home', [
-            'appName' => config('app')['name'] ?? 'SGEap',
-            'pageTitle' => 'Registro de novedades',
-            'currentModule' => 'academico',
-            'currentSection' => 'novedades_home',
-            'user' => $user,
-            'moduleDescription' => 'Registra y consulta novedades ocurridas en clase, recreos u otros momentos de la jornada.',
-            'moduleCards' => $cards,
-        ]);
+        $this->requireAuth();
+        $this->redirect('/asistencia');
     }
 
     public function register(): void
     {
         $user = $this->requireAuth();
+        $selectedMonth = $this->validMonthOrCurrent((string) ($_GET['mes'] ?? date('Y-m')));
+        $selectedDate = $this->validDate((string) ($_GET['fecha'] ?? date('Y-m-d')));
+
+        if ($this->hasPermission('asistencia.registrar', $user)) {
+            $this->redirect('/asistencia/registro?mes=' . $selectedMonth . '&fecha=' . $selectedDate . '#acciones-dia');
+        }
+
         $period = currentAcademicPeriod();
         $periodId = $period !== null ? (int) $period['pleid'] : 0;
         $model = new NoveltyModel();
@@ -75,13 +39,10 @@ class NoveltyController extends Controller
         $availableMonths = $classDateRange !== null
             ? $this->monthsBetween((string) $classDateRange['start'], (string) $classDateRange['end'])
             : [];
-        $selectedMonth = $this->validMonthOrCurrent((string) ($_GET['mes'] ?? date('Y-m')));
 
         if ($availableMonths !== [] && !in_array($selectedMonth, $availableMonths, true)) {
             $selectedMonth = $this->nearestMonthInRange($selectedMonth, $availableMonths);
         }
-
-        $selectedDate = $this->validDate((string) ($_GET['fecha'] ?? date('Y-m-d')));
 
         if (!str_starts_with($selectedDate, $selectedMonth . '-')) {
             $selectedDate = $selectedMonth . '-01';
@@ -149,6 +110,21 @@ class NoveltyController extends Controller
         }
 
         $date = $this->validDate((string) ($_POST['noefecha'] ?? date('Y-m-d')));
+        $sessionId = (int) ($_POST['sclid'] ?? 0);
+        $redirectTo = $this->safeRedirectPath((string) ($_POST['redirect_to'] ?? ''));
+
+        if ($this->hasPermission('asistencia.registrar', $user) && $context === 'CLASE' && $sessionId > 0) {
+            $this->redirect('/asistencia/registro?sclid=' . $sessionId . '&accion=novedad#novedad-dialog');
+        }
+
+        if ($redirectTo !== '') {
+            $this->redirect($redirectTo);
+        }
+
+        if ($this->hasPermission('asistencia.registrar', $user)) {
+            $this->redirect('/asistencia/registro?mes=' . substr($date, 0, 7) . '&fecha=' . $date . '&accion=novedad#novedad-dialog');
+        }
+
         $this->redirect('/novedades/registro?mes=' . substr($date, 0, 7) . '&fecha=' . $date);
     }
 
@@ -197,60 +173,17 @@ class NoveltyController extends Controller
 
     public function own(): void
     {
-        $user = $this->requireAuth();
-        $period = currentAcademicPeriod();
-        $periodId = $period !== null ? (int) $period['pleid'] : 0;
-        $student = (new StudentModel())->findByPersonId((int) ($user['perid'] ?? 0));
-
-        if ($student === false) {
-            sessionFlash('error', 'Tu usuario no tiene un estudiante asociado.');
-            $this->redirect('/dashboard');
-        }
-
-        $this->view('novedades.consulta', [
-            'appName' => config('app')['name'] ?? 'SGEap',
-            'pageTitle' => 'Mis novedades',
-            'currentSection' => 'novedades_propias',
-            'user' => $user,
-            'currentPeriod' => $period,
-            'availableStudents' => [],
-            'selectedStudentId' => (int) $student['estid'],
-            'novelties' => $periodId > 0 ? (new NoveltyModel())->byStudent((int) $student['estid'], $periodId) : [],
-            'success' => sessionFlash('success'),
-            'error' => sessionFlash('error'),
-        ]);
+        $this->requireAuth();
+        $this->redirect('/asistencia/mi-asistencia');
     }
 
     public function representative(): void
     {
         $user = $this->requireAuth();
-        $period = currentAcademicPeriod();
-        $periodId = $period !== null ? (int) $period['pleid'] : 0;
-        $studentModel = new StudentModel();
-        $students = $studentModel->allByRepresentativePerson((int) ($user['perid'] ?? 0), $periodId);
         $selectedStudentId = (int) ($_GET['estid'] ?? 0);
+        $query = $selectedStudentId > 0 ? '?estid=' . $selectedStudentId : '';
 
-        if ($selectedStudentId <= 0 && $students !== []) {
-            $selectedStudentId = (int) $students[0]['estid'];
-        }
-
-        if ($selectedStudentId > 0 && !$studentModel->representativeCanAccessStudent((int) ($user['perid'] ?? 0), $selectedStudentId)) {
-            sessionFlash('error', 'No tienes acceso a las novedades solicitadas.');
-            $this->redirect('/dashboard');
-        }
-
-        $this->view('novedades.consulta', [
-            'appName' => config('app')['name'] ?? 'SGEap',
-            'pageTitle' => 'Novedades de representados',
-            'currentSection' => 'novedades_representante',
-            'user' => $user,
-            'currentPeriod' => $period,
-            'availableStudents' => $students,
-            'selectedStudentId' => $selectedStudentId,
-            'novelties' => $periodId > 0 ? (new NoveltyModel())->byRepresentative((int) ($user['perid'] ?? 0), $periodId, $selectedStudentId) : [],
-            'success' => sessionFlash('success'),
-            'error' => sessionFlash('error'),
-        ]);
+        $this->redirect('/asistencia/representante' . $query);
     }
 
     private function teacherScope(array $user): ?int
@@ -272,6 +205,17 @@ class NoveltyController extends Controller
         $month = trim($month);
 
         return preg_match('/^\d{4}-\d{2}$/', $month) === 1 ? $month : date('Y-m');
+    }
+
+    private function safeRedirectPath(string $path): string
+    {
+        $path = trim($path);
+
+        if ($path === '' || str_starts_with($path, '//') || !str_starts_with($path, '/')) {
+            return '';
+        }
+
+        return preg_match('#^/[a-zA-Z0-9/_?=&.%-]+(#[a-zA-Z0-9_-]+)?$#', $path) === 1 ? $path : '';
     }
 
     private function monthsBetween(string $startDate, string $endDate): array

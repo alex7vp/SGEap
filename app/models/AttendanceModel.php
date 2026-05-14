@@ -1531,8 +1531,9 @@ class AttendanceModel extends Model
         }
     }
 
-    public function studentsForJustification(int $periodId): array
+    public function studentsForJustification(int $periodId, int $courseId = 0): array
     {
+        $courseFilter = $courseId > 0 ? 'AND c.curid = :course_id' : '';
         $statement = $this->db->prepare(
             "SELECT DISTINCT ON (e.estid)
                     e.estid,
@@ -1552,9 +1553,99 @@ class AttendanceModel extends Model
                AND e.estestado = true
                AND LOWER(em.emdnombre) IN ('activo', 'activa')
                AND m.matfecha_retiro IS NULL
+               {$courseFilter}
              ORDER BY e.estid, m.matfecha DESC, m.matid DESC"
         );
-        $statement->execute(['period_id' => $periodId]);
+        $statement->bindValue(':period_id', $periodId, PDO::PARAM_INT);
+
+        if ($courseId > 0) {
+            $statement->bindValue(':course_id', $courseId, PDO::PARAM_INT);
+        }
+
+        $statement->execute();
+
+        return $statement->fetchAll();
+    }
+
+    public function unjustifiedAbsencesForJustification(int $periodId, int $courseId = 0, int $studentId = 0): array
+    {
+        $conditions = ['ca.pleid = :period_id', "ae.aesestado = 'FALTA_INJUSTIFICADA'"];
+        $params = ['period_id' => $periodId];
+
+        if ($courseId > 0) {
+            $conditions[] = 'c.curid = :course_id';
+            $params['course_id'] = $courseId;
+        }
+
+        if ($studentId > 0) {
+            $conditions[] = 'e.estid = :student_id';
+            $params['student_id'] = $studentId;
+        }
+
+        $statement = $this->db->prepare(
+            "SELECT
+                    ae.aesid,
+                    ae.estid,
+                    m.matid,
+                    ca.cafecha,
+                    sc.sclid,
+                    sc.sclnumero_hora,
+                    v.mtcnombre_mostrar,
+                    CONCAT(g.granombre, ' ', pr.prlnombre) AS curso,
+                    p.percedula,
+                    p.perapellidos,
+                    p.pernombres
+             FROM asistencia_estudiante ae
+             INNER JOIN sesion_clase sc ON sc.sclid = ae.sclid
+             INNER JOIN calendario_asistencia ca ON ca.caid = sc.caid
+             INNER JOIN materia_curso mc ON mc.mtcid = sc.mtcid
+             INNER JOIN curso c ON c.curid = mc.curid
+             INNER JOIN grado g ON g.graid = c.graid
+             INNER JOIN paralelo pr ON pr.prlid = c.prlid
+             INNER JOIN vw_materia_curso v ON v.mtcid = sc.mtcid
+             INNER JOIN estudiante e ON e.estid = ae.estid
+             INNER JOIN persona p ON p.perid = e.perid
+             LEFT JOIN matricula m ON m.estid = e.estid
+                AND m.curid = c.curid
+                AND m.matfecha <= ca.cafecha
+                AND (m.matfecha_retiro IS NULL OR m.matfecha_retiro >= ca.cafecha)
+             WHERE " . implode(' AND ', $conditions) . "
+             ORDER BY ca.cafecha DESC, p.perapellidos ASC, p.pernombres ASC, sc.sclnumero_hora ASC"
+        );
+        $statement->execute($params);
+
+        return $statement->fetchAll();
+    }
+
+    public function unjustifiedAbsencesByIds(int $periodId, array $attendanceIds): array
+    {
+        $attendanceIds = array_values(array_unique(array_filter(array_map('intval', $attendanceIds), static fn (int $id): bool => $id > 0)));
+
+        if ($attendanceIds === []) {
+            return [];
+        }
+
+        $placeholders = implode(',', array_fill(0, count($attendanceIds), '?'));
+        $statement = $this->db->prepare(
+            "SELECT
+                    ae.aesid,
+                    ae.estid,
+                    m.matid,
+                    ca.cafecha
+             FROM asistencia_estudiante ae
+             INNER JOIN sesion_clase sc ON sc.sclid = ae.sclid
+             INNER JOIN calendario_asistencia ca ON ca.caid = sc.caid
+             INNER JOIN materia_curso mc ON mc.mtcid = sc.mtcid
+             LEFT JOIN matricula m ON m.estid = ae.estid
+                AND m.curid = mc.curid
+                AND m.matfecha <= ca.cafecha
+                AND (m.matfecha_retiro IS NULL OR m.matfecha_retiro >= ca.cafecha)
+             WHERE ca.pleid = ?
+               AND ae.aesestado = 'FALTA_INJUSTIFICADA'
+               AND ae.aesid IN ({$placeholders})
+             ORDER BY ca.cafecha ASC, ae.aesid ASC"
+        );
+        $statement->execute(array_merge([$periodId], $attendanceIds));
 
         return $statement->fetchAll();
     }
@@ -1564,7 +1655,7 @@ class AttendanceModel extends Model
         $statement = $this->db->prepare(
             "SELECT ja.jaid, ja.estid, ja.matid, ja.jafecha_inicio, ja.jafecha_fin,
                     ja.jatipo, ja.jamotivo, ja.jaobservacion, ja.jaestado,
-                    ja.jafecha_solicitud, ja.jafecha_revision,
+                    ja.jaarchivo, ja.jaobservacion_revision, ja.jafecha_solicitud, ja.jafecha_revision,
                     p.percedula, p.perapellidos, p.pernombres,
                     reviewer.usunombre AS usuario_revisa
              FROM justificacion_asistencia ja
@@ -1595,15 +1686,19 @@ class AttendanceModel extends Model
         return $statement->fetchAll();
     }
 
-    public function createJustification(array $data): void
+    public function createJustification(array $data): int
     {
+        $status = in_array((string) ($data['jaestado'] ?? ''), ['PENDIENTE', 'APROBADA', 'RECHAZADA'], true)
+            ? (string) $data['jaestado']
+            : 'PENDIENTE';
+
         $statement = $this->db->prepare(
             "INSERT INTO justificacion_asistencia (
                 estid, matid, jafecha_inicio, jafecha_fin, jatipo, jamotivo,
-                jaobservacion, jaestado, jausuid_solicita
+                jaobservacion, jaarchivo, jaestado, jausuid_solicita, jausuid_revisa, jafecha_revision
              ) VALUES (
                 :student_id, :matriculation_id, :start_date, :end_date, :type, :reason,
-                :note, 'PENDIENTE', :user_id
+                :note, :document_path, :status, :user_id, :review_user_id, :review_date
              )"
         );
         $statement->bindValue(':student_id', $data['estid'], PDO::PARAM_INT);
@@ -1613,8 +1708,21 @@ class AttendanceModel extends Model
         $statement->bindValue(':type', $data['jatipo'], PDO::PARAM_STR);
         $statement->bindValue(':reason', $data['jamotivo'], PDO::PARAM_STR);
         $statement->bindValue(':note', $data['jaobservacion'] !== '' ? $data['jaobservacion'] : null, $data['jaobservacion'] !== '' ? PDO::PARAM_STR : PDO::PARAM_NULL);
+        $documentPath = trim((string) ($data['jaarchivo'] ?? ''));
+        $statement->bindValue(':document_path', $documentPath !== '' ? $documentPath : null, $documentPath !== '' ? PDO::PARAM_STR : PDO::PARAM_NULL);
+        $statement->bindValue(':status', $status, PDO::PARAM_STR);
         $statement->bindValue(':user_id', $data['usuid'], PDO::PARAM_INT);
+        $statement->bindValue(':review_user_id', $status === 'APROBADA' ? $data['usuid'] : null, $status === 'APROBADA' ? PDO::PARAM_INT : PDO::PARAM_NULL);
+        $statement->bindValue(':review_date', $status === 'APROBADA' ? date('Y-m-d H:i:s') : null, $status === 'APROBADA' ? PDO::PARAM_STR : PDO::PARAM_NULL);
         $statement->execute();
+
+        $justificationId = (int) $this->db->lastInsertId();
+
+        if ($status === 'APROBADA') {
+            $this->applyJustificationToAttendance($justificationId, (int) $data['usuid']);
+        }
+
+        return $justificationId;
     }
 
     public function reviewJustification(int $justificationId, string $status, int $userId, string $note): void
@@ -1654,6 +1762,22 @@ class AttendanceModel extends Model
 
             throw $exception;
         }
+    }
+
+    public function confirmJustification(int $justificationId, int $userId): void
+    {
+        $statement = $this->db->prepare(
+            "UPDATE justificacion_asistencia
+             SET jaobservacion_revision = 'CONFIRMADA',
+                 jausuid_revisa = :user_id,
+                 jafecha_revision = CURRENT_TIMESTAMP
+             WHERE jaid = :id
+               AND jaestado = 'APROBADA'"
+        );
+        $statement->execute([
+            'id' => $justificationId,
+            'user_id' => $userId,
+        ]);
     }
 
     public function annulJustification(int $justificationId, int $userId, string $reason): void
