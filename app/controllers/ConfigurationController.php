@@ -249,6 +249,8 @@ class ConfigurationController extends Controller
                 $profileId,
                 is_array($_POST['subperiods'] ?? null) ? $_POST['subperiods'] : [],
                 is_array($_POST['components'] ?? null) ? $_POST['components'] : [],
+                is_array($_POST['new_subperiods'] ?? null) ? $_POST['new_subperiods'] : [],
+                is_array($_POST['new_components'] ?? null) ? $_POST['new_components'] : [],
                 (int) ($user['usuid'] ?? 0)
             );
             $this->flashGradeProfileFeedback('success', 'Perfil actualizado correctamente.');

@@ -1388,6 +1388,152 @@ a.btn-primary.btn-icon-only.btn-icon-small:hover {
     background: #d4e4f1;
 }
 
+.grade-profile-edit-form .data-table th,
+.grade-profile-edit-form .data-table td {
+    padding: 3px 6px;
+    font-size: 0.74rem;
+    line-height: 1.1;
+}
+
+.grade-profile-edit-form .data-table th {
+    font-size: 0.66rem;
+}
+
+.grade-profile-edit-form input,
+.grade-profile-edit-form select,
+.grade-profile-edit-form .input-addon {
+    min-height: 26px;
+    padding: 3px 6px;
+    font-size: 0.74rem;
+    line-height: 1.1;
+}
+
+.grade-profile-edit-form input:not([type="checkbox"]),
+.grade-profile-edit-form select {
+    border-color: #b7c7d7;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fbfe 100%);
+    box-shadow: inset 0 1px 1px rgba(15, 76, 129, 0.04);
+}
+
+.grade-profile-edit-form input:not([type="checkbox"]):focus,
+.grade-profile-edit-form select:focus {
+    border-color: var(--primary);
+    background: #ffffff;
+    box-shadow: 0 0 0 2px rgba(15, 76, 129, 0.12);
+}
+
+.grade-profile-edit-form input[type="checkbox"] {
+    width: 14px;
+    height: 14px;
+    min-height: 14px;
+    padding: 0;
+}
+
+.grade-profile-edit-form .input-group {
+    filter: none;
+}
+
+.grade-profile-edit-form input:disabled,
+.grade-profile-edit-form select:disabled {
+    background: transparent;
+    border-color: transparent;
+    box-shadow: none;
+    color: var(--text);
+    opacity: 1;
+    cursor: default;
+}
+
+.grade-profile-edit-button {
+    gap: 6px;
+    min-height: 28px;
+    padding: 4px 10px;
+    border-color: #b7c7d7;
+    background: linear-gradient(180deg, #ffffff 0%, #edf3f8 100%);
+    color: var(--primary);
+    font-size: 0.76rem;
+    font-weight: 700;
+}
+
+.grade-profile-edit-button:hover,
+.grade-profile-edit-button:focus-visible {
+    border-color: var(--primary);
+    background: var(--primary);
+    color: #ffffff;
+}
+
+.grade-profile-edit-form .grade-component-row {
+    display: grid;
+    grid-template-columns: minmax(150px, 1.35fr) minmax(70px, 0.55fr) minmax(140px, 1fr) 28px;
+    align-items: stretch;
+}
+
+.grade-profile-edit-form .grade-component-row input,
+.grade-profile-edit-form .grade-component-row select {
+    width: 100%;
+    border-left: 1px solid var(--border-strong);
+}
+
+.grade-profile-edit-form .grade-component-row input:first-child {
+    border-left: 0;
+}
+
+.grade-profile-edit-form .grade-component-row.is-deleted {
+    opacity: 0.45;
+}
+
+.grade-profile-edit-form tr.is-deleted {
+    opacity: 0.45;
+}
+
+.grade-profile-actions {
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.grade-profile-edit-form .grade-component-add-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    min-height: 20px;
+    margin-top: 2px;
+    padding: 2px 6px;
+    border: 1px solid #b7c7d7;
+    background: linear-gradient(180deg, #f8fbfe 0%, #e8f0f7 100%);
+    color: var(--primary);
+    font-size: 0.64rem;
+    font-weight: 700;
+    line-height: 1;
+    white-space: nowrap;
+    box-shadow: 0 1px 2px rgba(15, 76, 129, 0.08);
+}
+
+.grade-profile-edit-form .grade-subperiod-add-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 28px;
+    padding: 4px 10px;
+    border: 1px solid #b7c7d7;
+    background: linear-gradient(180deg, #ffffff 0%, #edf3f8 100%);
+    color: var(--primary);
+    font-size: 0.76rem;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.grade-profile-edit-form .grade-component-add-button:hover,
+.grade-profile-edit-form .grade-component-add-button:focus-visible,
+.grade-profile-edit-form .grade-subperiod-add-button:hover,
+.grade-profile-edit-form .grade-subperiod-add-button:focus-visible {
+    border-color: var(--primary);
+    background: var(--primary);
+    color: #ffffff;
+    box-shadow: none;
+    transform: none;
+}
+
 .catalog-table tbody tr:hover {
     box-shadow: inset 0 0 0 1px rgba(15, 76, 129, 0.08);
 }

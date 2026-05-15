@@ -71,15 +71,21 @@ $isDraft = (string) ($profile['pcaestado'] ?? '') === 'BORRADOR';
     <?php endif; ?>
 </section>
 
-<form method="POST" action="<?= $h(baseUrl('configuracion/academica/calificaciones/perfil')); ?>">
+<form method="POST" action="<?= $h(baseUrl('configuracion/academica/calificaciones/perfil')); ?>" class="grade-profile-edit-form">
     <input type="hidden" name="pcaid" value="<?= $h($profileId); ?>">
 
     <section class="security-assignment-block">
         <header class="security-assignment-header">
             <div>
                 <h3>Subperiodos y componentes</h3>
-                <p><?= $isDraft ? 'Puedes ajustar fechas y pesos mientras el perfil este en borrador.' : 'Perfil en solo lectura porque ya no esta en borrador.'; ?></p>
+                <p><?= $isDraft ? 'Pulsa Editar para ajustar nombres, fechas, pesos y componentes mientras el perfil este en borrador.' : 'Perfil en solo lectura porque ya no esta en borrador.'; ?></p>
             </div>
+            <?php if ($isDraft): ?>
+                <button class="btn-secondary btn-auto grade-profile-edit-button" type="button" data-grade-profile-edit>
+                    <i class="fa fa-pencil" aria-hidden="true"></i>
+                    Editar
+                </button>
+            <?php endif; ?>
         </header>
 
         <?php if (empty($subperiods)): ?>
@@ -95,39 +101,65 @@ $isDraft = (string) ($profile['pcaestado'] ?? '') === 'BORRADOR';
                             <th>Final</th>
                             <th>Peso final</th>
                             <th>Componentes</th>
+                            <th>Acciones</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody data-grade-subperiods-body>
                         <?php foreach ($subperiods as $subperiod): ?>
                             <?php $subperiodId = (int) $subperiod['spcid']; ?>
-                            <tr>
-                                <td><span class="cell-title"><?= $h($subperiod['spcorden'] . '. ' . $subperiod['spcnombre']); ?></span></td>
+                            <tr data-grade-subperiod-row>
                                 <td>
-                                    <input type="date" name="subperiods[<?= $h($subperiodId); ?>][spcfecha_inicio]" value="<?= $h($subperiod['spcfecha_inicio']); ?>" <?= $isDraft ? '' : 'disabled'; ?>>
+                                    <span class="cell-subtitle">Orden <?= $h($subperiod['spcorden']); ?></span>
+                                    <input type="text" name="subperiods[<?= $h($subperiodId); ?>][spcnombre]" maxlength="80" value="<?= $h($subperiod['spcnombre']); ?>" disabled data-grade-profile-field>
+                                    <input type="hidden" name="subperiods[<?= $h($subperiodId); ?>][delete]" value="0" data-grade-subperiod-delete-input>
                                 </td>
                                 <td>
-                                    <input type="date" name="subperiods[<?= $h($subperiodId); ?>][spcfecha_fin]" value="<?= $h($subperiod['spcfecha_fin']); ?>" <?= $isDraft ? '' : 'disabled'; ?>>
+                                    <input type="date" name="subperiods[<?= $h($subperiodId); ?>][spcfecha_inicio]" value="<?= $h($subperiod['spcfecha_inicio']); ?>" disabled data-grade-profile-field>
                                 </td>
                                 <td>
-                                    <input type="checkbox" name="subperiods[<?= $h($subperiodId); ?>][spcparticipa_final]" value="1" <?= !empty($subperiod['spcparticipa_final']) ? 'checked' : ''; ?> <?= $isDraft ? '' : 'disabled'; ?>>
+                                    <input type="date" name="subperiods[<?= $h($subperiodId); ?>][spcfecha_fin]" value="<?= $h($subperiod['spcfecha_fin']); ?>" disabled data-grade-profile-field>
                                 </td>
                                 <td>
-                                    <input type="number" step="0.001" min="0" name="subperiods[<?= $h($subperiodId); ?>][spcpeso_final]" value="<?= $h($subperiod['spcpeso_final'] ?? ''); ?>" <?= $isDraft ? '' : 'disabled'; ?>>
+                                    <input type="checkbox" name="subperiods[<?= $h($subperiodId); ?>][spcparticipa_final]" value="1" <?= !empty($subperiod['spcparticipa_final']) ? 'checked' : ''; ?> disabled data-grade-profile-field>
                                 </td>
                                 <td>
+                                    <input type="number" step="0.001" min="0" name="subperiods[<?= $h($subperiodId); ?>][spcpeso_final]" value="<?= $h($subperiod['spcpeso_final'] ?? ''); ?>" disabled data-grade-profile-field>
+                                </td>
+                                <td>
+                                    <div data-grade-components-list="<?= $h($subperiodId); ?>">
                                     <?php foreach (($components[$subperiodId] ?? []) as $component): ?>
                                         <?php $componentId = (int) $component['cpcid']; ?>
-                                        <div class="input-group" style="margin-bottom: .5rem;">
-                                            <span class="input-addon"><?= $h($component['cpcnombre']); ?></span>
-                                            <input type="number" step="0.001" min="0" name="components[<?= $h($componentId); ?>][cpcpeso]" value="<?= $h($component['cpcpeso'] ?? ''); ?>" <?= $isDraft ? '' : 'disabled'; ?>>
-                                            <select name="components[<?= $h($componentId); ?>][cpctipo_calculo]" <?= $isDraft ? '' : 'disabled'; ?>>
+                                        <div class="input-group grade-component-row" style="margin-bottom: .5rem;" data-grade-component-row>
+                                            <input type="text" name="components[<?= $h($componentId); ?>][cpcnombre]" maxlength="100" value="<?= $h($component['cpcnombre']); ?>" disabled data-grade-profile-field>
+                                            <input type="number" step="0.001" min="0" name="components[<?= $h($componentId); ?>][cpcpeso]" value="<?= $h($component['cpcpeso'] ?? ''); ?>" disabled data-grade-profile-field>
+                                            <select name="components[<?= $h($componentId); ?>][cpctipo_calculo]" disabled data-grade-profile-field>
                                                 <?php foreach (['PROMEDIO_SIMPLE', 'PROMEDIO_PONDERADO', 'SUMA'] as $type): ?>
                                                     <option value="<?= $h($type); ?>" <?= (string) $component['cpctipo_calculo'] === $type ? 'selected' : ''; ?>><?= $h($type); ?></option>
                                                 <?php endforeach; ?>
                                             </select>
                                             <input type="hidden" name="components[<?= $h($componentId); ?>][cpcestado]" value="<?= !empty($component['cpcestado']) ? '1' : '0'; ?>">
+                                            <input type="hidden" name="components[<?= $h($componentId); ?>][delete]" value="0" data-grade-component-delete-input>
+                                            <?php if ($isDraft): ?>
+                                                <button class="icon-button icon-button-delete" type="button" title="Borrar componente" aria-label="Borrar componente" hidden data-grade-profile-edit-control data-grade-component-delete>
+                                                    <i class="fa fa-trash" aria-hidden="true"></i>
+                                                </button>
+                                            <?php endif; ?>
                                         </div>
                                     <?php endforeach; ?>
+                                    </div>
+                                    <?php if ($isDraft): ?>
+                                        <button class="btn-secondary btn-auto grade-component-add-button" type="button" hidden data-grade-profile-edit-control data-grade-component-add="<?= $h($subperiodId); ?>">
+                                            <i class="fa fa-plus" aria-hidden="true"></i>
+                                            Agregar componente
+                                        </button>
+                                    <?php endif; ?>
+                                </td>
+                                <td>
+                                    <?php if ($isDraft): ?>
+                                        <button class="icon-button icon-button-delete" type="button" title="Borrar subperiodo" aria-label="Borrar subperiodo" hidden data-grade-profile-edit-control data-grade-subperiod-delete>
+                                            <i class="fa fa-trash" aria-hidden="true"></i>
+                                        </button>
+                                    <?php endif; ?>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
@@ -136,7 +168,11 @@ $isDraft = (string) ($profile['pcaestado'] ?? '') === 'BORRADOR';
             </div>
 
             <?php if ($isDraft): ?>
-                <div class="actions-row">
+                <div class="actions-row grade-profile-actions" hidden data-grade-profile-save-actions>
+                    <button class="btn-secondary btn-auto grade-subperiod-add-button" type="button" data-grade-subperiod-add>
+                        <i class="fa fa-plus" aria-hidden="true"></i>
+                        Agregar subperiodo
+                    </button>
                     <button class="btn-primary btn-inline" type="submit">Guardar ajustes</button>
                 </div>
             <?php endif; ?>

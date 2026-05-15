@@ -2794,6 +2794,179 @@ document.addEventListener('DOMContentLoaded', () => {
         matriculaUserFilter.addEventListener('change', runMatriculaSearch);
     }
 
+    const gradeProfileForm = document.querySelector('.grade-profile-edit-form');
+
+    if (gradeProfileForm instanceof HTMLFormElement) {
+        let newGradeComponentIndex = 0;
+        const componentTypeOptions = ['PROMEDIO_SIMPLE', 'PROMEDIO_PONDERADO', 'SUMA'];
+        const editButton = gradeProfileForm.querySelector('[data-grade-profile-edit]');
+        const saveActions = gradeProfileForm.querySelector('[data-grade-profile-save-actions]');
+        const editControls = Array.from(gradeProfileForm.querySelectorAll('[data-grade-profile-edit-control]'));
+        const editableFields = Array.from(gradeProfileForm.querySelectorAll('[data-grade-profile-field]'));
+        const subperiodBody = gradeProfileForm.querySelector('[data-grade-subperiods-body]');
+        let newGradeSubperiodIndex = 0;
+
+        if (editButton instanceof HTMLButtonElement) {
+            editButton.addEventListener('click', () => {
+                editableFields.forEach((field) => {
+                    if (field instanceof HTMLInputElement || field instanceof HTMLSelectElement) {
+                        field.disabled = false;
+                    }
+                });
+
+                editControls.forEach((control) => {
+                    if (control instanceof HTMLElement) {
+                        control.hidden = false;
+                    }
+                });
+
+                if (saveActions instanceof HTMLElement) {
+                    saveActions.hidden = false;
+                }
+
+                editButton.hidden = true;
+                editableFields.find((field) => field instanceof HTMLInputElement)?.focus();
+            });
+        }
+
+        const buildGradeComponentRow = (subperiodId) => {
+            const row = document.createElement('div');
+            row.className = 'input-group grade-component-row';
+            row.style.marginBottom = '.5rem';
+            row.dataset.gradeComponentRow = '';
+
+            const index = String(newGradeComponentIndex);
+            newGradeComponentIndex += 1;
+
+            const nameInput = document.createElement('input');
+            nameInput.type = 'text';
+            nameInput.name = 'new_components[' + subperiodId + '][' + index + '][cpcnombre]';
+            nameInput.maxLength = 100;
+            nameInput.placeholder = 'Nombre del componente';
+            nameInput.required = true;
+
+            const weightInput = document.createElement('input');
+            weightInput.type = 'number';
+            weightInput.name = 'new_components[' + subperiodId + '][' + index + '][cpcpeso]';
+            weightInput.step = '0.001';
+            weightInput.min = '0';
+            weightInput.placeholder = 'Peso';
+
+            const typeSelect = document.createElement('select');
+            typeSelect.name = 'new_components[' + subperiodId + '][' + index + '][cpctipo_calculo]';
+
+            componentTypeOptions.forEach((type) => {
+                const option = document.createElement('option');
+                option.value = type;
+                option.textContent = type;
+                typeSelect.appendChild(option);
+            });
+
+            const deleteButton = document.createElement('button');
+            deleteButton.className = 'icon-button icon-button-delete';
+            deleteButton.type = 'button';
+            deleteButton.title = 'Borrar componente';
+            deleteButton.setAttribute('aria-label', 'Borrar componente');
+            deleteButton.dataset.gradeComponentRemoveNew = '';
+            deleteButton.innerHTML = '<i class="fa fa-trash" aria-hidden="true"></i>';
+
+            row.append(nameInput, weightInput, typeSelect, deleteButton);
+
+            return row;
+        };
+
+        const buildGradeSubperiodRow = () => {
+            const row = document.createElement('tr');
+            row.dataset.gradeSubperiodRow = '';
+
+            const index = String(newGradeSubperiodIndex);
+            newGradeSubperiodIndex += 1;
+
+            row.innerHTML = [
+                '<td><span class="cell-subtitle">Nuevo</span><input type="text" name="new_subperiods[' + index + '][spcnombre]" maxlength="80" placeholder="Subperiodo" required></td>',
+                '<td><input type="date" name="new_subperiods[' + index + '][spcfecha_inicio]" required></td>',
+                '<td><input type="date" name="new_subperiods[' + index + '][spcfecha_fin]" required></td>',
+                '<td><input type="checkbox" name="new_subperiods[' + index + '][spcparticipa_final]" value="1" checked></td>',
+                '<td><input type="number" step="0.001" min="0" name="new_subperiods[' + index + '][spcpeso_final]"></td>',
+                '<td></td>',
+                '<td><button class="icon-button icon-button-delete" type="button" title="Borrar subperiodo" aria-label="Borrar subperiodo" data-grade-subperiod-remove-new><i class="fa fa-trash" aria-hidden="true"></i></button></td>',
+            ].join('');
+
+            return row;
+        };
+
+        const addSubperiodButton = gradeProfileForm.querySelector('[data-grade-subperiod-add]');
+
+        if (addSubperiodButton instanceof HTMLButtonElement && subperiodBody instanceof HTMLTableSectionElement) {
+            addSubperiodButton.addEventListener('click', () => {
+                const row = buildGradeSubperiodRow();
+                subperiodBody.appendChild(row);
+                row.querySelector('input')?.focus();
+            });
+        }
+
+        gradeProfileForm.querySelectorAll('[data-grade-component-add]').forEach((button) => {
+            button.addEventListener('click', () => {
+                const subperiodId = button.getAttribute('data-grade-component-add') || '';
+                const list = gradeProfileForm.querySelector('[data-grade-components-list="' + subperiodId + '"]');
+
+                if (!(list instanceof HTMLElement) || subperiodId === '') {
+                    return;
+                }
+
+                const row = buildGradeComponentRow(subperiodId);
+                list.appendChild(row);
+                row.querySelector('input')?.focus();
+            });
+        });
+
+        gradeProfileForm.addEventListener('click', (event) => {
+            const target = event.target instanceof Element ? event.target : null;
+            const deleteButton = target?.closest('[data-grade-component-delete]');
+            const removeNewButton = target?.closest('[data-grade-component-remove-new]');
+            const deleteSubperiodButton = target?.closest('[data-grade-subperiod-delete]');
+            const removeNewSubperiodButton = target?.closest('[data-grade-subperiod-remove-new]');
+
+            if (deleteButton instanceof HTMLButtonElement) {
+                const row = deleteButton.closest('[data-grade-component-row]');
+                const deleteInput = row?.querySelector('[data-grade-component-delete-input]');
+
+                if (row instanceof HTMLElement && deleteInput instanceof HTMLInputElement) {
+                    deleteInput.value = '1';
+                    row.classList.add('is-deleted');
+                    row.querySelectorAll('input:not([type="hidden"]), select, button').forEach((field) => {
+                        if (field instanceof HTMLInputElement || field instanceof HTMLSelectElement || field instanceof HTMLButtonElement) {
+                            field.disabled = true;
+                        }
+                    });
+                }
+            }
+
+            if (removeNewButton instanceof HTMLButtonElement) {
+                removeNewButton.closest('[data-grade-component-row]')?.remove();
+            }
+
+            if (deleteSubperiodButton instanceof HTMLButtonElement) {
+                const row = deleteSubperiodButton.closest('[data-grade-subperiod-row]');
+                const deleteInput = row?.querySelector('[data-grade-subperiod-delete-input]');
+
+                if (row instanceof HTMLTableRowElement && deleteInput instanceof HTMLInputElement) {
+                    deleteInput.value = '1';
+                    row.classList.add('is-deleted');
+                    row.querySelectorAll('input:not([type="hidden"]), select, button').forEach((field) => {
+                        if (field instanceof HTMLInputElement || field instanceof HTMLSelectElement || field instanceof HTMLButtonElement) {
+                            field.disabled = true;
+                        }
+                    });
+                }
+            }
+
+            if (removeNewSubperiodButton instanceof HTMLButtonElement) {
+                removeNewSubperiodButton.closest('[data-grade-subperiod-row]')?.remove();
+            }
+        });
+    }
+
     const searchInput = document.querySelector('[data-person-search]');
     const tableBody = document.querySelector('[data-person-table-body]');
     const tableWrapper = document.querySelector('[data-person-table-wrapper]');

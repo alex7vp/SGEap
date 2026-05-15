@@ -341,7 +341,7 @@ class GradeConfigurationModel extends Model
         }
     }
 
-    public function updateDraftProfileSchedule(int $profileId, array $subperiods, array $components, int $userId): void
+    public function updateDraftProfileSchedule(int $profileId, array $subperiods, array $components, array $newSubperiods, array $newComponents, int $userId): void
     {
         $profile = $this->findProfile($profileId);
 
@@ -352,9 +352,22 @@ class GradeConfigurationModel extends Model
         $this->db->beginTransaction();
 
         try {
+            $deleteSubperiodStatement = $this->db->prepare(
+                "DELETE FROM componente_calificacion c
+                 USING subperiodo_calificacion s
+                 WHERE s.spcid = c.spcid
+                   AND s.pcaid = :profile_id
+                   AND s.spcid = :subperiod_id"
+            );
+            $deleteSubperiodHeaderStatement = $this->db->prepare(
+                "DELETE FROM subperiodo_calificacion
+                 WHERE pcaid = :profile_id
+                   AND spcid = :subperiod_id"
+            );
             $subperiodStatement = $this->db->prepare(
                 "UPDATE subperiodo_calificacion
-                 SET spcfecha_inicio = :start_date,
+                 SET spcnombre = :name,
+                     spcfecha_inicio = :start_date,
                      spcfecha_fin = :end_date,
                      spcparticipa_final = :participates,
                      spcpeso_final = :weight,
@@ -364,8 +377,25 @@ class GradeConfigurationModel extends Model
             );
 
             foreach ($subperiods as $subperiodId => $data) {
+                if (!empty($data['delete'])) {
+                    $deleteSubperiodStatement->execute([
+                        'profile_id' => $profileId,
+                        'subperiod_id' => (int) $subperiodId,
+                    ]);
+                    $deleteSubperiodHeaderStatement->execute([
+                        'profile_id' => $profileId,
+                        'subperiod_id' => (int) $subperiodId,
+                    ]);
+                    continue;
+                }
+
+                $name = trim((string) ($data['spcnombre'] ?? ''));
                 $start = trim((string) ($data['spcfecha_inicio'] ?? ''));
                 $end = trim((string) ($data['spcfecha_fin'] ?? ''));
+
+                if ($name === '') {
+                    throw new InvalidArgumentException('El nombre del subperiodo es obligatorio.');
+                }
 
                 if ($start === '' || $end === '') {
                     throw new InvalidArgumentException('Las fechas de subperiodo son obligatorias.');
@@ -379,6 +409,68 @@ class GradeConfigurationModel extends Model
                 $subperiodStatement->execute([
                     'subperiod_id' => (int) $subperiodId,
                     'profile_id' => $profileId,
+                    'name' => $name,
+                    'start_date' => $start,
+                    'end_date' => $end,
+                    'participates' => !empty($data['spcparticipa_final']) ? 'true' : 'false',
+                    'weight' => $weight !== '' ? $weight : null,
+                ]);
+            }
+
+            $insertSubperiodStatement = $this->db->prepare(
+                "INSERT INTO subperiodo_calificacion (
+                    pcaid,
+                    spcnombre,
+                    spcorden,
+                    spcfecha_inicio,
+                    spcfecha_fin,
+                    spcestado,
+                    spcparticipa_final,
+                    spcpeso_final
+                 )
+                 SELECT
+                    :profile_id,
+                    :name,
+                    COALESCE(MAX(spcorden), 0) + 1,
+                    :start_date,
+                    :end_date,
+                    'EN_REGISTRO',
+                    :participates,
+                    :weight
+                 FROM subperiodo_calificacion
+                 WHERE pcaid = :profile_id_filter"
+            );
+
+            foreach ($newSubperiods as $data) {
+                if (!is_array($data)) {
+                    continue;
+                }
+
+                $name = trim((string) ($data['spcnombre'] ?? ''));
+                $start = trim((string) ($data['spcfecha_inicio'] ?? ''));
+                $end = trim((string) ($data['spcfecha_fin'] ?? ''));
+
+                if ($name === '' && $start === '' && $end === '') {
+                    continue;
+                }
+
+                if ($name === '') {
+                    throw new InvalidArgumentException('El nombre del subperiodo es obligatorio.');
+                }
+
+                if ($start === '' || $end === '') {
+                    throw new InvalidArgumentException('Las fechas de subperiodo son obligatorias.');
+                }
+
+                if ($end < $start) {
+                    throw new InvalidArgumentException('La fecha fin de un subperiodo no puede ser menor que la fecha inicio.');
+                }
+
+                $weight = trim((string) ($data['spcpeso_final'] ?? ''));
+                $insertSubperiodStatement->execute([
+                    'profile_id' => $profileId,
+                    'profile_id_filter' => $profileId,
+                    'name' => $name,
                     'start_date' => $start,
                     'end_date' => $end,
                     'participates' => !empty($data['spcparticipa_final']) ? 'true' : 'false',
@@ -388,7 +480,8 @@ class GradeConfigurationModel extends Model
 
             $componentStatement = $this->db->prepare(
                 "UPDATE componente_calificacion c
-                 SET cpcpeso = :weight,
+                 SET cpcnombre = :name,
+                     cpcpeso = :weight,
                      cpctipo_calculo = :calculation_type,
                      cpcestado = :status,
                      cpcfecha_modificacion = CURRENT_TIMESTAMP
@@ -397,10 +490,30 @@ class GradeConfigurationModel extends Model
                    AND s.pcaid = :profile_id
                    AND c.cpcid = :component_id"
             );
+            $deleteComponentStatement = $this->db->prepare(
+                "DELETE FROM componente_calificacion c
+                 USING subperiodo_calificacion s
+                 WHERE s.spcid = c.spcid
+                   AND s.pcaid = :profile_id
+                   AND c.cpcid = :component_id"
+            );
 
             foreach ($components as $componentId => $data) {
+                if (!empty($data['delete'])) {
+                    $deleteComponentStatement->execute([
+                        'component_id' => (int) $componentId,
+                        'profile_id' => $profileId,
+                    ]);
+                    continue;
+                }
+
+                $name = trim((string) ($data['cpcnombre'] ?? ''));
                 $weight = trim((string) ($data['cpcpeso'] ?? ''));
                 $type = trim((string) ($data['cpctipo_calculo'] ?? 'PROMEDIO_SIMPLE'));
+
+                if ($name === '') {
+                    throw new InvalidArgumentException('El nombre del componente es obligatorio.');
+                }
 
                 if (!in_array($type, ['PROMEDIO_SIMPLE', 'PROMEDIO_PONDERADO', 'SUMA'], true)) {
                     throw new InvalidArgumentException('El tipo de calculo de componente no es valido.');
@@ -409,10 +522,67 @@ class GradeConfigurationModel extends Model
                 $componentStatement->execute([
                     'component_id' => (int) $componentId,
                     'profile_id' => $profileId,
+                    'name' => $name,
                     'weight' => $weight !== '' ? $weight : null,
                     'calculation_type' => $type,
                     'status' => !empty($data['cpcestado']) ? 'true' : 'false',
                 ]);
+            }
+
+            $insertComponentStatement = $this->db->prepare(
+                "INSERT INTO componente_calificacion (
+                    spcid,
+                    cpcnombre,
+                    cpcorden,
+                    cpcpeso,
+                    cpctipo_calculo,
+                    cpcestado
+                 )
+                 SELECT
+                    s.spcid,
+                    :name,
+                    COALESCE(MAX(c.cpcorden), 0) + 1,
+                    :weight,
+                    :calculation_type,
+                    true
+                 FROM subperiodo_calificacion s
+                 LEFT JOIN componente_calificacion c ON c.spcid = s.spcid
+                 WHERE s.spcid = :subperiod_id
+                   AND s.pcaid = :profile_id
+                 GROUP BY s.spcid"
+            );
+
+            foreach ($newComponents as $subperiodId => $rows) {
+                if (!is_array($rows)) {
+                    continue;
+                }
+
+                foreach ($rows as $data) {
+                    $name = trim((string) ($data['cpcnombre'] ?? ''));
+
+                    if ($name === '') {
+                        continue;
+                    }
+
+                    $weight = trim((string) ($data['cpcpeso'] ?? ''));
+                    $type = trim((string) ($data['cpctipo_calculo'] ?? 'PROMEDIO_SIMPLE'));
+
+                    if (!in_array($type, ['PROMEDIO_SIMPLE', 'PROMEDIO_PONDERADO', 'SUMA'], true)) {
+                        throw new InvalidArgumentException('El tipo de calculo de componente no es valido.');
+                    }
+
+                    $insertComponentStatement->execute([
+                        'subperiod_id' => (int) $subperiodId,
+                        'profile_id' => $profileId,
+                        'name' => $name,
+                        'weight' => $weight !== '' ? $weight : null,
+                        'calculation_type' => $type,
+                    ]);
+
+                    if ($insertComponentStatement->rowCount() === 0) {
+                        throw new InvalidArgumentException('El subperiodo seleccionado para agregar componente no es valido.');
+                    }
+                }
             }
 
             $this->audit($userId, 'CONFIGURACION_EDITADA', 'perfil_calificacion', $profileId, null, 'Subperiodos y componentes actualizados');
