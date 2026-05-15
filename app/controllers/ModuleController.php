@@ -221,6 +221,13 @@ class ModuleController extends Controller
                     'permission' => 'asistencia.calendario.gestionar',
                 ],
                 [
+                    'label' => 'Calificaciones',
+                    'description' => 'Crea perfiles de evaluacion por periodo desde plantillas base.',
+                    'url' => baseUrl('configuracion/academica/calificaciones'),
+                    'icon' => 'fa-check-square',
+                    'permission' => 'calificaciones.configurar|calificaciones.plantillas.gestionar',
+                ],
+                [
                     'label' => 'Configuracion de asistencia',
                     'description' => 'Define el rango real de clases usado por el calendario de asistencia.',
                     'url' => baseUrl('asistencia/configuracion'),

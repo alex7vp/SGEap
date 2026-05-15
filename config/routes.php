@@ -53,6 +53,9 @@ return static function (Router $router): void {
     $router->get('/configuracion/academica/asignaturas', [AttendanceController::class, 'academicSubjects']);
     $router->get('/configuracion/academica/materias-curso', [AttendanceController::class, 'academicCourseSubjects']);
     $router->get('/configuracion/academica/docentes', [AttendanceController::class, 'academicTeachers']);
+    $router->get('/configuracion/academica/calificaciones', [ConfigurationController::class, 'gradesConfiguration']);
+    $router->get('/configuracion/academica/calificaciones/plantilla', [ConfigurationController::class, 'gradeTemplateDetail']);
+    $router->get('/configuracion/academica/calificaciones/perfil', [ConfigurationController::class, 'gradeProfileDetail']);
     $router->post('/configuracion/catalogos', [ConfigurationController::class, 'storeCatalogItem']);
     $router->post('/configuracion/institucion', [ConfigurationController::class, 'storeInstitution']);
     $router->post('/configuracion/catalogos/actualizar', [ConfigurationController::class, 'updateCatalogItem']);
@@ -78,6 +81,9 @@ return static function (Router $router): void {
     $router->post('/configuracion/academica/materias-curso/estado', [AttendanceController::class, 'toggleCourseSubject']);
     $router->post('/configuracion/academica/docentes', [AttendanceController::class, 'assignTeacher']);
     $router->post('/configuracion/academica/docentes/retirar', [AttendanceController::class, 'removeTeacher']);
+    $router->post('/configuracion/academica/calificaciones/copiar', [ConfigurationController::class, 'copyGradesConfiguration']);
+    $router->post('/configuracion/academica/calificaciones/perfil', [ConfigurationController::class, 'updateGradeProfile']);
+    $router->post('/configuracion/academica/calificaciones/perfil/activar', [ConfigurationController::class, 'activateGradeProfile']);
 
     $router->get('/seguridad/catalogos', [SecurityController::class, 'catalogs']);
     $router->get('/seguridad/usuarios', [SecurityController::class, 'users']);

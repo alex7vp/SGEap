@@ -7,6 +7,7 @@ namespace App\Controllers;
 use App\Core\Controller;
 use App\Models\CatalogModel;
 use App\Models\CourseModel;
+use App\Models\GradeConfigurationModel;
 use App\Models\InstitutionModel;
 use App\Models\MatriculationConfigurationModel;
 use App\Models\MatriculationDocumentModel;
@@ -118,6 +119,164 @@ class ConfigurationController extends Controller
                 'domactivo' => sessionFlash('old_matriculation_document_active') ?? ($editDocument !== false && !empty($editDocument['domactivo']) ? '1' : '0'),
             ],
         ]);
+    }
+
+    public function gradesConfiguration(): void
+    {
+        $user = $this->requireAuth();
+        $model = new GradeConfigurationModel();
+        $periodModel = new PeriodModel();
+
+        $this->view('configuracion.calificaciones', [
+            'appName' => config('app')['name'] ?? 'SGEap',
+            'pageTitle' => 'Configuracion de calificaciones',
+            'currentModule' => 'configuracion',
+            'currentSection' => 'calificaciones',
+            'user' => $user,
+            'templates' => $model->templates(),
+            'periods' => $periodModel->allOrdered(),
+            'profiles' => $model->profiles(),
+            'levels' => $model->levels(),
+            'grades' => $model->grades(),
+            'courses' => $model->courses(),
+            'courseSubjects' => $model->courseSubjects(),
+            'feedback' => $this->gradesConfigurationFeedback(),
+            'old' => [
+                'pclid' => sessionFlash('old_grade_config_template') ?? '',
+                'pleid' => sessionFlash('old_grade_config_period') ?? '',
+                'pcanombre' => sessionFlash('old_grade_config_name') ?? '',
+                'pcaestado' => sessionFlash('old_grade_config_state') ?? 'BORRADOR',
+                'pcavigencia_desde' => sessionFlash('old_grade_config_valid_from') ?? '',
+                'pcavigencia_hasta' => sessionFlash('old_grade_config_valid_to') ?? '',
+                'pasalcance' => sessionFlash('old_grade_config_scope') ?? '',
+                'target_id' => sessionFlash('old_grade_config_target') ?? '',
+            ],
+        ]);
+    }
+
+    public function gradeTemplateDetail(): void
+    {
+        $user = $this->requireAuth();
+        $templateId = (int) ($_GET['id'] ?? 0);
+
+        if ($templateId <= 0) {
+            $this->flashGradesConfigurationFeedback('error', 'Seleccione una plantilla valida.');
+            $this->redirect('/configuracion/academica/calificaciones');
+        }
+
+        try {
+            $detail = (new GradeConfigurationModel())->templateDetail($templateId);
+        } catch (\Throwable $exception) {
+            $this->flashGradesConfigurationFeedback('error', $exception->getMessage());
+            $this->redirect('/configuracion/academica/calificaciones');
+        }
+
+        $this->view('configuracion.calificacion_plantilla', [
+            'appName' => config('app')['name'] ?? 'SGEap',
+            'pageTitle' => 'Detalle de plantilla',
+            'currentModule' => 'configuracion',
+            'currentSection' => 'calificaciones',
+            'user' => $user,
+            'detail' => $detail,
+        ]);
+    }
+
+    public function gradeProfileDetail(): void
+    {
+        $user = $this->requireAuth();
+        $profileId = (int) ($_GET['id'] ?? 0);
+
+        if ($profileId <= 0) {
+            $this->flashGradesConfigurationFeedback('error', 'Seleccione un perfil valido.');
+            $this->redirect('/configuracion/academica/calificaciones');
+        }
+
+        try {
+            $detail = (new GradeConfigurationModel())->profileDetail($profileId);
+        } catch (\Throwable $exception) {
+            $this->flashGradesConfigurationFeedback('error', $exception->getMessage());
+            $this->redirect('/configuracion/academica/calificaciones');
+        }
+
+        $this->view('configuracion.calificacion_perfil', [
+            'appName' => config('app')['name'] ?? 'SGEap',
+            'pageTitle' => 'Perfil de calificaciones',
+            'currentModule' => 'configuracion',
+            'currentSection' => 'calificaciones',
+            'user' => $user,
+            'detail' => $detail,
+            'feedback' => $this->gradeProfileFeedback(),
+        ]);
+    }
+
+    public function copyGradesConfiguration(): void
+    {
+        $user = $this->requireAuth();
+        $data = [
+            'pclid' => (int) ($_POST['pclid'] ?? 0),
+            'pleid' => (int) ($_POST['pleid'] ?? 0),
+            'pcanombre' => trim((string) ($_POST['pcanombre'] ?? '')),
+            'pcaestado' => trim((string) ($_POST['pcaestado'] ?? 'BORRADOR')),
+            'pcavigencia_desde' => trim((string) ($_POST['pcavigencia_desde'] ?? '')),
+            'pcavigencia_hasta' => trim((string) ($_POST['pcavigencia_hasta'] ?? '')),
+            'pasalcance' => trim((string) ($_POST['pasalcance'] ?? '')),
+            'target_id' => (int) ($_POST['target_id'] ?? 0),
+        ];
+
+        try {
+            $profileId = (new GradeConfigurationModel())->createProfileFromTemplate($data, (int) ($user['usuid'] ?? 0));
+            $this->flashGradesConfigurationFeedback('success', 'Perfil de calificaciones creado correctamente. ID: ' . $profileId . '.');
+        } catch (\Throwable $exception) {
+            $this->flashGradesConfigurationFormData($data);
+            $this->flashGradesConfigurationFeedback('error', $exception->getMessage());
+        }
+
+        $this->redirect('/configuracion/academica/calificaciones');
+    }
+
+    public function updateGradeProfile(): void
+    {
+        $user = $this->requireAuth();
+        $profileId = (int) ($_POST['pcaid'] ?? 0);
+
+        if ($profileId <= 0) {
+            $this->flashGradesConfigurationFeedback('error', 'Seleccione un perfil valido.');
+            $this->redirect('/configuracion/academica/calificaciones');
+        }
+
+        try {
+            (new GradeConfigurationModel())->updateDraftProfileSchedule(
+                $profileId,
+                is_array($_POST['subperiods'] ?? null) ? $_POST['subperiods'] : [],
+                is_array($_POST['components'] ?? null) ? $_POST['components'] : [],
+                (int) ($user['usuid'] ?? 0)
+            );
+            $this->flashGradeProfileFeedback('success', 'Perfil actualizado correctamente.');
+        } catch (\Throwable $exception) {
+            $this->flashGradeProfileFeedback('error', $exception->getMessage());
+        }
+
+        $this->redirect('/configuracion/academica/calificaciones/perfil?id=' . $profileId);
+    }
+
+    public function activateGradeProfile(): void
+    {
+        $user = $this->requireAuth();
+        $profileId = (int) ($_POST['pcaid'] ?? 0);
+
+        if ($profileId <= 0) {
+            $this->flashGradesConfigurationFeedback('error', 'Seleccione un perfil valido.');
+            $this->redirect('/configuracion/academica/calificaciones');
+        }
+
+        try {
+            (new GradeConfigurationModel())->activateProfile($profileId, (int) ($user['usuid'] ?? 0));
+            $this->flashGradeProfileFeedback('success', 'Perfil activado correctamente.');
+        } catch (\Throwable $exception) {
+            $this->flashGradeProfileFeedback('error', $exception->getMessage());
+        }
+
+        $this->redirect('/configuracion/academica/calificaciones/perfil?id=' . $profileId);
     }
 
     public function institution(): void
@@ -947,6 +1106,18 @@ class ConfigurationController extends Controller
         sessionFlash('old_matriculation_document_active', !empty($data['domactivo']) ? '1' : '0');
     }
 
+    private function flashGradesConfigurationFormData(array $data): void
+    {
+        sessionFlash('old_grade_config_template', (string) ($data['pclid'] ?? ''));
+        sessionFlash('old_grade_config_period', (string) ($data['pleid'] ?? ''));
+        sessionFlash('old_grade_config_name', (string) ($data['pcanombre'] ?? ''));
+        sessionFlash('old_grade_config_state', (string) ($data['pcaestado'] ?? 'BORRADOR'));
+        sessionFlash('old_grade_config_valid_from', (string) ($data['pcavigencia_desde'] ?? ''));
+        sessionFlash('old_grade_config_valid_to', (string) ($data['pcavigencia_hasta'] ?? ''));
+        sessionFlash('old_grade_config_scope', (string) ($data['pasalcance'] ?? ''));
+        sessionFlash('old_grade_config_target', (string) ($data['target_id'] ?? ''));
+    }
+
     private function flashInstitutionFieldError(string $field, string $message): void
     {
         sessionFlash('institution_error_' . $field, $message);
@@ -991,6 +1162,18 @@ class ConfigurationController extends Controller
         sessionFlash('matriculation_config_feedback_message', $message);
     }
 
+    private function flashGradesConfigurationFeedback(string $type, string $message): void
+    {
+        sessionFlash('grades_config_feedback_type', $type);
+        sessionFlash('grades_config_feedback_message', $message);
+    }
+
+    private function flashGradeProfileFeedback(string $type, string $message): void
+    {
+        sessionFlash('grade_profile_feedback_type', $type);
+        sessionFlash('grade_profile_feedback_message', $message);
+    }
+
     private function periodListFeedback(): ?array
     {
         $type = sessionFlash('period_list_feedback_type');
@@ -1010,6 +1193,36 @@ class ConfigurationController extends Controller
     {
         $type = sessionFlash('matriculation_config_feedback_type');
         $message = sessionFlash('matriculation_config_feedback_message');
+
+        if ($type === null || $message === null) {
+            return null;
+        }
+
+        return [
+            'type' => $type,
+            'message' => $message,
+        ];
+    }
+
+    private function gradesConfigurationFeedback(): ?array
+    {
+        $type = sessionFlash('grades_config_feedback_type');
+        $message = sessionFlash('grades_config_feedback_message');
+
+        if ($type === null || $message === null) {
+            return null;
+        }
+
+        return [
+            'type' => $type,
+            'message' => $message,
+        ];
+    }
+
+    private function gradeProfileFeedback(): ?array
+    {
+        $type = sessionFlash('grade_profile_feedback_type');
+        $message = sessionFlash('grade_profile_feedback_message');
 
         if ($type === null || $message === null) {
             return null;

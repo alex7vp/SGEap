@@ -627,3 +627,5 @@ Antes de implementar se debe traducir esta logica en tablas para:
 - bloqueos de visualizacion;
 - auditoria academica.
 
+La primera propuesta de tablas quedo documentada en `docs/diseno-tablas-calificaciones.md` y materializada en `database/scripts/18_calificaciones.sql`, `database/scripts/19_calificaciones_promocion.sql` y `database/scripts/20_calificaciones_soporte.sql`. Las plantillas iniciales se cargan desde `database/seeds/06_calificaciones_plantillas_base.sql`.
+
