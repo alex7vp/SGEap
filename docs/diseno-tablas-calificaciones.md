@@ -1,6 +1,6 @@
 # Diseno de tablas del modulo de calificaciones
 
-Este documento traduce la logica definida en `docs/logica-calificaciones.md` a una primera estructura relacional. La implementacion inicial esta en `database/scripts/18_calificaciones.sql`, el bloque de promocion esta en `database/scripts/19_calificaciones_promocion.sql` y el soporte de plantillas/vistas esta en `database/scripts/20_calificaciones_soporte.sql`. Las plantillas base se cargan con `database/seeds/06_calificaciones_plantillas_base.sql`.
+Este documento traduce la logica definida en `docs/logica-calificaciones.md` a una primera estructura relacional. La implementacion inicial esta en `database/scripts/18_calificaciones.sql`, el bloque de promocion esta en `database/scripts/19_calificaciones_promocion.sql`, el soporte de plantillas/vistas esta en `database/scripts/20_calificaciones_soporte.sql` y los grupos de materias estan en `database/scripts/21_calificaciones_grupos_materia.sql`. Las plantillas base se cargan con `database/seeds/06_calificaciones_plantillas_base.sql`.
 
 ## Criterios De Diseno
 
@@ -21,6 +21,8 @@ Este documento traduce la logica definida en `docs/logica-calificaciones.md` a u
 - `componente_calificacion`: define componentes dentro de un subperiodo, por ejemplo formativa y sumativa.
 - `escala_cualitativa`: guarda equivalencias cualitativas del perfil.
 - `materia_calificacion_config`: define si una materia registra cuantitativo, cualitativo o ambitos-destrezas, si promedia y si se muestra en libreta.
+- `grupo_materia_calificacion`: define materias que se calculan como una sola nota dentro de un perfil, por ejemplo Ingles + Science + Language; incluye el area academica del grupo para libretas y reportes.
+- `grupo_materia_calificacion_detalle`: vincula las materias reales del curso con el grupo y define peso, orden, visibilidad individual y si participa en el calculo del grupo.
 
 ### Plantillas
 
@@ -48,6 +50,8 @@ La semilla inicial incluye estas plantillas:
 
 - `resultado_materia_subperiodo`: promedio calculado por materia y subperiodo.
 - `resultado_materia_final`: promedio anual o final por materia.
+- `resultado_grupo_materia_subperiodo`: promedio calculado por grupo de materias y subperiodo.
+- `resultado_grupo_materia_final`: promedio anual o final del grupo de materias.
 - `resultado_estudiante_final`: promedio general y resultado academico por matricula y perfil.
 
 ### Promocion
@@ -58,6 +62,7 @@ La semilla inicial incluye estas plantillas:
 - `instancia_extraordinaria_registro`: nota extraordinaria registrada para una matricula, con materia opcional cuando la instancia aplica por materia.
 - `promocion_estudiante`: resultado final de promocion por matricula y perfil.
 - `promocion_materia`: estado de promocion por materia cuando la regla exige evaluar materias individualmente.
+- `promocion_grupo_materia`: estado de promocion de un grupo cuando varias materias se comportan como una sola nota academica.
 
 ### Publicacion Y Visualizacion
 
@@ -73,6 +78,8 @@ La semilla inicial incluye estas plantillas:
 - `vw_calificacion_perfil_curso`: resuelve el perfil efectivo por curso usando prioridad de asignacion.
 - `vw_calificacion_perfil_materia`: resuelve el perfil efectivo por materia de curso.
 - `vw_calificacion_materia_config_efectiva`: combina perfil y configuracion especifica de materia para saber como registrar, promediar y mostrar la materia.
+- `vw_calificacion_grupo_materia_detalle`: muestra la composicion de cada grupo con datos de curso y materia.
+- `vw_calificacion_materia_config_agrupada`: extiende la configuracion efectiva indicando si una materia promedia individualmente o si aporta a un grupo.
 
 ## Pendientes Para La Siguiente Iteracion
 

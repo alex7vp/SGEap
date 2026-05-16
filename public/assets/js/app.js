@@ -2794,9 +2794,11 @@ document.addEventListener('DOMContentLoaded', () => {
         matriculaUserFilter.addEventListener('change', runMatriculaSearch);
     }
 
-    const gradeProfileForm = document.querySelector('.grade-profile-edit-form');
+    document.querySelectorAll('.grade-profile-edit-form').forEach((gradeProfileForm) => {
+        if (!(gradeProfileForm instanceof HTMLFormElement)) {
+            return;
+        }
 
-    if (gradeProfileForm instanceof HTMLFormElement) {
         let newGradeComponentIndex = 0;
         const componentTypeOptions = ['PROMEDIO_SIMPLE', 'PROMEDIO_PONDERADO', 'SUMA'];
         const editButton = gradeProfileForm.querySelector('[data-grade-profile-edit]');
@@ -2817,6 +2819,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 editControls.forEach((control) => {
                     if (control instanceof HTMLElement) {
                         control.hidden = false;
+                    }
+                });
+
+                gradeProfileForm.querySelectorAll('[data-subject-group-readonly-list]').forEach((list) => {
+                    if (list instanceof HTMLElement) {
+                        list.hidden = true;
                     }
                 });
 
@@ -2905,6 +2913,17 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
 
+        const addSubjectGroupButton = gradeProfileForm.querySelector('[data-subject-group-add]');
+        const newSubjectGroupRow = gradeProfileForm.querySelector('[data-subject-group-new-row]');
+
+        if (addSubjectGroupButton instanceof HTMLButtonElement && newSubjectGroupRow instanceof HTMLTableRowElement) {
+            addSubjectGroupButton.addEventListener('click', () => {
+                newSubjectGroupRow.hidden = false;
+                addSubjectGroupButton.hidden = true;
+                newSubjectGroupRow.querySelector('input, select')?.focus();
+            });
+        }
+
         gradeProfileForm.querySelectorAll('[data-grade-component-add]').forEach((button) => {
             button.addEventListener('click', () => {
                 const subperiodId = button.getAttribute('data-grade-component-add') || '';
@@ -2926,6 +2945,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const removeNewButton = target?.closest('[data-grade-component-remove-new]');
             const deleteSubperiodButton = target?.closest('[data-grade-subperiod-delete]');
             const removeNewSubperiodButton = target?.closest('[data-grade-subperiod-remove-new]');
+            const deleteSubjectGroupButton = target?.closest('[data-subject-group-delete]');
 
             if (deleteButton instanceof HTMLButtonElement) {
                 const row = deleteButton.closest('[data-grade-component-row]');
@@ -2963,6 +2983,124 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (removeNewSubperiodButton instanceof HTMLButtonElement) {
                 removeNewSubperiodButton.closest('[data-grade-subperiod-row]')?.remove();
+            }
+
+            if (deleteSubjectGroupButton instanceof HTMLButtonElement) {
+                const row = deleteSubjectGroupButton.closest('tr');
+                const deleteInput = row?.querySelector('[data-subject-group-delete-input]');
+
+                if (row instanceof HTMLTableRowElement && deleteInput instanceof HTMLInputElement) {
+                    deleteInput.value = '1';
+                    row.classList.add('is-deleted');
+                    row.querySelectorAll('input:not([type="hidden"]), select, button').forEach((field) => {
+                        if (field instanceof HTMLInputElement || field instanceof HTMLSelectElement || field instanceof HTMLButtonElement) {
+                            field.disabled = true;
+                        }
+                    });
+                }
+            }
+        });
+    });
+
+    const courseSubjectBulkForm = document.querySelector('[data-course-subject-bulk-form]');
+
+    if (courseSubjectBulkForm instanceof HTMLFormElement) {
+        const courseSelect = courseSubjectBulkForm.querySelector('[data-course-subject-course]');
+        const subjectRows = Array.from(courseSubjectBulkForm.querySelectorAll('[data-course-subject-row]'));
+
+        const updateCourseSubjectRows = () => {
+            const courseId = courseSelect instanceof HTMLSelectElement ? courseSelect.value : '';
+
+            subjectRows.forEach((row) => {
+                if (!(row instanceof HTMLElement)) {
+                    return;
+                }
+
+                const checkbox = row.querySelector('[data-course-subject-checkbox]');
+                const status = row.querySelector('[data-course-subject-status]');
+                const assignedCourses = (row.dataset.assignedCourses || '').split(',').filter(Boolean);
+                const isAssigned = courseId !== '' && assignedCourses.includes(courseId);
+
+                if (checkbox instanceof HTMLInputElement) {
+                    checkbox.checked = isAssigned;
+                    checkbox.disabled = isAssigned;
+                }
+
+                if (status instanceof HTMLElement) {
+                    status.textContent = isAssigned ? 'Ya asignada' : 'Disponible';
+                }
+
+                row.classList.toggle('is-deleted', isAssigned);
+            });
+        };
+
+        if (courseSelect instanceof HTMLSelectElement) {
+            courseSelect.addEventListener('change', updateCourseSubjectRows);
+            updateCourseSubjectRows();
+        }
+
+        courseSubjectBulkForm.addEventListener('submit', (event) => {
+            const selected = courseSubjectBulkForm.querySelectorAll('[data-course-subject-checkbox]:checked:not(:disabled)');
+
+            if (selected.length === 0) {
+                event.preventDefault();
+                window.alert('Seleccione al menos una asignatura nueva para el curso.');
+            }
+        });
+    }
+
+    const teacherSubjectBulkForm = document.querySelector('[data-teacher-subject-bulk-form]');
+
+    if (teacherSubjectBulkForm instanceof HTMLFormElement) {
+        const teacherSelect = teacherSubjectBulkForm.querySelector('[data-teacher-subject-teacher]');
+        const courseFilter = teacherSubjectBulkForm.querySelector('[data-teacher-subject-course-filter]');
+        const subjectRows = Array.from(teacherSubjectBulkForm.querySelectorAll('[data-teacher-subject-row]'));
+
+        const updateTeacherSubjectRows = () => {
+            const teacherId = teacherSelect instanceof HTMLSelectElement ? teacherSelect.value : '';
+            const courseId = courseFilter instanceof HTMLSelectElement ? courseFilter.value : '';
+
+            subjectRows.forEach((row) => {
+                if (!(row instanceof HTMLElement)) {
+                    return;
+                }
+
+                const checkbox = row.querySelector('[data-teacher-subject-checkbox]');
+                const status = row.querySelector('[data-teacher-subject-status]');
+                const assignedTeachers = (row.dataset.assignedTeachers || '').split(',').filter(Boolean);
+                const isAssigned = teacherId !== '' && assignedTeachers.includes(teacherId);
+                const isVisible = courseId === '' || row.dataset.courseId === courseId;
+
+                row.hidden = !isVisible;
+
+                if (checkbox instanceof HTMLInputElement) {
+                    checkbox.checked = isAssigned;
+                    checkbox.disabled = isAssigned;
+                }
+
+                if (status instanceof HTMLElement) {
+                    status.textContent = isAssigned ? 'Ya asignada a este docente' : 'Disponible';
+                }
+
+                row.classList.toggle('is-deleted', isAssigned);
+            });
+        };
+
+        if (teacherSelect instanceof HTMLSelectElement) {
+            teacherSelect.addEventListener('change', updateTeacherSubjectRows);
+            updateTeacherSubjectRows();
+        }
+
+        if (courseFilter instanceof HTMLSelectElement) {
+            courseFilter.addEventListener('change', updateTeacherSubjectRows);
+        }
+
+        teacherSubjectBulkForm.addEventListener('submit', (event) => {
+            const selected = teacherSubjectBulkForm.querySelectorAll('[data-teacher-subject-row]:not([hidden]) [data-teacher-subject-checkbox]:checked:not(:disabled)');
+
+            if (selected.length === 0) {
+                event.preventDefault();
+                window.alert('Seleccione al menos una materia nueva para el docente.');
             }
         });
     }

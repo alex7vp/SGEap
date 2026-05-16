@@ -1077,12 +1077,14 @@ class AttendanceController extends Controller
         }
 
         $courseId = (int) ($_POST['curid'] ?? 0);
-        $subjectId = (int) ($_POST['asgid'] ?? 0);
+        $subjectIds = is_array($_POST['asgid'] ?? null)
+            ? array_values(array_filter(array_map('intval', $_POST['asgid']), static fn (int $id): bool => $id > 0))
+            : [(int) ($_POST['asgid'] ?? 0)];
         $startDate = $this->validDateOrToday((string) ($_POST['mtcfecha_inicio'] ?? ''));
         $order = trim((string) ($_POST['mtcorden'] ?? '')) !== '' ? max(1, (int) $_POST['mtcorden']) : null;
 
-        if ($courseId <= 0 || $subjectId <= 0) {
-            sessionFlash('error', 'Debe seleccionar curso y asignatura.');
+        if ($courseId <= 0 || $subjectIds === []) {
+            sessionFlash('error', 'Debe seleccionar curso y al menos una asignatura.');
             $this->redirect('/configuracion/academica/materias-curso');
         }
 
@@ -1095,16 +1097,17 @@ class AttendanceController extends Controller
 
         $attendanceModel = new AttendanceModel();
 
-        if ($attendanceModel->courseSubjectExists($courseId, $subjectId)) {
-            sessionFlash('error', 'La materia ya esta activa para ese curso.');
-            $this->redirect('/configuracion/academica/materias-curso');
-        }
-
         try {
-            $attendanceModel->createCourseSubject($courseId, $subjectId, $startDate, $order);
-            sessionFlash('success', 'Materia del curso registrada correctamente.');
+            $result = $attendanceModel->createCourseSubjectsBulk($courseId, $subjectIds, $startDate, $order);
+            $message = 'Materias registradas: ' . (string) $result['created'] . '.';
+
+            if ((int) $result['skipped'] > 0) {
+                $message .= ' Ya existian activas: ' . (string) $result['skipped'] . '.';
+            }
+
+            sessionFlash((int) $result['created'] > 0 ? 'success' : 'error', $message);
         } catch (Throwable) {
-            sessionFlash('error', 'No se pudo registrar la materia del curso.');
+            sessionFlash('error', 'No se pudieron registrar las materias del curso.');
         }
 
         $this->redirect('/configuracion/academica/materias-curso');
@@ -1140,14 +1143,15 @@ class AttendanceController extends Controller
         $this->requireAuth();
 
         $period = currentAcademicPeriod();
-        $courseSubjectId = (int) ($_POST['mtcid'] ?? 0);
+        $courseSubjectIds = is_array($_POST['mtcid'] ?? null)
+            ? array_values(array_filter(array_map('intval', $_POST['mtcid']), static fn (int $id): bool => $id > 0))
+            : [(int) ($_POST['mtcid'] ?? 0)];
         $personId = (int) ($_POST['perid'] ?? 0);
         $startDate = $this->validDateOrToday((string) ($_POST['mcdfecha_inicio'] ?? ''));
         $attendanceModel = new AttendanceModel();
-        $courseSubject = $attendanceModel->findCourseSubject($courseSubjectId);
 
-        if ($period === null || $courseSubject === false || (int) $courseSubject['pleid'] !== (int) $period['pleid']) {
-            sessionFlash('error', 'La materia seleccionada no es valida para el periodo actual.');
+        if ($period === null || $courseSubjectIds === []) {
+            sessionFlash('error', 'Seleccione al menos una materia valida para el periodo actual.');
             $this->redirect('/configuracion/academica/docentes');
         }
 
@@ -1156,11 +1160,26 @@ class AttendanceController extends Controller
             $this->redirect('/configuracion/academica/docentes');
         }
 
+        foreach ($courseSubjectIds as $courseSubjectId) {
+            $courseSubject = $attendanceModel->findCourseSubject($courseSubjectId);
+
+            if ($courseSubject === false || (int) $courseSubject['pleid'] !== (int) $period['pleid']) {
+                sessionFlash('error', 'Una materia seleccionada no es valida para el periodo actual.');
+                $this->redirect('/configuracion/academica/docentes');
+            }
+        }
+
         try {
-            $attendanceModel->assignTeacher($courseSubjectId, $personId, $startDate);
-            sessionFlash('success', 'Docente asignado correctamente.');
+            $result = $attendanceModel->assignTeacherBulk($courseSubjectIds, $personId, $startDate);
+            $message = 'Designaciones registradas: ' . (string) $result['created'] . '.';
+
+            if ((int) $result['skipped'] > 0) {
+                $message .= ' Ya existian activas: ' . (string) $result['skipped'] . '.';
+            }
+
+            sessionFlash((int) $result['created'] > 0 ? 'success' : 'error', $message);
         } catch (Throwable) {
-            sessionFlash('error', 'No se pudo asignar el docente. Revise si ya esta activo en esa materia.');
+            sessionFlash('error', 'No se pudieron asignar las materias. Revise si ya existen designaciones activas.');
         }
 
         $this->redirect('/configuracion/academica/docentes');

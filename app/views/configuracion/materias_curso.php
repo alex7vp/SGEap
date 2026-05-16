@@ -6,6 +6,24 @@ require BASE_PATH . '/app/views/partials/header.php';
 
 $h = static fn (mixed $value): string => htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
 $defaultStartDate = (string) ($currentPeriod['plefechainicio'] ?? date('Y-m-d'));
+$assignedSubjectsByCourse = [];
+
+foreach (($courseSubjects ?? []) as $courseSubject) {
+    if (!empty($courseSubject['mtcestado'])) {
+        $assignedSubjectsByCourse[(int) $courseSubject['curid']][] = (int) $courseSubject['asgid'];
+    }
+}
+
+$defaultCourseId = 0;
+foreach (($courses ?? []) as $course) {
+    if (mb_strtoupper((string) ($course['prlnombre'] ?? '')) === 'A') {
+        $defaultCourseId = (int) $course['curid'];
+        break;
+    }
+}
+if ($defaultCourseId === 0 && !empty($courses)) {
+    $defaultCourseId = (int) $courses[0]['curid'];
+}
 ?>
 <p class="module-note">Relaciona asignaturas con los cursos activos del periodo visualizado.</p>
 
@@ -25,28 +43,17 @@ $defaultStartDate = (string) ($currentPeriod['plefechainicio'] ?? date('Y-m-d'))
         <?php elseif (empty($subjects)): ?>
             <div class="empty-state">No existen asignaturas activas disponibles.</div>
         <?php else: ?>
-            <form class="data-form" method="POST" action="<?= $h(baseUrl('configuracion/academica/materias-curso')); ?>">
+            <form class="data-form" method="POST" action="<?= $h(baseUrl('configuracion/academica/materias-curso')); ?>" data-course-subject-bulk-form>
                 <div class="form-grid">
                     <div>
                         <div class="input-group">
                             <span class="input-addon">Curso</span>
-                            <select name="curid" required>
+                            <select name="curid" required data-course-subject-course>
                                 <option value="">Seleccione</option>
                                 <?php foreach ($courses as $course): ?>
-                                    <option value="<?= $h($course['curid']); ?>">
+                                    <option value="<?= $h($course['curid']); ?>" <?= $defaultCourseId === (int) $course['curid'] ? 'selected' : ''; ?>>
                                         <?= $h($course['nednombre'] . ' | ' . $course['granombre'] . ' ' . $course['prlnombre']); ?>
                                     </option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-                    </div>
-                    <div>
-                        <div class="input-group">
-                            <span class="input-addon">Asignatura</span>
-                            <select name="asgid" required>
-                                <option value="">Seleccione</option>
-                                <?php foreach ($subjects as $subject): ?>
-                                    <option value="<?= $h($subject['asgid']); ?>"><?= $h($subject['areanombre'] . ' | ' . $subject['asgnombre']); ?></option>
                                 <?php endforeach; ?>
                             </select>
                         </div>
@@ -64,8 +71,38 @@ $defaultStartDate = (string) ($currentPeriod['plefechainicio'] ?? date('Y-m-d'))
                         </div>
                     </div>
                 </div>
+                <div class="table-wrap">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Asignar</th>
+                                <th>Area</th>
+                                <th>Asignatura</th>
+                                <th>Estado en curso</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($subjects as $subject): ?>
+                                <?php $assignedCourses = []; ?>
+                                <?php foreach ($assignedSubjectsByCourse as $courseId => $assignedSubjectIds): ?>
+                                    <?php if (in_array((int) $subject['asgid'], $assignedSubjectIds, true)) {
+                                        $assignedCourses[] = $courseId;
+                                    } ?>
+                                <?php endforeach; ?>
+                                <tr data-course-subject-row data-assigned-courses="<?= $h(implode(',', $assignedCourses)); ?>">
+                                    <td>
+                                        <input type="checkbox" name="asgid[]" value="<?= $h($subject['asgid']); ?>" data-course-subject-checkbox>
+                                    </td>
+                                    <td><?= $h($subject['areanombre']); ?></td>
+                                    <td><span class="cell-title"><?= $h($subject['asgnombre']); ?></span></td>
+                                    <td><span class="cell-subtitle" data-course-subject-status>Disponible</span></td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
                 <div class="actions-row">
-                    <button class="btn-primary btn-inline" type="submit">Guardar materia</button>
+                    <button class="btn-primary btn-inline" type="submit">Guardar materias seleccionadas</button>
                 </div>
             </form>
         <?php endif; ?>

@@ -196,6 +196,8 @@ class GradeConfigurationModel extends Model
                 $profileId
             ),
             'assignments' => $this->profileAssignments($profileId),
+            'subjectConfigurations' => $this->profileSubjectConfigurations($profileId),
+            'subjectGroups' => $this->profileSubjectGroups($profileId),
             'promotionTramos' => $this->profilePromotionTramos($profileId),
             'extraordinaryInstances' => $this->profileRows(
                 "SELECT *
@@ -616,6 +618,455 @@ class GradeConfigurationModel extends Model
         $this->audit($userId, 'CONFIGURACION_ACTIVADA', 'perfil_calificacion', $profileId, (string) $profile['pcaestado'], 'ACTIVA');
     }
 
+    public function updateDraftProfileAssignments(int $profileId, array $assignments, array $newAssignments, int $userId): void
+    {
+        $profile = $this->editableProfile($profileId);
+        $this->db->beginTransaction();
+
+        try {
+            $update = $this->db->prepare(
+                "UPDATE perfil_calificacion_asignacion
+                 SET pasprioridad = :priority,
+                     pasestado = :status,
+                     pasfecha_modificacion = CURRENT_TIMESTAMP
+                 WHERE pasid = :assignment_id
+                   AND pcaid = :profile_id"
+            );
+
+            foreach ($assignments as $assignmentId => $data) {
+                $priority = max(1, (int) ($data['pasprioridad'] ?? 1));
+                $update->execute([
+                    'assignment_id' => (int) $assignmentId,
+                    'profile_id' => $profileId,
+                    'priority' => $priority,
+                    'status' => empty($data['delete']) ? 'true' : 'false',
+                ]);
+            }
+
+            foreach ($newAssignments as $data) {
+                if (!is_array($data)) {
+                    continue;
+                }
+
+                $scope = trim((string) ($data['pasalcance'] ?? ''));
+                $targetId = (int) ($data['target_id'] ?? 0);
+
+                if ($scope === '' && $targetId <= 0) {
+                    continue;
+                }
+
+                if (!in_array($scope, ['NIVEL', 'GRADO', 'CURSO', 'MATERIA'], true)) {
+                    throw new InvalidArgumentException('El alcance de asignacion no es valido.');
+                }
+
+                if ($targetId <= 0) {
+                    throw new InvalidArgumentException('Seleccione el destino de la asignacion.');
+                }
+
+                $this->assertScopeTargetBelongsToPeriod($scope, $targetId, (int) $profile['pleid']);
+                $this->insertAssignment(
+                    $profileId,
+                    (int) $profile['pleid'],
+                    $scope,
+                    $targetId,
+                    $userId,
+                    max(1, (int) ($data['pasprioridad'] ?? 1))
+                );
+            }
+
+            $this->audit($userId, 'ASIGNACIONES_EDITADAS', 'perfil_calificacion', $profileId, null, 'Asignaciones actualizadas');
+            $this->db->commit();
+        } catch (\Throwable $exception) {
+            $this->db->rollBack();
+            throw $exception;
+        }
+    }
+
+    public function updateDraftProfileScale(int $profileId, array $scales, array $newScales, int $userId): void
+    {
+        $this->editableProfile($profileId);
+        $this->db->beginTransaction();
+
+        try {
+            $delete = $this->db->prepare(
+                "DELETE FROM escala_cualitativa
+                 WHERE ecaid = :scale_id
+                   AND pcaid = :profile_id"
+            );
+            $update = $this->db->prepare(
+                "UPDATE escala_cualitativa
+                 SET ecacodigo = :code,
+                     ecanombre = :name,
+                     ecadescripcion = :description,
+                     ecavalor_minimo = :minimum,
+                     ecavalor_maximo = :maximum,
+                     ecaorden = :order_number,
+                     ecaestado = :status
+                 WHERE ecaid = :scale_id
+                   AND pcaid = :profile_id"
+            );
+            $temporaryOrder = $this->db->prepare(
+                "UPDATE escala_cualitativa
+                 SET ecaorden = -ecaid
+                 WHERE ecaid = :scale_id
+                   AND pcaid = :profile_id"
+            );
+
+            foreach ($scales as $scaleId => $data) {
+                if (!empty($data['delete'])) {
+                    $delete->execute([
+                        'scale_id' => (int) $scaleId,
+                        'profile_id' => $profileId,
+                    ]);
+                    continue;
+                }
+
+                $temporaryOrder->execute([
+                    'scale_id' => (int) $scaleId,
+                    'profile_id' => $profileId,
+                ]);
+            }
+
+            foreach ($scales as $scaleId => $data) {
+                if (!empty($data['delete'])) {
+                    continue;
+                }
+
+                $scale = $this->scalePayload($data);
+                $update->execute($scale + [
+                    'scale_id' => (int) $scaleId,
+                    'profile_id' => $profileId,
+                ]);
+            }
+
+            $insert = $this->db->prepare(
+                "INSERT INTO escala_cualitativa (
+                    pcaid,
+                    ecacodigo,
+                    ecanombre,
+                    ecadescripcion,
+                    ecavalor_minimo,
+                    ecavalor_maximo,
+                    ecaorden,
+                    ecaestado
+                 ) VALUES (
+                    :profile_id,
+                    :code,
+                    :name,
+                    :description,
+                    :minimum,
+                    :maximum,
+                    :order_number,
+                    :status
+                 )"
+            );
+
+            foreach ($newScales as $data) {
+                if (!is_array($data) || trim((string) ($data['ecacodigo'] ?? '')) === '') {
+                    continue;
+                }
+
+                $insert->execute($this->scalePayload($data) + ['profile_id' => $profileId]);
+            }
+
+            $this->audit($userId, 'ESCALA_EDITADA', 'perfil_calificacion', $profileId, null, 'Escala cualitativa actualizada');
+            $this->db->commit();
+        } catch (\Throwable $exception) {
+            $this->db->rollBack();
+            throw $exception;
+        }
+    }
+
+    public function updateDraftProfilePromotion(int $profileId, array $tramos, array $newTramos, array $instances, array $newInstances, int $userId): void
+    {
+        $this->editableProfile($profileId);
+        $this->db->beginTransaction();
+
+        try {
+            $ruleId = $this->promotionRuleId($profileId);
+            $deleteTramo = $this->db->prepare(
+                "DELETE FROM regla_promocion_tramo
+                 WHERE rptid = :tramo_id
+                   AND rprid = :rule_id"
+            );
+            $updateTramo = $this->db->prepare(
+                "UPDATE regla_promocion_tramo
+                 SET rptorden = :order_number,
+                     rptnota_minima = :minimum,
+                     rptnota_maxima = :maximum,
+                     rptresultado = :result,
+                     rpthabilita_extraordinaria = :extraordinary,
+                     rptestado = :status
+                 WHERE rptid = :tramo_id
+                   AND rprid = :rule_id"
+            );
+            $temporaryTramoOrder = $this->db->prepare(
+                "UPDATE regla_promocion_tramo
+                 SET rptorden = -rptid
+                 WHERE rptid = :tramo_id
+                   AND rprid = :rule_id"
+            );
+
+            foreach ($tramos as $tramoId => $data) {
+                if (!empty($data['delete'])) {
+                    $deleteTramo->execute([
+                        'tramo_id' => (int) $tramoId,
+                        'rule_id' => $ruleId,
+                    ]);
+                    continue;
+                }
+
+                $temporaryTramoOrder->execute([
+                    'tramo_id' => (int) $tramoId,
+                    'rule_id' => $ruleId,
+                ]);
+            }
+
+            foreach ($tramos as $tramoId => $data) {
+                if (!empty($data['delete'])) {
+                    continue;
+                }
+
+                $updateTramo->execute($this->promotionTramoPayload($data) + [
+                    'tramo_id' => (int) $tramoId,
+                    'rule_id' => $ruleId,
+                ]);
+            }
+
+            $insertTramo = $this->db->prepare(
+                "INSERT INTO regla_promocion_tramo (
+                    rprid,
+                    rptorden,
+                    rptnota_minima,
+                    rptnota_maxima,
+                    rptresultado,
+                    rpthabilita_extraordinaria,
+                    rptestado
+                 ) VALUES (
+                    :rule_id,
+                    :order_number,
+                    :minimum,
+                    :maximum,
+                    :result,
+                    :extraordinary,
+                    :status
+                 )"
+            );
+
+            foreach ($newTramos as $data) {
+                if (!is_array($data) || trim((string) ($data['rptresultado'] ?? '')) === '') {
+                    continue;
+                }
+
+                $insertTramo->execute($this->promotionTramoPayload($data) + ['rule_id' => $ruleId]);
+            }
+
+            $this->updateDraftExtraordinaryInstances($profileId, $instances, $newInstances);
+
+            $this->audit($userId, 'PROMOCION_EDITADA', 'perfil_calificacion', $profileId, null, 'Promocion actualizada');
+            $this->db->commit();
+        } catch (\Throwable $exception) {
+            $this->db->rollBack();
+            throw $exception;
+        }
+    }
+
+    public function updateDraftProfileSubjectConfigurations(int $profileId, array $subjects, int $userId): void
+    {
+        $this->editableProfile($profileId);
+        $allowedSubjects = array_fill_keys(array_map(
+            static fn (array $row): int => (int) $row['mtcid'],
+            $this->profileSubjectConfigurations($profileId)
+        ), true);
+        $allowedAreas = array_fill_keys(array_map(
+            static fn (array $row): int => (int) $row['areaid'],
+            $this->profileSubjectConfigurations($profileId)
+        ), true);
+
+        if ($allowedSubjects === []) {
+            throw new RuntimeException('El perfil no tiene materias aplicables. Configure primero las asignaciones.');
+        }
+
+        $this->db->beginTransaction();
+
+        try {
+            $statement = $this->db->prepare(
+                "INSERT INTO materia_calificacion_config (
+                    mtcid,
+                    pcaid,
+                    mcctipo_registro,
+                    mcctipo_visualizacion,
+                    mccpromediable,
+                    mccvisible_libreta,
+                    mccusa_equivalencia,
+                    mccestado,
+                    mccobservacion
+                 ) VALUES (
+                    :course_subject_id,
+                    :profile_id,
+                    :record_type,
+                    :display_type,
+                    :averages,
+                    :report_visible,
+                    :uses_equivalence,
+                    :status,
+                    :observation
+                 )
+                 ON CONFLICT (mtcid, pcaid) DO UPDATE
+                 SET mcctipo_registro = EXCLUDED.mcctipo_registro,
+                     mcctipo_visualizacion = EXCLUDED.mcctipo_visualizacion,
+                     mccpromediable = EXCLUDED.mccpromediable,
+                     mccvisible_libreta = EXCLUDED.mccvisible_libreta,
+                     mccusa_equivalencia = EXCLUDED.mccusa_equivalencia,
+                     mccestado = EXCLUDED.mccestado,
+                     mccobservacion = EXCLUDED.mccobservacion,
+                     mccfecha_modificacion = CURRENT_TIMESTAMP"
+            );
+
+            foreach ($subjects as $courseSubjectId => $data) {
+                $courseSubjectId = (int) $courseSubjectId;
+
+                if (!isset($allowedSubjects[$courseSubjectId]) || !is_array($data)) {
+                    continue;
+                }
+
+                $payload = $this->subjectConfigurationPayload($data);
+                $statement->execute($payload + [
+                    'course_subject_id' => $courseSubjectId,
+                    'profile_id' => $profileId,
+                ]);
+            }
+
+            $this->audit($userId, 'MATERIAS_EDITADAS', 'perfil_calificacion', $profileId, null, 'Configuracion de materias actualizada');
+            $this->db->commit();
+        } catch (\Throwable $exception) {
+            $this->db->rollBack();
+            throw $exception;
+        }
+    }
+
+    public function updateDraftProfileSubjectGroups(int $profileId, array $groups, array $newGroups, int $userId): void
+    {
+        $this->editableProfile($profileId);
+        $allowedSubjects = array_fill_keys(array_map(
+            static fn (array $row): int => (int) $row['mtcid'],
+            $this->profileSubjectConfigurations($profileId)
+        ), true);
+
+        if ($allowedSubjects === []) {
+            throw new RuntimeException('El perfil no tiene materias aplicables para agrupar.');
+        }
+
+        $this->assertUniqueSubjectsAcrossGroups($groups, $newGroups, $allowedSubjects);
+
+        $this->db->beginTransaction();
+
+        try {
+            $temporaryOrder = $this->db->prepare(
+                "UPDATE grupo_materia_calificacion
+                 SET gmcorden = -gmcid
+                 WHERE gmcid = :group_id
+                   AND pcaid = :profile_id"
+            );
+            $updateGroup = $this->db->prepare(
+                "UPDATE grupo_materia_calificacion
+                 SET gmcnombre = :name,
+                     areaid = :area_id,
+                     gmcdescripcion = :description,
+                     gmcmodo_calculo = :calculation_mode,
+                     gmcmtcid_representante = :representative_subject_id,
+                     gmcvisualizacion = :display_mode,
+                     gmcpromediable = :averages,
+                     gmcvisible_libreta = :report_visible,
+                     gmcestado = :status,
+                     gmcorden = :order_number,
+                     gmcfecha_modificacion = CURRENT_TIMESTAMP
+                 WHERE gmcid = :group_id
+                   AND pcaid = :profile_id"
+            );
+            $deleteDetails = $this->db->prepare(
+                "DELETE FROM grupo_materia_calificacion_detalle
+                 WHERE gmcid = :group_id
+                   AND pcaid = :profile_id"
+            );
+            $deleteGroup = $this->db->prepare(
+                "DELETE FROM grupo_materia_calificacion
+                 WHERE gmcid = :group_id
+                   AND pcaid = :profile_id"
+            );
+            $insertDetail = $this->subjectGroupDetailInsertStatement();
+
+            foreach ($groups as $groupId => $data) {
+                if (!is_array($data)) {
+                    continue;
+                }
+
+                if (!empty($data['delete'])) {
+                    continue;
+                }
+
+                $temporaryOrder->execute([
+                    'group_id' => (int) $groupId,
+                    'profile_id' => $profileId,
+                ]);
+            }
+
+            foreach ($groups as $groupId => $data) {
+                if (!is_array($data)) {
+                    continue;
+                }
+
+                if (!empty($data['delete'])) {
+                    $deleteDetails->execute([
+                        'group_id' => (int) $groupId,
+                        'profile_id' => $profileId,
+                    ]);
+                    $deleteGroup->execute([
+                        'group_id' => (int) $groupId,
+                        'profile_id' => $profileId,
+                    ]);
+                    continue;
+                }
+
+                $payload = $this->subjectGroupPayload($data, $allowedSubjects, $allowedAreas);
+                $updateGroup->execute($payload + [
+                    'group_id' => (int) $groupId,
+                    'profile_id' => $profileId,
+                ]);
+
+                $deleteDetails->execute([
+                    'group_id' => (int) $groupId,
+                    'profile_id' => $profileId,
+                ]);
+
+                if (!empty($data['gmcestado'])) {
+                    foreach ($this->subjectGroupSelectedSubjects($data, $allowedSubjects, false) as $index => $subjectId) {
+                        $insertDetail->execute([
+                            'group_id' => (int) $groupId,
+                            'profile_id' => $profileId,
+                            'course_subject_id' => $subjectId,
+                            'order_number' => $index + 1,
+                        ]);
+                    }
+                }
+            }
+
+            foreach ($newGroups as $data) {
+                if (!is_array($data) || trim((string) ($data['gmcnombre'] ?? '')) === '') {
+                    continue;
+                }
+
+                $this->insertSubjectGroup($profileId, $data, $allowedSubjects, $allowedAreas);
+            }
+
+            $this->audit($userId, 'GRUPOS_MATERIAS_EDITADOS', 'perfil_calificacion', $profileId, null, 'Grupos de materias actualizados');
+            $this->db->commit();
+        } catch (\Throwable $exception) {
+            $this->db->rollBack();
+            throw $exception;
+        }
+    }
+
     private function findTemplate(int $templateId): array
     {
         $statement = $this->db->prepare(
@@ -652,6 +1103,436 @@ class GradeConfigurationModel extends Model
         }
 
         return $profile;
+    }
+
+    private function editableProfile(int $profileId): array
+    {
+        $profile = $this->findProfile($profileId);
+
+        if (($profile['pcaestado'] ?? '') !== 'BORRADOR') {
+            throw new RuntimeException('Solo se puede editar un perfil en estado BORRADOR.');
+        }
+
+        return $profile;
+    }
+
+    private function scalePayload(array $data): array
+    {
+        $code = trim((string) ($data['ecacodigo'] ?? ''));
+        $name = trim((string) ($data['ecanombre'] ?? ''));
+        $minimum = trim((string) ($data['ecavalor_minimo'] ?? ''));
+        $maximum = trim((string) ($data['ecavalor_maximo'] ?? ''));
+
+        if ($code === '' || $name === '') {
+            throw new InvalidArgumentException('Codigo y nombre de escala son obligatorios.');
+        }
+
+        if (($minimum === '') !== ($maximum === '')) {
+            throw new InvalidArgumentException('Complete minimo y maximo de escala, o deje ambos vacios.');
+        }
+
+        if ($minimum !== '' && (float) $maximum < (float) $minimum) {
+            throw new InvalidArgumentException('El maximo de escala no puede ser menor que el minimo.');
+        }
+
+        return [
+            'code' => $code,
+            'name' => $name,
+            'description' => trim((string) ($data['ecadescripcion'] ?? '')),
+            'minimum' => $minimum !== '' ? $minimum : null,
+            'maximum' => $maximum !== '' ? $maximum : null,
+            'order_number' => max(1, (int) ($data['ecaorden'] ?? 1)),
+            'status' => empty($data['ecaestado']) ? 'false' : 'true',
+        ];
+    }
+
+    private function promotionRuleId(int $profileId): int
+    {
+        $statement = $this->db->prepare(
+            "SELECT rprid
+             FROM regla_promocion
+             WHERE pcaid = :profile_id
+             ORDER BY rprid ASC
+             LIMIT 1"
+        );
+        $statement->execute(['profile_id' => $profileId]);
+        $ruleId = $statement->fetchColumn();
+
+        if ($ruleId !== false) {
+            return (int) $ruleId;
+        }
+
+        $insert = $this->db->prepare(
+            "INSERT INTO regla_promocion (
+                pcaid,
+                rprnombre,
+                rprdescripcion,
+                rpraplica_sobre,
+                rprrequiere_todas_materias,
+                rprestado
+             ) VALUES (
+                :profile_id,
+                'Promocion general',
+                'Regla creada desde editor de perfil.',
+                'PROMEDIO_GENERAL',
+                true,
+                true
+             )
+             RETURNING rprid"
+        );
+        $insert->execute(['profile_id' => $profileId]);
+
+        return (int) $insert->fetchColumn();
+    }
+
+    private function promotionTramoPayload(array $data): array
+    {
+        $result = trim((string) ($data['rptresultado'] ?? ''));
+        $minimum = trim((string) ($data['rptnota_minima'] ?? ''));
+        $maximum = trim((string) ($data['rptnota_maxima'] ?? ''));
+
+        if (!in_array($result, ['PROMOVIDO', 'SUPLETORIO', 'RECUPERACION', 'EXAMEN_GRACIA', 'NO_PROMOVIDO'], true)) {
+            throw new InvalidArgumentException('El resultado de promocion no es valido.');
+        }
+
+        if ($minimum === '' || $maximum === '') {
+            throw new InvalidArgumentException('Los rangos de promocion son obligatorios.');
+        }
+
+        if ((float) $maximum < (float) $minimum) {
+            throw new InvalidArgumentException('El maximo de promocion no puede ser menor que el minimo.');
+        }
+
+        return [
+            'order_number' => max(1, (int) ($data['rptorden'] ?? 1)),
+            'minimum' => $minimum,
+            'maximum' => $maximum,
+            'result' => $result,
+            'extraordinary' => empty($data['rpthabilita_extraordinaria']) ? 'false' : 'true',
+            'status' => empty($data['rptestado']) ? 'false' : 'true',
+        ];
+    }
+
+    private function updateDraftExtraordinaryInstances(int $profileId, array $instances, array $newInstances): void
+    {
+        $delete = $this->db->prepare(
+            "DELETE FROM instancia_extraordinaria
+             WHERE iexid = :instance_id
+               AND pcaid = :profile_id"
+        );
+        $update = $this->db->prepare(
+            "UPDATE instancia_extraordinaria
+             SET iexnombre = :name,
+                 iexorden = :order_number,
+                 iexestado = :status,
+                 iexaplica_sobre = :applies_to,
+                 iexnota_habilita_minima = :enabled_minimum,
+                 iexnota_habilita_maxima = :enabled_maximum,
+                 iexnota_minima_aprobar = :approval_minimum,
+                 iexnota_final_aprobado = :approved_final,
+                 iexpermite_siguiente = :allows_next,
+                 iexfecha_modificacion = CURRENT_TIMESTAMP
+             WHERE iexid = :instance_id
+               AND pcaid = :profile_id"
+        );
+        $temporaryOrder = $this->db->prepare(
+            "UPDATE instancia_extraordinaria
+             SET iexorden = -iexid
+             WHERE iexid = :instance_id
+               AND pcaid = :profile_id"
+        );
+
+        foreach ($instances as $instanceId => $data) {
+            if (!empty($data['delete'])) {
+                $delete->execute([
+                    'instance_id' => (int) $instanceId,
+                    'profile_id' => $profileId,
+                ]);
+                continue;
+            }
+
+            $temporaryOrder->execute([
+                'instance_id' => (int) $instanceId,
+                'profile_id' => $profileId,
+            ]);
+        }
+
+        foreach ($instances as $instanceId => $data) {
+            if (!empty($data['delete'])) {
+                continue;
+            }
+
+            $update->execute($this->extraordinaryPayload($data) + [
+                'instance_id' => (int) $instanceId,
+                'profile_id' => $profileId,
+            ]);
+        }
+
+        $insert = $this->db->prepare(
+            "INSERT INTO instancia_extraordinaria (
+                pcaid,
+                iexnombre,
+                iexorden,
+                iexestado,
+                iexaplica_sobre,
+                iexnota_habilita_minima,
+                iexnota_habilita_maxima,
+                iexnota_minima_aprobar,
+                iexnota_final_aprobado,
+                iexpermite_siguiente
+             ) VALUES (
+                :profile_id,
+                :name,
+                :order_number,
+                :status,
+                :applies_to,
+                :enabled_minimum,
+                :enabled_maximum,
+                :approval_minimum,
+                :approved_final,
+                :allows_next
+             )"
+        );
+
+        foreach ($newInstances as $data) {
+            if (!is_array($data) || trim((string) ($data['iexnombre'] ?? '')) === '') {
+                continue;
+            }
+
+            $insert->execute($this->extraordinaryPayload($data) + ['profile_id' => $profileId]);
+        }
+    }
+
+    private function extraordinaryPayload(array $data): array
+    {
+        $name = trim((string) ($data['iexnombre'] ?? ''));
+        $appliesTo = trim((string) ($data['iexaplica_sobre'] ?? 'MATERIA'));
+        $enabledMinimum = trim((string) ($data['iexnota_habilita_minima'] ?? ''));
+        $enabledMaximum = trim((string) ($data['iexnota_habilita_maxima'] ?? ''));
+        $approvalMinimum = trim((string) ($data['iexnota_minima_aprobar'] ?? ''));
+        $approvedFinal = trim((string) ($data['iexnota_final_aprobado'] ?? ''));
+
+        if ($name === '') {
+            throw new InvalidArgumentException('El nombre de la instancia extraordinaria es obligatorio.');
+        }
+
+        if (!in_array($appliesTo, ['MATERIA', 'PROMEDIO_GENERAL'], true)) {
+            throw new InvalidArgumentException('El alcance de la instancia extraordinaria no es valido.');
+        }
+
+        if ($enabledMinimum === '' || $enabledMaximum === '' || $approvalMinimum === '') {
+            throw new InvalidArgumentException('Los rangos de instancia extraordinaria son obligatorios.');
+        }
+
+        if ((float) $enabledMaximum < (float) $enabledMinimum) {
+            throw new InvalidArgumentException('El maximo habilitante no puede ser menor que el minimo.');
+        }
+
+        return [
+            'name' => $name,
+            'order_number' => max(1, (int) ($data['iexorden'] ?? 1)),
+            'status' => in_array((string) ($data['iexestado'] ?? 'ACTIVA'), ['BORRADOR', 'ACTIVA', 'CERRADA', 'ANULADA'], true)
+                ? (string) ($data['iexestado'] ?? 'ACTIVA')
+                : 'ACTIVA',
+            'applies_to' => $appliesTo,
+            'enabled_minimum' => $enabledMinimum,
+            'enabled_maximum' => $enabledMaximum,
+            'approval_minimum' => $approvalMinimum,
+            'approved_final' => $approvedFinal !== '' ? $approvedFinal : null,
+            'allows_next' => empty($data['iexpermite_siguiente']) ? 'false' : 'true',
+        ];
+    }
+
+    private function subjectConfigurationPayload(array $data): array
+    {
+        $recordType = trim((string) ($data['mcctipo_registro'] ?? 'CUANTITATIVO'));
+        $displayType = trim((string) ($data['mcctipo_visualizacion'] ?? 'MIXTA'));
+
+        if (!in_array($recordType, ['CUANTITATIVO', 'CUALITATIVO', 'AMBITOS_DESTREZAS'], true)) {
+            throw new InvalidArgumentException('El tipo de registro de materia no es valido.');
+        }
+
+        if (!in_array($displayType, ['CUANTITATIVA', 'CUALITATIVA', 'MIXTA'], true)) {
+            throw new InvalidArgumentException('El tipo de visualizacion de materia no es valido.');
+        }
+
+        return [
+            'record_type' => $recordType,
+            'display_type' => $displayType,
+            'averages' => empty($data['mccpromediable']) ? 'false' : 'true',
+            'report_visible' => empty($data['mccvisible_libreta']) ? 'false' : 'true',
+            'uses_equivalence' => empty($data['mccusa_equivalencia']) ? 'false' : 'true',
+            'status' => empty($data['mccestado']) ? 'false' : 'true',
+            'observation' => trim((string) ($data['mccobservacion'] ?? '')),
+        ];
+    }
+
+    private function subjectGroupPayload(array $data, array $allowedSubjects, array $allowedAreas): array
+    {
+        $areaId = (int) ($data['areaid'] ?? 0);
+        $name = trim((string) ($data['gmcnombre'] ?? ''));
+        $calculationMode = trim((string) ($data['gmcmodo_calculo'] ?? 'PROMEDIO_SIMPLE'));
+        $displayMode = trim((string) ($data['gmcvisualizacion'] ?? 'GRUPO'));
+        $representativeSubjectId = (int) ($data['gmcmtcid_representante'] ?? 0);
+
+        if ($name === '') {
+            throw new InvalidArgumentException('El nombre del grupo de materias es obligatorio.');
+        }
+
+        if ($areaId <= 0 || !isset($allowedAreas[$areaId])) {
+            throw new InvalidArgumentException('Seleccione un area valida para el grupo de materias.');
+        }
+
+        if (!in_array($calculationMode, ['PROMEDIO_SIMPLE', 'PROMEDIO_PONDERADO', 'SUMA'], true)) {
+            throw new InvalidArgumentException('El modo de calculo del grupo no es valido.');
+        }
+
+        if (!in_array($displayMode, ['GRUPO', 'REPRESENTANTE'], true)) {
+            throw new InvalidArgumentException('La visualizacion del grupo no es valida.');
+        }
+
+        if ($representativeSubjectId > 0 && !isset($allowedSubjects[$representativeSubjectId])) {
+            throw new InvalidArgumentException('La materia representante no pertenece al alcance del perfil.');
+        }
+
+        return [
+            'name' => $name,
+            'area_id' => $areaId,
+            'description' => trim((string) ($data['gmcdescripcion'] ?? '')),
+            'calculation_mode' => $calculationMode,
+            'representative_subject_id' => $representativeSubjectId > 0 ? $representativeSubjectId : null,
+            'display_mode' => $displayMode,
+            'averages' => empty($data['gmcpromediable']) ? 'false' : 'true',
+            'report_visible' => empty($data['gmcvisible_libreta']) ? 'false' : 'true',
+            'status' => empty($data['gmcestado']) ? 'false' : 'true',
+            'order_number' => max(1, (int) ($data['gmcorden'] ?? 1)),
+        ];
+    }
+
+    private function subjectGroupSelectedSubjects(array $data, array $allowedSubjects, bool $requireMinimum): array
+    {
+        $selectedSubjects = array_values(array_unique(array_filter(
+            array_map(static fn (mixed $subjectId): int => (int) $subjectId, is_array($data['mtcid'] ?? null) ? $data['mtcid'] : []),
+            static fn (int $subjectId): bool => $subjectId > 0
+        )));
+
+        if ($requireMinimum && count($selectedSubjects) < 2) {
+            throw new InvalidArgumentException('Seleccione al menos dos materias para crear un grupo.');
+        }
+
+        foreach ($selectedSubjects as $subjectId) {
+            if (!isset($allowedSubjects[$subjectId])) {
+                throw new InvalidArgumentException('Una materia seleccionada no pertenece al alcance del perfil.');
+            }
+        }
+
+        return $selectedSubjects;
+    }
+
+    private function assertUniqueSubjectsAcrossGroups(array $groups, array $newGroups, array $allowedSubjects): void
+    {
+        $usedSubjects = [];
+
+        foreach ($groups as $data) {
+            if (!is_array($data) || !empty($data['delete']) || empty($data['gmcestado'])) {
+                continue;
+            }
+
+            foreach ($this->subjectGroupSelectedSubjects($data, $allowedSubjects, true) as $subjectId) {
+                if (isset($usedSubjects[$subjectId])) {
+                    throw new InvalidArgumentException('Una materia no puede estar en dos grupos activos del mismo perfil.');
+                }
+
+                $usedSubjects[$subjectId] = true;
+            }
+        }
+
+        foreach ($newGroups as $data) {
+            if (!is_array($data) || trim((string) ($data['gmcnombre'] ?? '')) === '' || empty($data['gmcestado'])) {
+                continue;
+            }
+
+            foreach ($this->subjectGroupSelectedSubjects($data, $allowedSubjects, true) as $subjectId) {
+                if (isset($usedSubjects[$subjectId])) {
+                    throw new InvalidArgumentException('Una materia no puede estar en dos grupos activos del mismo perfil.');
+                }
+
+                $usedSubjects[$subjectId] = true;
+            }
+        }
+    }
+
+    private function insertSubjectGroup(int $profileId, array $data, array $allowedSubjects, array $allowedAreas): void
+    {
+        $payload = $this->subjectGroupPayload($data, $allowedSubjects, $allowedAreas);
+        $selectedSubjects = $this->subjectGroupSelectedSubjects($data, $allowedSubjects, true);
+
+        $insertGroup = $this->db->prepare(
+            "INSERT INTO grupo_materia_calificacion (
+                pcaid,
+                areaid,
+                gmcnombre,
+                gmcdescripcion,
+                gmcmodo_calculo,
+                gmcmtcid_representante,
+                gmcvisualizacion,
+                gmcpromediable,
+                gmcvisible_libreta,
+                gmcestado,
+                gmcorden
+             ) VALUES (
+                :profile_id,
+                :area_id,
+                :name,
+                :description,
+                :calculation_mode,
+                :representative_subject_id,
+                :display_mode,
+                :averages,
+                :report_visible,
+                :status,
+                :order_number
+             )
+             RETURNING gmcid"
+        );
+        $insertGroup->execute($payload + ['profile_id' => $profileId]);
+        $groupId = (int) $insertGroup->fetchColumn();
+
+        $insertDetail = $this->subjectGroupDetailInsertStatement();
+
+        foreach ($selectedSubjects as $index => $subjectId) {
+            $insertDetail->execute([
+                'group_id' => $groupId,
+                'profile_id' => $profileId,
+                'course_subject_id' => $subjectId,
+                'order_number' => $index + 1,
+            ]);
+        }
+    }
+
+    private function subjectGroupDetailInsertStatement(): \PDOStatement
+    {
+        return $this->db->prepare(
+            "INSERT INTO grupo_materia_calificacion_detalle (
+                gmcid,
+                pcaid,
+                mtcid,
+                gmcdpeso,
+                gmcdorden,
+                gmcdincluye_calculo,
+                gmcdvisible_detalle,
+                gmcdestado
+             ) VALUES (
+                :group_id,
+                :profile_id,
+                :course_subject_id,
+                NULL,
+                :order_number,
+                true,
+                false,
+                true
+             )"
+        );
     }
 
     private function profileRows(string $sql, int $profileId): array
@@ -693,6 +1574,138 @@ class GradeConfigurationModel extends Model
         $statement->execute(['profile_id' => $profileId]);
 
         return $statement->fetchAll();
+    }
+
+    private function profileSubjectConfigurations(int $profileId): array
+    {
+        $profile = $this->findProfile($profileId);
+        $statement = $this->db->prepare(
+            "SELECT *
+             FROM (
+                SELECT
+                    mc.mtcid,
+                    c.curid,
+                    c.pleid,
+                    g.graid,
+                    n.nedid,
+                    pl.pledescripcion,
+                    n.nednombre,
+                    g.granombre,
+                    pr.prlnombre,
+                    aa.areaid,
+                    aa.areanombre,
+                    asg.asgnombre,
+                    a.pasalcance,
+                    a.pasprioridad,
+                    mcc.mccid,
+                    COALESCE(mcc.mcctipo_registro, p.pcatipo_base) AS mcctipo_registro,
+                    COALESCE(mcc.mcctipo_visualizacion, 'MIXTA') AS mcctipo_visualizacion,
+                    COALESCE(mcc.mccpromediable, true) AS mccpromediable,
+                    COALESCE(mcc.mccvisible_libreta, true) AS mccvisible_libreta,
+                    COALESCE(mcc.mccusa_equivalencia, true) AS mccusa_equivalencia,
+                    COALESCE(mcc.mccestado, true) AS mccestado,
+                    COALESCE(mcc.mccobservacion, '') AS mccobservacion,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY mc.mtcid
+                        ORDER BY
+                            CASE a.pasalcance
+                                WHEN 'MATERIA' THEN 4
+                                WHEN 'CURSO' THEN 3
+                                WHEN 'GRADO' THEN 2
+                                WHEN 'NIVEL' THEN 1
+                                ELSE 0
+                            END DESC,
+                            a.pasprioridad DESC,
+                            a.pasid DESC
+                    ) AS prioridad_resuelta
+                 FROM materia_curso mc
+                 INNER JOIN curso c ON c.curid = mc.curid
+                 INNER JOIN periodo_lectivo pl ON pl.pleid = c.pleid
+                 INNER JOIN grado g ON g.graid = c.graid
+                 INNER JOIN nivel_educativo n ON n.nedid = g.nedid
+                 INNER JOIN paralelo pr ON pr.prlid = c.prlid
+                 INNER JOIN asignatura asg ON asg.asgid = mc.asgid
+                 INNER JOIN area_academica aa ON aa.areaid = asg.areaid
+                 INNER JOIN perfil_calificacion p ON p.pcaid = :profile_id
+                 INNER JOIN perfil_calificacion_asignacion a
+                    ON a.pcaid = p.pcaid
+                    AND a.pleid = c.pleid
+                    AND a.pasestado = true
+                    AND (
+                        (a.pasalcance = 'MATERIA' AND a.mtcid = mc.mtcid)
+                        OR
+                        (a.pasalcance = 'CURSO' AND a.curid = c.curid)
+                        OR
+                        (a.pasalcance = 'GRADO' AND a.graid = c.graid)
+                        OR
+                        (a.pasalcance = 'NIVEL' AND a.nedid = g.nedid)
+                    )
+                 LEFT JOIN materia_calificacion_config mcc
+                    ON mcc.mtcid = mc.mtcid
+                    AND mcc.pcaid = p.pcaid
+                 WHERE c.pleid = :period_id
+                   AND mc.mtcestado = true
+             ) materias
+             WHERE prioridad_resuelta = 1
+             ORDER BY nednombre ASC, granombre ASC, prlnombre ASC, areanombre ASC, asgnombre ASC"
+        );
+        $statement->execute([
+            'profile_id' => $profileId,
+            'period_id' => (int) $profile['pleid'],
+        ]);
+
+        return $statement->fetchAll();
+    }
+
+    private function profileSubjectGroups(int $profileId): array
+    {
+        $statement = $this->db->prepare(
+            "SELECT
+                g.*,
+                ga.areanombre,
+                representante.asgnombre AS representante_nombre
+             FROM grupo_materia_calificacion g
+             INNER JOIN area_academica ga ON ga.areaid = g.areaid
+             LEFT JOIN materia_curso mcr ON mcr.mtcid = g.gmcmtcid_representante
+             LEFT JOIN asignatura representante ON representante.asgid = mcr.asgid
+             WHERE g.pcaid = :profile_id
+             ORDER BY g.gmcorden ASC, g.gmcnombre ASC"
+        );
+        $statement->execute(['profile_id' => $profileId]);
+        $groups = [];
+
+        foreach ($statement->fetchAll() as $group) {
+            $group['details'] = [];
+            $groups[(int) $group['gmcid']] = $group;
+        }
+
+        if ($groups === []) {
+            return [];
+        }
+
+        $details = $this->db->prepare(
+            "SELECT
+                d.*,
+                v.granombre,
+                v.prlnombre,
+                v.areanombre,
+                v.asgnombre,
+                v.mtcnombre_mostrar
+             FROM grupo_materia_calificacion_detalle d
+             INNER JOIN vw_materia_curso v ON v.mtcid = d.mtcid
+             WHERE d.gmcid IN (" . implode(',', array_fill(0, count($groups), '?')) . ")
+             ORDER BY d.gmcdorden ASC, v.asgnombre ASC"
+        );
+        $details->execute(array_keys($groups));
+
+        foreach ($details->fetchAll() as $detail) {
+            $groupId = (int) $detail['gmcid'];
+            if (isset($groups[$groupId])) {
+                $groups[$groupId]['details'][] = $detail;
+            }
+        }
+
+        return array_values($groups);
     }
 
     private function profilePromotionTramos(int $profileId): array
@@ -1263,14 +2276,15 @@ class GradeConfigurationModel extends Model
         }
     }
 
-    private function insertAssignment(int $profileId, int $periodId, string $scope, int $targetId, int $userId): void
+    private function insertAssignment(int $profileId, int $periodId, string $scope, int $targetId, int $userId, ?int $priorityOverride = null): void
     {
-        $priority = [
+        $priority = $priorityOverride ?? [
             'NIVEL' => 1,
             'GRADO' => 2,
             'CURSO' => 3,
             'MATERIA' => 4,
         ][$scope] ?? 1;
+        $priority = max(1, $priority);
 
         $data = [
             'profile_id' => $profileId,

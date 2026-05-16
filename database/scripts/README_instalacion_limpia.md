@@ -18,21 +18,25 @@ Para crear la base de datos desde cero, ejecutar los scripts en este orden:
 14. `database/scripts/18_calificaciones.sql`
 15. `database/scripts/19_calificaciones_promocion.sql`
 16. `database/scripts/20_calificaciones_soporte.sql`
-17. `database/seeds/06_calificaciones_plantillas_base.sql`
+17. `database/scripts/21_calificaciones_grupos_materia.sql`
+18. `database/seeds/06_calificaciones_plantillas_base.sql`
 
 El script `07_asistencia.sql` se ejecuta despues de las semillas de seguridad porque, ademas de crear la estructura de asistencia, registra permisos y los asigna a roles existentes. El script `17_novedades.sql` depende de asistencia, matriculas y seguridad porque reutiliza `sesion_clase`, `matricula`, `usuario`, `rol` y `permiso`.
 El script `18_calificaciones.sql` depende de la estructura academica, matriculas y seguridad porque reutiliza `periodo_lectivo`, `nivel_educativo`, `grado`, `curso`, `materia_curso`, `matricula`, `usuario`, `rol` y `permiso`.
 El script `19_calificaciones_promocion.sql` depende de `18_calificaciones.sql` porque usa perfiles, resultados finales por materia y permisos del modulo de calificaciones.
 El script `20_calificaciones_soporte.sql` depende de `18_calificaciones.sql` y `19_calificaciones_promocion.sql` porque agrega plantillas base y vistas de resolucion del perfil efectivo.
+El script `21_calificaciones_grupos_materia.sql` depende de `18_calificaciones.sql`, `19_calificaciones_promocion.sql` y `20_calificaciones_soporte.sql` porque agrega grupos de materias que se calculan como una sola nota.
 La semilla `06_calificaciones_plantillas_base.sql` depende de `20_calificaciones_soporte.sql` y carga plantillas iniciales de calificacion.
 
 Como alternativa, se puede ejecutar directamente el consolidado:
 
 1. `database/scripts/sgeap.sql`
 
-Nota: mientras el modulo de calificaciones este en diseno, ejecutar tambien `database/scripts/18_calificaciones.sql`, `database/scripts/19_calificaciones_promocion.sql`, `database/scripts/20_calificaciones_soporte.sql` y `database/seeds/06_calificaciones_plantillas_base.sql` despues del consolidado si se necesita probar esa estructura.
+Nota: mientras el modulo de calificaciones este en diseno, ejecutar tambien `database/scripts/18_calificaciones.sql`, `database/scripts/19_calificaciones_promocion.sql`, `database/scripts/20_calificaciones_soporte.sql`, `database/scripts/21_calificaciones_grupos_materia.sql` y `database/seeds/06_calificaciones_plantillas_base.sql` despues del consolidado si se necesita probar esa estructura.
 
 Los scripts adicionales fuera de este orden son regularizaciones o utilidades para bases existentes. No forman parte del flujo normal de instalacion limpia.
+
+`database/scripts/22_calificaciones_grupos_materia_area.sql` se ejecuta solo en bases donde ya se aplico `21_calificaciones_grupos_materia.sql` antes de agregar el area academica a los grupos de materias.
 
 `database/scripts/14_regularizar_usuarios_estudiantes_importados.sql` se ejecuta solo despues de importar estudiantes historicos, si se necesitan crear sus usuarios inactivos automaticamente.
 

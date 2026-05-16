@@ -192,7 +192,8 @@ class ConfigurationController extends Controller
         }
 
         try {
-            $detail = (new GradeConfigurationModel())->profileDetail($profileId);
+            $model = new GradeConfigurationModel();
+            $detail = $model->profileDetail($profileId);
         } catch (\Throwable $exception) {
             $this->flashGradesConfigurationFeedback('error', $exception->getMessage());
             $this->redirect('/configuracion/academica/calificaciones');
@@ -205,6 +206,10 @@ class ConfigurationController extends Controller
             'currentSection' => 'calificaciones',
             'user' => $user,
             'detail' => $detail,
+            'levels' => $model->levels(),
+            'grades' => $model->grades(),
+            'courses' => $model->courses(),
+            'courseSubjects' => $model->courseSubjects(),
             'feedback' => $this->gradeProfileFeedback(),
         ]);
     }
@@ -259,6 +264,132 @@ class ConfigurationController extends Controller
         }
 
         $this->redirect('/configuracion/academica/calificaciones/perfil?id=' . $profileId);
+    }
+
+    public function updateGradeProfileAssignments(): void
+    {
+        $user = $this->requireAuth();
+        $profileId = (int) ($_POST['pcaid'] ?? 0);
+
+        if ($profileId <= 0) {
+            $this->flashGradesConfigurationFeedback('error', 'Seleccione un perfil valido.');
+            $this->redirect('/configuracion/academica/calificaciones');
+        }
+
+        try {
+            (new GradeConfigurationModel())->updateDraftProfileAssignments(
+                $profileId,
+                is_array($_POST['assignments'] ?? null) ? $_POST['assignments'] : [],
+                is_array($_POST['new_assignments'] ?? null) ? $_POST['new_assignments'] : [],
+                (int) ($user['usuid'] ?? 0)
+            );
+            $this->flashGradeProfileFeedback('success', 'Asignaciones actualizadas correctamente.');
+        } catch (\Throwable $exception) {
+            $this->flashGradeProfileFeedback('error', $exception->getMessage());
+        }
+
+        $this->redirect('/configuracion/academica/calificaciones/perfil?id=' . $profileId . '#asignaciones');
+    }
+
+    public function updateGradeProfileScale(): void
+    {
+        $user = $this->requireAuth();
+        $profileId = (int) ($_POST['pcaid'] ?? 0);
+
+        if ($profileId <= 0) {
+            $this->flashGradesConfigurationFeedback('error', 'Seleccione un perfil valido.');
+            $this->redirect('/configuracion/academica/calificaciones');
+        }
+
+        try {
+            (new GradeConfigurationModel())->updateDraftProfileScale(
+                $profileId,
+                is_array($_POST['scales'] ?? null) ? $_POST['scales'] : [],
+                is_array($_POST['new_scales'] ?? null) ? $_POST['new_scales'] : [],
+                (int) ($user['usuid'] ?? 0)
+            );
+            $this->flashGradeProfileFeedback('success', 'Escala cualitativa actualizada correctamente.');
+        } catch (\Throwable $exception) {
+            $this->flashGradeProfileFeedback('error', $exception->getMessage());
+        }
+
+        $this->redirect('/configuracion/academica/calificaciones/perfil?id=' . $profileId . '#escala');
+    }
+
+    public function updateGradeProfilePromotion(): void
+    {
+        $user = $this->requireAuth();
+        $profileId = (int) ($_POST['pcaid'] ?? 0);
+
+        if ($profileId <= 0) {
+            $this->flashGradesConfigurationFeedback('error', 'Seleccione un perfil valido.');
+            $this->redirect('/configuracion/academica/calificaciones');
+        }
+
+        try {
+            (new GradeConfigurationModel())->updateDraftProfilePromotion(
+                $profileId,
+                is_array($_POST['promotion_tramos'] ?? null) ? $_POST['promotion_tramos'] : [],
+                is_array($_POST['new_promotion_tramos'] ?? null) ? $_POST['new_promotion_tramos'] : [],
+                is_array($_POST['extraordinary_instances'] ?? null) ? $_POST['extraordinary_instances'] : [],
+                is_array($_POST['new_extraordinary_instances'] ?? null) ? $_POST['new_extraordinary_instances'] : [],
+                (int) ($user['usuid'] ?? 0)
+            );
+            $this->flashGradeProfileFeedback('success', 'Promocion actualizada correctamente.');
+        } catch (\Throwable $exception) {
+            $this->flashGradeProfileFeedback('error', $exception->getMessage());
+        }
+
+        $this->redirect('/configuracion/academica/calificaciones/perfil?id=' . $profileId . '#promocion');
+    }
+
+    public function updateGradeProfileSubjects(): void
+    {
+        $user = $this->requireAuth();
+        $profileId = (int) ($_POST['pcaid'] ?? 0);
+
+        if ($profileId <= 0) {
+            $this->flashGradesConfigurationFeedback('error', 'Seleccione un perfil valido.');
+            $this->redirect('/configuracion/academica/calificaciones');
+        }
+
+        try {
+            (new GradeConfigurationModel())->updateDraftProfileSubjectConfigurations(
+                $profileId,
+                is_array($_POST['subjects'] ?? null) ? $_POST['subjects'] : [],
+                (int) ($user['usuid'] ?? 0)
+            );
+            $this->flashGradeProfileFeedback('success', 'Materias actualizadas correctamente.');
+        } catch (\Throwable $exception) {
+            $this->flashGradeProfileFeedback('error', $exception->getMessage());
+        }
+
+        $this->redirect('/configuracion/academica/calificaciones/perfil?id=' . $profileId . '#materias');
+    }
+
+    public function updateGradeProfileSubjectGroups(): void
+    {
+        $user = $this->requireAuth();
+        $profileId = (int) ($_POST['pcaid'] ?? 0);
+
+        if ($profileId <= 0) {
+            $this->flashGradesConfigurationFeedback('error', 'Seleccione un perfil valido.');
+            $this->redirect('/configuracion/academica/calificaciones');
+        }
+
+        try {
+            (new GradeConfigurationModel())->updateDraftProfileSubjectGroups(
+                $profileId,
+                is_array($_POST['groups'] ?? null) ? $_POST['groups'] : [],
+                is_array($_POST['new_groups'] ?? null) ? $_POST['new_groups'] : [],
+                (int) ($user['usuid'] ?? 0)
+            );
+            $this->flashGradeProfileFeedback('success', 'Grupos de materias actualizados correctamente.');
+        } catch (\Throwable $exception) {
+            $this->flashGradeProfileFeedback('error', $exception->getMessage());
+        }
+
+        $this->redirect('/configuracion/academica/calificaciones/perfil?id=' . $profileId . '#grupos-materias');
     }
 
     public function activateGradeProfile(): void

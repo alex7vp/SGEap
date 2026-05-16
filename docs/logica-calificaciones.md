@@ -87,6 +87,7 @@ Registra y calcula:
 - promedios por componente;
 - promedios por subperiodo;
 - promedios por materia.
+- promedios por grupo de materias cuando varias asignaturas se reportan como una sola nota.
 
 ### Motor De Promocion
 
@@ -355,6 +356,35 @@ Comportamiento:
 ```
 
 El promedio general solo debe usar materias configuradas como promediables.
+
+## Grupos De Materias
+
+Algunas instituciones reportan varias materias como una sola nota academica. Un caso comun es:
+
+```text
+Ingles + Science + Language = una sola nota de Ingles / Area bilingue
+```
+
+La solucion no debe borrar las materias reales ni mezclar los registros docentes. Cada materia conserva sus actividades y notas propias, pero el motor de calculo produce un resultado adicional de grupo.
+
+Cada grupo debe configurar:
+
+- perfil de calificacion al que pertenece;
+- area academica a la que pertenece para reportes y libretas;
+- nombre visible del grupo;
+- materias integrantes;
+- materia representante, si la libreta debe mostrar el nombre de una materia principal;
+- modo de calculo: promedio simple, promedio ponderado o suma;
+- peso de cada materia cuando el calculo sea ponderado;
+- si el grupo aporta al promedio general;
+- si se muestran o no las materias integrantes como detalle en la libreta.
+
+Regla recomendada:
+
+```text
+Las materias integrantes no aportan individualmente al promedio general cuando pertenecen a un grupo activo.
+El promedio general usa la nota final del grupo.
+```
 
 ## Datos Incompletos
 

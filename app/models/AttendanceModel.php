@@ -279,6 +279,54 @@ class AttendanceModel extends Model
         $statement->execute();
     }
 
+    public function createCourseSubjectsBulk(int $courseId, array $subjectIds, string $startDate, ?int $order): array
+    {
+        $subjectIds = array_values(array_unique(array_filter(
+            array_map(static fn (mixed $subjectId): int => (int) $subjectId, $subjectIds),
+            static fn (int $subjectId): bool => $subjectId > 0
+        )));
+
+        if ($subjectIds === []) {
+            return ['created' => 0, 'skipped' => 0];
+        }
+
+        $existing = $this->activeCourseSubjectIds($courseId);
+        $maxOrder = $order ?? $this->maxCourseSubjectOrder($courseId) + 1;
+        $insert = $this->db->prepare(
+            "INSERT INTO materia_curso (curid, asgid, mtcfecha_inicio, mtcorden, mtcestado)
+             VALUES (:course_id, :subject_id, :start_date, :sort_order, true)"
+        );
+
+        $created = 0;
+        $skipped = 0;
+
+        $this->db->beginTransaction();
+
+        try {
+            foreach ($subjectIds as $index => $subjectId) {
+                if (isset($existing[$subjectId])) {
+                    $skipped++;
+                    continue;
+                }
+
+                $insert->execute([
+                    'course_id' => $courseId,
+                    'subject_id' => $subjectId,
+                    'start_date' => $startDate,
+                    'sort_order' => $maxOrder + $index,
+                ]);
+                $created++;
+            }
+
+            $this->db->commit();
+        } catch (\Throwable $exception) {
+            $this->db->rollBack();
+            throw $exception;
+        }
+
+        return ['created' => $created, 'skipped' => $skipped];
+    }
+
     public function updateCourseSubjectStatus(int $courseSubjectId, bool $status): void
     {
         $endDateSql = $status ? 'NULL' : 'CURRENT_DATE';
@@ -310,6 +358,37 @@ class AttendanceModel extends Model
         ]);
 
         return $statement->fetchColumn() !== false;
+    }
+
+    private function activeCourseSubjectIds(int $courseId): array
+    {
+        $statement = $this->db->prepare(
+            "SELECT asgid
+             FROM materia_curso
+             WHERE curid = :course_id
+               AND mtcestado = true"
+        );
+        $statement->execute(['course_id' => $courseId]);
+
+        $ids = [];
+        foreach ($statement->fetchAll() as $row) {
+            $ids[(int) $row['asgid']] = true;
+        }
+
+        return $ids;
+    }
+
+    private function maxCourseSubjectOrder(int $courseId): int
+    {
+        $statement = $this->db->prepare(
+            "SELECT COALESCE(MAX(mtcorden), 0)
+             FROM materia_curso
+             WHERE curid = :course_id
+               AND mtcestado = true"
+        );
+        $statement->execute(['course_id' => $courseId]);
+
+        return (int) $statement->fetchColumn();
     }
 
     public function findCourseSubject(int $courseSubjectId): array|false
@@ -378,6 +457,69 @@ class AttendanceModel extends Model
             'person_id' => $personId,
             'start_date' => $startDate,
         ]);
+    }
+
+    public function assignTeacherBulk(array $courseSubjectIds, int $personId, string $startDate): array
+    {
+        $courseSubjectIds = array_values(array_unique(array_filter(
+            array_map(static fn (mixed $courseSubjectId): int => (int) $courseSubjectId, $courseSubjectIds),
+            static fn (int $courseSubjectId): bool => $courseSubjectId > 0
+        )));
+
+        if ($courseSubjectIds === []) {
+            return ['created' => 0, 'skipped' => 0];
+        }
+
+        $existing = $this->activeTeacherCourseSubjectIds($personId);
+        $insert = $this->db->prepare(
+            "INSERT INTO materia_curso_docente (mtcid, perid, mcdfecha_inicio, mcdestado)
+             VALUES (:course_subject_id, :person_id, :start_date, true)"
+        );
+        $created = 0;
+        $skipped = 0;
+
+        $this->db->beginTransaction();
+
+        try {
+            foreach ($courseSubjectIds as $courseSubjectId) {
+                if (isset($existing[$courseSubjectId])) {
+                    $skipped++;
+                    continue;
+                }
+
+                $insert->execute([
+                    'course_subject_id' => $courseSubjectId,
+                    'person_id' => $personId,
+                    'start_date' => $startDate,
+                ]);
+                $created++;
+            }
+
+            $this->db->commit();
+        } catch (\Throwable $exception) {
+            $this->db->rollBack();
+            throw $exception;
+        }
+
+        return ['created' => $created, 'skipped' => $skipped];
+    }
+
+    private function activeTeacherCourseSubjectIds(int $personId): array
+    {
+        $statement = $this->db->prepare(
+            "SELECT mtcid
+             FROM materia_curso_docente
+             WHERE perid = :person_id
+               AND mcdestado = true"
+        );
+        $statement->execute(['person_id' => $personId]);
+
+        $ids = [];
+        foreach ($statement->fetchAll() as $row) {
+            $ids[(int) $row['mtcid']] = true;
+        }
+
+        return $ids;
     }
 
     public function removeTeacher(int $assignmentId): void
