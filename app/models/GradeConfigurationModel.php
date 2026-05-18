@@ -952,6 +952,10 @@ class GradeConfigurationModel extends Model
             static fn (array $row): int => (int) $row['mtcid'],
             $this->profileSubjectConfigurations($profileId)
         ), true);
+        $allowedAreas = array_fill_keys(array_map(
+            static fn (array $row): int => (int) $row['areaid'],
+            $this->profileSubjectConfigurations($profileId)
+        ), true);
 
         if ($allowedSubjects === []) {
             throw new RuntimeException('El perfil no tiene materias aplicables para agrupar.');
@@ -1605,6 +1609,20 @@ class GradeConfigurationModel extends Model
                     COALESCE(mcc.mccusa_equivalencia, true) AS mccusa_equivalencia,
                     COALESCE(mcc.mccestado, true) AS mccestado,
                     COALESCE(mcc.mccobservacion, '') AS mccobservacion,
+                    gmc.gmcid,
+                    gmc.gmcnombre,
+                    gmc.gmcdescripcion,
+                    gmc.gmcpromediable AS grupo_promediable,
+                    gmc.gmcvisible_libreta AS grupo_visible_libreta,
+                    gd.gmcdvisible_detalle,
+                    CASE
+                        WHEN gmc.gmcid IS NULL THEN COALESCE(mcc.mccpromediable, true)
+                        ELSE false
+                    END AS promedia_como_materia_individual,
+                    CASE
+                        WHEN gmc.gmcid IS NULL THEN COALESCE(mcc.mccvisible_libreta, true)
+                        ELSE gd.gmcdvisible_detalle
+                    END AS visible_como_materia_individual,
                     ROW_NUMBER() OVER (
                         PARTITION BY mc.mtcid
                         ORDER BY
@@ -1643,6 +1661,14 @@ class GradeConfigurationModel extends Model
                  LEFT JOIN materia_calificacion_config mcc
                     ON mcc.mtcid = mc.mtcid
                     AND mcc.pcaid = p.pcaid
+                 LEFT JOIN grupo_materia_calificacion_detalle gd
+                    ON gd.mtcid = mc.mtcid
+                    AND gd.pcaid = p.pcaid
+                    AND gd.gmcdestado = true
+                 LEFT JOIN grupo_materia_calificacion gmc
+                    ON gmc.gmcid = gd.gmcid
+                    AND gmc.pcaid = gd.pcaid
+                    AND gmc.gmcestado = true
                  WHERE c.pleid = :period_id
                    AND mc.mtcestado = true
              ) materias

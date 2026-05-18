@@ -28,6 +28,146 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    const gradebookTables = document.querySelectorAll('[data-gradebook-table]');
+
+    gradebookTables.forEach((table) => {
+        if (!(table instanceof HTMLTableElement)) {
+            return;
+        }
+
+        const editButtons = table.querySelectorAll('[data-gradebook-edit-column]');
+        const inputs = table.querySelectorAll('[data-gradebook-column]');
+
+        const deactivateColumns = () => {
+            inputs.forEach((input) => {
+                if (input instanceof HTMLInputElement) {
+                    if (!input.disabled) {
+                        input.readOnly = true;
+                        input.tabIndex = -1;
+                    }
+                    input.classList.remove('is-active-column');
+                }
+            });
+
+            editButtons.forEach((button) => {
+                if (button instanceof HTMLButtonElement) {
+                    button.classList.remove('is-active');
+                }
+            });
+        };
+
+        editButtons.forEach((button) => {
+            if (!(button instanceof HTMLButtonElement)) {
+                return;
+            }
+
+            button.addEventListener('click', () => {
+                const columnId = button.dataset.gradebookEditColumn;
+
+                if (!columnId) {
+                    return;
+                }
+
+                deactivateColumns();
+                button.classList.add('is-active');
+
+                const columnInputs = Array.from(table.querySelectorAll(`[data-gradebook-column="${CSS.escape(columnId)}"]`))
+                    .filter((input) => input instanceof HTMLInputElement);
+
+                columnInputs.forEach((input) => {
+                    if (input instanceof HTMLInputElement && !input.disabled) {
+                        input.readOnly = false;
+                        input.tabIndex = 0;
+                        input.classList.add('is-active-column');
+                    }
+                });
+
+                if (columnInputs[0] instanceof HTMLInputElement) {
+                    columnInputs[0].focus();
+                    columnInputs[0].select();
+                }
+            });
+        });
+
+        inputs.forEach((input) => {
+            if (!(input instanceof HTMLInputElement)) {
+                return;
+            }
+
+            input.addEventListener('input', () => {
+                input.dataset.gradebookDirty = '1';
+            });
+        });
+
+        const gradebookForm = table.closest('form');
+
+        if (gradebookForm instanceof HTMLFormElement) {
+            gradebookForm.addEventListener('submit', () => {
+                inputs.forEach((input) => {
+                    if (!(input instanceof HTMLInputElement) || input.disabled) {
+                        return;
+                    }
+
+                    if (input.readOnly && input.dataset.gradebookDirty !== '1') {
+                        input.disabled = true;
+                    }
+                });
+            });
+        }
+    });
+
+    const gradeProfileActivationForm = document.querySelector('[data-grade-profile-activate-form]');
+    const gradeProfileActivationDialog = document.querySelector('[data-grade-profile-activation-dialog]');
+
+    if (
+        gradeProfileActivationForm instanceof HTMLFormElement
+        && gradeProfileActivationDialog instanceof HTMLElement
+        && gradeProfileActivationForm.dataset.activationDialogReady !== '1'
+    ) {
+        gradeProfileActivationForm.dataset.activationDialogReady = '1';
+        const cancelButton = gradeProfileActivationDialog.querySelector('[data-grade-profile-activation-cancel]');
+        const confirmButton = gradeProfileActivationDialog.querySelector('[data-grade-profile-activation-confirm]');
+        let confirmed = false;
+
+        gradeProfileActivationForm.addEventListener('submit', (event) => {
+            if (confirmed) {
+                return;
+            }
+
+            event.preventDefault();
+
+            if (typeof gradeProfileActivationDialog.showModal === 'function') {
+                gradeProfileActivationDialog.showModal();
+                return;
+            }
+
+            gradeProfileActivationDialog.setAttribute('open', 'open');
+        });
+
+        if (cancelButton instanceof HTMLButtonElement) {
+            cancelButton.addEventListener('click', () => {
+                if (typeof gradeProfileActivationDialog.close === 'function') {
+                    gradeProfileActivationDialog.close('cancel');
+                    return;
+                }
+
+                gradeProfileActivationDialog.removeAttribute('open');
+            });
+        }
+
+        if (confirmButton instanceof HTMLButtonElement) {
+            confirmButton.addEventListener('click', () => {
+                confirmed = true;
+                if (typeof gradeProfileActivationDialog.close === 'function') {
+                    gradeProfileActivationDialog.close('confirm');
+                } else {
+                    gradeProfileActivationDialog.removeAttribute('open');
+                }
+                gradeProfileActivationForm.submit();
+            });
+        }
+    }
+
     const catalogRows = document.querySelectorAll('[data-catalog-row]');
 
     catalogRows.forEach((row) => {
@@ -3068,21 +3208,29 @@ document.addEventListener('DOMContentLoaded', () => {
                 const checkbox = row.querySelector('[data-teacher-subject-checkbox]');
                 const status = row.querySelector('[data-teacher-subject-status]');
                 const assignedTeachers = (row.dataset.assignedTeachers || '').split(',').filter(Boolean);
-                const isAssigned = teacherId !== '' && assignedTeachers.includes(teacherId);
+                const hasAssignedTeacher = assignedTeachers.length > 0;
+                const isAssignedToSelectedTeacher = teacherId !== '' && assignedTeachers.includes(teacherId);
+                const isAssignedToAnotherTeacher = hasAssignedTeacher && !isAssignedToSelectedTeacher;
                 const isVisible = courseId === '' || row.dataset.courseId === courseId;
 
                 row.hidden = !isVisible;
 
                 if (checkbox instanceof HTMLInputElement) {
-                    checkbox.checked = isAssigned;
-                    checkbox.disabled = isAssigned;
+                    checkbox.checked = isAssignedToSelectedTeacher;
+                    checkbox.disabled = isAssignedToSelectedTeacher;
                 }
 
                 if (status instanceof HTMLElement) {
-                    status.textContent = isAssigned ? 'Ya asignada a este docente' : 'Disponible';
+                    if (isAssignedToSelectedTeacher) {
+                        status.textContent = 'Ya asignada a este docente';
+                    } else if (isAssignedToAnotherTeacher) {
+                        status.textContent = 'Ya asignada a otro docente';
+                    } else {
+                        status.textContent = 'Disponible';
+                    }
                 }
 
-                row.classList.toggle('is-deleted', isAssigned);
+                row.classList.toggle('is-deleted', isAssignedToSelectedTeacher);
             });
         };
 

@@ -6,6 +6,7 @@ use App\Controllers\AuthController;
 use App\Controllers\AttendanceController;
 use App\Controllers\ConfigurationController;
 use App\Controllers\CourseController;
+use App\Controllers\GradebookController;
 use App\Controllers\GradeController;
 use App\Controllers\MatriculationController;
 use App\Controllers\ModuleController;
@@ -29,6 +30,9 @@ return static function (Router $router): void {
     $router->get('/representante/estudiante', [StudentController::class, 'representativeStudent']);
     $router->get('/representante/estudiante/modulo', [StudentController::class, 'representativeStudentModule']);
     $router->get('/academico', [ModuleController::class, 'academic']);
+    $router->get('/calificaciones/registro', [GradebookController::class, 'register']);
+    $router->post('/calificaciones/actividad', [GradebookController::class, 'storeActivity']);
+    $router->post('/calificaciones/notas', [GradebookController::class, 'saveGrades']);
     $router->get('/asistencia', [ModuleController::class, 'attendance']);
     $router->get('/novedades', [NoveltyController::class, 'index']);
     $router->get('/novedades/registro', [NoveltyController::class, 'register']);

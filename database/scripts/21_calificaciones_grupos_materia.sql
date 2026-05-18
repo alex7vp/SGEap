@@ -32,7 +32,6 @@ CREATE TABLE grupo_materia_calificacion (
         REFERENCES area_academica (areaid),
     CONSTRAINT fk_gmc_materia_representante FOREIGN KEY (gmcmtcid_representante)
         REFERENCES materia_curso (mtcid),
-    CONSTRAINT uq_gmc_perfil_nombre UNIQUE (pcaid, gmcnombre),
     CONSTRAINT uq_gmc_perfil_orden UNIQUE (pcaid, gmcorden),
     CONSTRAINT ck_gmc_modo_calculo
         CHECK (gmcmodo_calculo IN ('PROMEDIO_SIMPLE', 'PROMEDIO_PONDERADO', 'SUMA')),

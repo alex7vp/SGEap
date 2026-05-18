@@ -44,6 +44,13 @@ class ModuleController extends Controller
                     'icon' => 'fa-calendar-check-o',
                     'permission' => 'asistencia.calendario.gestionar|asistencia.registrar|asistencia.supervisar|justificaciones.gestionar|asistencia.ver_propia|asistencia.representante.ver|novedades.registrar|novedades.supervisar|novedades.ver_propia|novedades.representante.ver',
                 ],
+                [
+                    'label' => 'Registro de calificaciones',
+                    'description' => 'Prepara la matriz de notas por docente, materia, subperiodo y componente.',
+                    'url' => baseUrl('calificaciones/registro'),
+                    'icon' => 'fa-check-square',
+                    'permission' => 'asistencia.registrar|calificaciones.registrar|calificaciones.configurar',
+                ],
             ]
         );
     }

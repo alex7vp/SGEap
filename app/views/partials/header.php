@@ -37,6 +37,7 @@ $sectionModuleMap = [
     'personas' => 'academico',
     'estudiantes' => 'academico',
     'matriculas' => 'academico',
+    'calificaciones_registro' => 'academico',
     'personal' => 'academico',
     'personal_register' => 'academico',
     'personal_assignment' => 'academico',
@@ -131,6 +132,12 @@ $sidebarModules = [
                         'label' => 'Novedades y asistencia',
                         'url' => baseUrl('asistencia'),
                         'icon' => 'fa-calendar-check-o',
+                    ],
+                    [
+                        'key' => 'calificaciones_registro',
+                        'label' => 'Calificaciones',
+                        'url' => baseUrl('calificaciones/registro'),
+                        'icon' => 'fa-check-square',
                     ],
                 ],
             ],
@@ -269,6 +276,7 @@ $permissionMap = [
     'personal_assignment' => 'personas.gestionar',
     'personal_listing' => 'personas.gestionar',
     'matriculas' => 'matriculas.gestionar',
+    'calificaciones_registro' => ['asistencia.registrar', 'calificaciones.registrar', 'calificaciones.configurar'],
     'asistencia_home' => ['asistencia.calendario.gestionar', 'asistencia.registrar', 'asistencia.supervisar', 'justificaciones.gestionar', 'asistencia.ver_propia', 'asistencia.representante.ver', 'novedades.registrar', 'novedades.supervisar', 'novedades.ver_propia', 'novedades.representante.ver'],
     'asistencia_configuracion' => 'asistencia.calendario.gestionar',
     'asistencia_calendario' => 'asistencia.calendario.gestionar',
@@ -314,7 +322,7 @@ $canAccess = static function (string $key) use ($permissionMap, $userPermissions
 };
 $modulePermissions = [
     'inicio' => ['dashboard.ver', 'matricula_temporal.ver', 'representante.matricula_nueva', 'estudiante.mi_matricula', 'representante.estudiantes', 'asistencia.ver_propia', 'asistencia.representante.ver', 'novedades.ver_propia', 'novedades.representante.ver'],
-    'academico' => ['estudiantes.gestionar', 'personas.gestionar', 'matriculas.gestionar', 'asistencia.calendario.gestionar', 'asistencia.registrar', 'asistencia.supervisar', 'justificaciones.gestionar', 'asistencia.ver_propia', 'asistencia.representante.ver', 'novedades.registrar', 'novedades.supervisar', 'novedades.ver_propia', 'novedades.representante.ver'],
+    'academico' => ['estudiantes.gestionar', 'personas.gestionar', 'matriculas.gestionar', 'asistencia.calendario.gestionar', 'asistencia.registrar', 'asistencia.supervisar', 'justificaciones.gestionar', 'asistencia.ver_propia', 'asistencia.representante.ver', 'novedades.registrar', 'novedades.supervisar', 'novedades.ver_propia', 'novedades.representante.ver', 'calificaciones.registrar', 'calificaciones.configurar'],
     'configuracion' => ['configuracion.gestionar', 'catalogos.gestionar', 'cursos.gestionar', 'matriculas.documentos', 'asistencia.calendario.gestionar', 'calificaciones.configurar', 'calificaciones.plantillas.gestionar'],
     'seguridad' => ['seguridad.usuarios', 'seguridad.roles_permisos', 'usuarios_temporales.gestionar'],
 ];
@@ -499,7 +507,7 @@ foreach ($logoPatterns as $logoPattern) {
         </div>
     </header>
 
-    <main class="shell">
+    <main class="shell <?= ($currentSection ?? '') === 'calificaciones_registro' ? 'shell-sidebar-collapsed' : ''; ?>">
         <aside class="sidebar-card">
             <nav class="sidebar-nav">
                 <?php foreach ($activeSidebarGroups as $group): ?>

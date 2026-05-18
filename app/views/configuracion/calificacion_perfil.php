@@ -84,10 +84,23 @@ foreach ($subjectConfigurations as $subjectConfiguration) {
     </div>
 
     <?php if (in_array((string) ($profile['pcaestado'] ?? ''), ['BORRADOR', 'EN_REVISION'], true)): ?>
-        <form method="POST" action="<?= $h(baseUrl('configuracion/academica/calificaciones/perfil/activar')); ?>" class="actions-row" onsubmit="return confirm('Confirma activar este perfil de calificaciones?');">
+        <form method="POST" action="<?= $h(baseUrl('configuracion/academica/calificaciones/perfil/activar')); ?>" class="actions-row" data-grade-profile-activate-form>
             <input type="hidden" name="pcaid" value="<?= $h($profileId); ?>">
             <button class="btn-primary btn-inline" type="submit">Activar perfil</button>
         </form>
+        <dialog class="calendar-dialog grade-profile-activation-dialog" data-grade-profile-activation-dialog>
+            <header class="security-assignment-header">
+                <div>
+                    <h3>Activar perfil</h3>
+                    <p>Confirma que la configuracion ya esta lista para el registro de notas.</p>
+                </div>
+            </header>
+            <p class="module-note">Al activar este perfil, los docentes podran usarlo para registrar calificaciones en las materias asignadas.</p>
+            <div class="actions-row">
+                <button class="btn-secondary btn-auto" type="button" data-grade-profile-activation-cancel>Cancelar</button>
+                <button class="btn-primary btn-inline" type="button" data-grade-profile-activation-confirm>Activar perfil</button>
+            </div>
+        </dialog>
     <?php endif; ?>
 </section>
 
@@ -319,6 +332,8 @@ foreach ($subjectConfigurations as $subjectConfiguration) {
                         <tr>
                             <th>Curso</th>
                             <th>Materia</th>
+                            <th>Grupo</th>
+                            <th>Uso efectivo</th>
                             <th>Registro</th>
                             <th>Visualizacion</th>
                             <th>Promedia</th>
@@ -339,6 +354,23 @@ foreach ($subjectConfigurations as $subjectConfiguration) {
                                 <td>
                                     <span class="cell-title"><?= $h($subject['asgnombre']); ?></span>
                                     <span class="cell-subtitle"><?= $h($subject['areanombre'] . ' | ' . $subject['pasalcance']); ?></span>
+                                </td>
+                                <td>
+                                    <?php if (!empty($subject['gmcid'])): ?>
+                                        <span class="cell-title"><?= $h($subject['gmcnombre']); ?></span>
+                                        <span class="cell-subtitle"><?= $h($subject['gmcdescripcion'] ?? 'Grupo activo'); ?></span>
+                                    <?php else: ?>
+                                        <span class="cell-subtitle">Sin grupo</span>
+                                    <?php endif; ?>
+                                </td>
+                                <td>
+                                    <?php if (!empty($subject['gmcid'])): ?>
+                                        <span class="cell-subtitle">Promedia por grupo</span>
+                                        <span class="cell-subtitle"><?= !empty($subject['visible_como_materia_individual']) ? 'Detalle visible' : 'Oculta como materia individual'; ?></span>
+                                    <?php else: ?>
+                                        <span class="cell-subtitle"><?= !empty($subject['promedia_como_materia_individual']) ? 'Promedia individual' : 'No promedia'; ?></span>
+                                        <span class="cell-subtitle"><?= !empty($subject['visible_como_materia_individual']) ? 'Visible en libreta' : 'Oculta en libreta'; ?></span>
+                                    <?php endif; ?>
                                 </td>
                                 <td>
                                     <select name="subjects[<?= $h($courseSubjectId); ?>][mcctipo_registro]" disabled data-grade-profile-field>
@@ -800,5 +832,61 @@ foreach ($subjectConfigurations as $subjectConfiguration) {
         <?php endif; ?>
     </form>
 </section>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var form = document.querySelector('[data-grade-profile-activate-form]');
+    var dialog = document.querySelector('[data-grade-profile-activation-dialog]');
+
+    if (!form || !dialog || form.dataset.activationDialogReady === '1') {
+        return;
+    }
+
+    var cancelButton = dialog.querySelector('[data-grade-profile-activation-cancel]');
+    var confirmButton = dialog.querySelector('[data-grade-profile-activation-confirm]');
+    var confirmed = false;
+    form.dataset.activationDialogReady = '1';
+
+    form.addEventListener('submit', function (event) {
+        if (confirmed) {
+            return;
+        }
+
+        event.preventDefault();
+
+        if (typeof dialog.showModal === 'function') {
+            dialog.showModal();
+            return;
+        }
+
+        dialog.setAttribute('open', 'open');
+    });
+
+    if (cancelButton) {
+        cancelButton.addEventListener('click', function () {
+            if (typeof dialog.close === 'function') {
+                dialog.close('cancel');
+                return;
+            }
+
+            dialog.removeAttribute('open');
+        });
+    }
+
+    if (confirmButton) {
+        confirmButton.addEventListener('click', function () {
+            confirmed = true;
+
+            if (typeof dialog.close === 'function') {
+                dialog.close('confirm');
+            } else {
+                dialog.removeAttribute('open');
+            }
+
+            form.submit();
+        });
+    }
+});
+</script>
 
 <?php require BASE_PATH . '/app/views/partials/footer.php'; ?>
