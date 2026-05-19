@@ -207,4 +207,154 @@ class GradebookController extends Controller
         sessionFlash('success', $saved > 0 ? 'Calificaciones guardadas correctamente.' : 'No se registraron cambios de calificaciones.');
         $this->redirect($redirect);
     }
+
+    public function finalChart(): void
+    {
+        $user = $this->requireAuth();
+        $period = currentAcademicPeriod();
+        $periodId = $period !== null ? (int) $period['pleid'] : 0;
+        $model = new GradebookModel();
+        $courses = $periodId > 0 ? $model->coursesByPeriod($periodId) : [];
+        $selectedCourseId = (int) ($_GET['curid'] ?? ($courses[0]['curid'] ?? 0));
+        $selectedCourse = $selectedCourseId > 0 && $periodId > 0
+            ? $model->courseByPeriod($selectedCourseId, $periodId)
+            : false;
+        $students = [];
+        $subjects = [];
+        $rows = [];
+
+        if ($selectedCourse !== false) {
+            $students = $model->studentsByCourse((int) $selectedCourse['curid']);
+            $subjects = $model->finalReportSubjectDefinitions((int) $selectedCourse['curid'], $periodId);
+            $subjectResults = [];
+
+            foreach ($subjects as $subject) {
+                foreach ($subject['items'] as $item) {
+                    $subjectResults[$subject['key']][(int) $item['mtcid']] = $this->finalSubjectScores($model, (int) $item['mtcid'], (int) $item['pcaid'], $students);
+                }
+            }
+
+            foreach ($students as $student) {
+                $subjectCells = [];
+                $generalSum = 0.0;
+                $generalCount = 0;
+
+                foreach ($subjects as $subject) {
+                    $itemScores = [];
+
+                    foreach ($subject['items'] as $item) {
+                        $score = $subjectResults[$subject['key']][(int) $item['mtcid']][(int) $student['matid']] ?? null;
+
+                        if ($score !== null) {
+                            $itemScores[] = $score;
+                        }
+                    }
+
+                    $partial = $itemScores !== []
+                        ? round(array_sum($itemScores) / count($itemScores), 2)
+                        : 0.0;
+                    $final = $partial;
+
+                    if (!empty($subject['promediable'])) {
+                        $generalSum += $final;
+                        $generalCount++;
+                    }
+
+                    $subjectCells[$subject['key']] = [
+                        'partial' => $partial,
+                        'extra' => null,
+                        'final' => $final,
+                    ];
+                }
+
+                $generalAverage = $generalCount > 0 ? round($generalSum / $generalCount, 2) : null;
+                $approval = $subjects[0]['approval'] ?? 7.0;
+
+                $rows[] = [
+                    'student' => $student,
+                    'subjects' => $subjectCells,
+                    'average' => $generalAverage,
+                    'status' => $generalAverage !== null && $generalAverage >= $approval ? 'APROBADO' : 'NO APROBADO',
+                ];
+            }
+        }
+
+        $this->view('calificaciones.cuadro_final', [
+            'appName' => config('app')['name'] ?? 'SGEap',
+            'pageTitle' => 'Cuadro final',
+            'currentModule' => 'reportes',
+            'currentSection' => 'reporte_cuadro_final',
+            'user' => $user,
+            'currentPeriod' => $period,
+            'courses' => $courses,
+            'selectedCourseId' => $selectedCourseId,
+            'selectedCourse' => $selectedCourse,
+            'subjects' => $subjects,
+            'rows' => $rows,
+            'success' => sessionFlash('success'),
+            'error' => sessionFlash('error'),
+        ]);
+    }
+
+    private function finalSubjectScores(GradebookModel $model, int $courseSubjectId, int $profileId, array $students): array
+    {
+        $subperiods = $model->subperiods($profileId);
+        $components = $model->components($profileId);
+        $activities = $model->activitiesByProfile($courseSubjectId, $profileId);
+        $activityIds = [];
+
+        foreach ($activities as $componentActivitiesBySubperiod) {
+            foreach ($componentActivitiesBySubperiod as $componentActivities) {
+                foreach ($componentActivities as $activity) {
+                    $activityIds[] = (int) $activity['aciid'];
+                }
+            }
+        }
+
+        $grades = $model->gradesByActivities($activityIds);
+        $scores = [];
+
+        foreach ($students as $student) {
+            $finalSum = 0.0;
+            $finalCount = 0;
+
+            foreach ($subperiods as $subperiod) {
+                $subperiodId = (int) $subperiod['spcid'];
+                $subperiodParts = [];
+
+                foreach (($components[$subperiodId] ?? []) as $component) {
+                    $componentId = (int) $component['cpcid'];
+                    $componentActivities = $activities[$subperiodId][$componentId] ?? [];
+
+                    if ($componentActivities === []) {
+                        continue;
+                    }
+
+                    $componentSum = 0.0;
+
+                    foreach ($componentActivities as $activity) {
+                        $grade = $grades[(int) $activity['aciid']][(int) $student['matid']] ?? null;
+                        $componentSum += $grade !== null && $grade['cesnota'] !== null ? (float) $grade['cesnota'] : 0.0;
+                    }
+
+                    $componentAverage = round($componentSum / count($componentActivities), 2);
+                    $subperiodParts[] = !empty($component['cpcpeso'])
+                        ? round($componentAverage * ((float) $component['cpcpeso'] / 100), 2)
+                        : $componentAverage;
+                }
+
+                $participatesFinalValue = strtolower((string) ($subperiod['spcparticipa_final'] ?? '1'));
+                $participatesFinal = !in_array($participatesFinalValue, ['0', 'false', 'f', 'no'], true);
+
+                if ($participatesFinal) {
+                    $finalSum += $subperiodParts !== [] ? round(array_sum($subperiodParts), 2) : 0.0;
+                    $finalCount++;
+                }
+            }
+
+            $scores[(int) $student['matid']] = $finalCount > 0 ? round($finalSum / $finalCount, 2) : null;
+        }
+
+        return $scores;
+    }
 }

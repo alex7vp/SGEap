@@ -8,6 +8,57 @@ use App\Core\Model;
 
 class GradebookModel extends Model
 {
+    public function coursesByPeriod(int $periodId): array
+    {
+        $statement = $this->db->prepare(
+            "SELECT
+                c.curid,
+                c.pleid,
+                c.graid,
+                c.prlid,
+                g.granombre,
+                n.nednombre,
+                p.prlnombre
+             FROM curso c
+             INNER JOIN grado g ON g.graid = c.graid
+             INNER JOIN nivel_educativo n ON n.nedid = g.nedid
+             INNER JOIN paralelo p ON p.prlid = c.prlid
+             WHERE c.pleid = :period_id
+               AND c.curestado = true
+             ORDER BY n.nednombre ASC, g.granombre ASC, p.prlnombre ASC"
+        );
+        $statement->execute(['period_id' => $periodId]);
+
+        return $statement->fetchAll();
+    }
+
+    public function courseByPeriod(int $courseId, int $periodId): array|false
+    {
+        $statement = $this->db->prepare(
+            "SELECT
+                c.curid,
+                c.pleid,
+                c.graid,
+                c.prlid,
+                g.granombre,
+                n.nednombre,
+                p.prlnombre
+             FROM curso c
+             INNER JOIN grado g ON g.graid = c.graid
+             INNER JOIN nivel_educativo n ON n.nedid = g.nedid
+             INNER JOIN paralelo p ON p.prlid = c.prlid
+             WHERE c.curid = :course_id
+               AND c.pleid = :period_id
+             LIMIT 1"
+        );
+        $statement->execute([
+            'course_id' => $courseId,
+            'period_id' => $periodId,
+        ]);
+
+        return $statement->fetch();
+    }
+
     public function teacherSubjects(int $personId, int $periodId): array
     {
         $statement = $this->db->prepare(
@@ -367,5 +418,110 @@ class GradebookModel extends Model
         $statement->execute(['course_id' => $courseId]);
 
         return $statement->fetchAll();
+    }
+
+    public function finalReportSubjectDefinitions(int $courseId, int $periodId): array
+    {
+        $statement = $this->db->prepare(
+            "SELECT
+                v.mtcid,
+                v.mtcorden,
+                v.areaid,
+                v.areanombre,
+                v.asgnombre,
+                cfg.pcaid,
+                p.pcaaprobacion,
+                cfg.promediable,
+                cfg.visible_libreta,
+                cfg.gmcid,
+                cfg.gmcnombre,
+                cfg.gmcmodo_calculo,
+                cfg.grupo_promediable,
+                cfg.grupo_visible_libreta,
+                cfg.grupo_orden,
+                cfg.grupo_materia_peso,
+                cfg.grupo_materia_orden,
+                cfg.gmcdincluye_calculo,
+                cfg.visible_como_materia_individual,
+                cfg.promedia_como_materia_individual
+             FROM vw_materia_curso v
+             LEFT JOIN vw_calificacion_materia_config_agrupada cfg
+                ON cfg.mtcid = v.mtcid
+                AND cfg.pleid = v.pleid
+             LEFT JOIN perfil_calificacion p ON p.pcaid = cfg.pcaid
+             WHERE v.curid = :course_id
+               AND v.pleid = :period_id
+               AND v.mtcestado = true
+             ORDER BY COALESCE(cfg.grupo_orden, v.mtcorden, 9999) ASC,
+                      COALESCE(cfg.grupo_materia_orden, v.mtcorden, 9999) ASC,
+                      v.areanombre ASC,
+                      v.asgnombre ASC"
+        );
+        $statement->execute([
+            'course_id' => $courseId,
+            'period_id' => $periodId,
+        ]);
+
+        $definitions = [];
+        $groups = [];
+
+        foreach ($statement->fetchAll() as $row) {
+            if (!empty($row['gmcid']) && !empty($row['grupo_visible_libreta'])) {
+                $groupId = (int) $row['gmcid'];
+
+                if (!isset($groups[$groupId])) {
+                    $groups[$groupId] = [
+                        'key' => 'group-' . $groupId,
+                        'name' => (string) $row['gmcnombre'],
+                        'promediable' => $this->truthy($row['grupo_promediable'] ?? true),
+                        'approval' => is_numeric($row['pcaaprobacion'] ?? null) ? (float) $row['pcaaprobacion'] : 7.0,
+                        'items' => [],
+                        'order' => (int) ($row['grupo_orden'] ?? $row['mtcorden'] ?? 9999),
+                    ];
+                }
+
+                if ($this->truthy($row['gmcdincluye_calculo'] ?? true)) {
+                    $groups[$groupId]['items'][] = [
+                        'mtcid' => (int) $row['mtcid'],
+                        'pcaid' => (int) $row['pcaid'],
+                    ];
+                }
+
+                if (!$this->truthy($row['visible_como_materia_individual'] ?? false)) {
+                    continue;
+                }
+            }
+
+            if (!$this->truthy($row['visible_libreta'] ?? true) || empty($row['pcaid'])) {
+                continue;
+            }
+
+            $definitions[] = [
+                'key' => 'subject-' . (int) $row['mtcid'],
+                'name' => (string) $row['asgnombre'],
+                'promediable' => $this->truthy($row['promedia_como_materia_individual'] ?? $row['promediable'] ?? true),
+                'approval' => is_numeric($row['pcaaprobacion'] ?? null) ? (float) $row['pcaaprobacion'] : 7.0,
+                'items' => [[
+                    'mtcid' => (int) $row['mtcid'],
+                    'pcaid' => (int) $row['pcaid'],
+                ]],
+                'order' => (int) ($row['mtcorden'] ?? 9999),
+            ];
+        }
+
+        foreach ($groups as $group) {
+            if ($group['items'] !== []) {
+                $definitions[] = $group;
+            }
+        }
+
+        usort($definitions, static fn (array $a, array $b): int => ($a['order'] <=> $b['order']) ?: strcmp($a['name'], $b['name']));
+
+        return $definitions;
+    }
+
+    private function truthy(mixed $value): bool
+    {
+        return !in_array(strtolower((string) $value), ['0', 'false', 'f', 'no', ''], true);
     }
 }

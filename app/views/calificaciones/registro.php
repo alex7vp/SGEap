@@ -186,7 +186,8 @@ foreach (($components[(int) ($selectedSubperiodId ?? 0)] ?? []) as $component) {
                         </thead>
                         <tbody>
                             <?php foreach ($students as $student): ?>
-                                <?php $finalAverageParts = []; ?>
+                                <?php $finalAverageSum = 0.0; ?>
+                                <?php $finalAverageCount = 0; ?>
                                 <tr>
                                     <td class="gradebook-student-col">
                                         <span class="cell-title"><?= $h($student['perapellidos'] . ' ' . $student['pernombres']); ?></span>
@@ -225,15 +226,19 @@ foreach (($components[(int) ($selectedSubperiodId ?? 0)] ?? []) as $component) {
                                             ? round(array_sum($subperiodAverageParts), 2)
                                             : null;
 
-                                        if ($subperiodAverage !== null) {
-                                            $finalAverageParts[] = $subperiodAverage;
+                                        $participatesFinalValue = strtolower((string) ($subperiod['spcparticipa_final'] ?? '1'));
+                                        $participatesFinal = !in_array($participatesFinalValue, ['0', 'false', 'f', 'no'], true);
+
+                                        if ($participatesFinal) {
+                                            $finalAverageSum += $subperiodAverage ?? 0.0;
+                                            $finalAverageCount++;
                                         }
                                         ?>
                                         <td class="gradebook-subperiod-average-cell <?= $subperiodAverage !== null && $subperiodAverage < 7 ? 'is-low-average' : 'is-approved-average'; ?>">
                                             <?= $subperiodAverage !== null ? $h(number_format($subperiodAverage, 2, ',', '')) : ''; ?>
                                         </td>
                                     <?php endforeach; ?>
-                                    <?php $finalAverage = $finalAverageParts !== [] ? round(array_sum($finalAverageParts) / count($finalAverageParts), 2) : null; ?>
+                                    <?php $finalAverage = $finalAverageCount > 0 ? round($finalAverageSum / $finalAverageCount, 2) : null; ?>
                                     <td class="gradebook-final-average-cell <?= $finalAverage !== null && $finalAverage < 7 ? 'is-low-average' : 'is-approved-average'; ?>">
                                         <?= $finalAverage !== null ? $h(number_format($finalAverage, 2, ',', '')) : ''; ?>
                                     </td>

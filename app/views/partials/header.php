@@ -22,6 +22,11 @@ $topModules = [
         'url' => baseUrl('configuracion'),
         'icon' => 'fa-cogs',
     ],
+    'reportes' => [
+        'label' => 'Reportes',
+        'url' => baseUrl('reportes'),
+        'icon' => 'fa-bar-chart',
+    ],
     'seguridad' => [
         'label' => 'Seguridad',
         'url' => baseUrl('seguridad'),
@@ -70,7 +75,8 @@ $sectionModuleMap = [
     'docentes_materias' => 'configuracion',
     'calificaciones' => 'configuracion',
     'reportes_home' => 'reportes',
-    'reporte_asistencia' => 'academico',
+    'reporte_asistencia' => 'reportes',
+    'reporte_cuadro_final' => 'reportes',
     'seguridad_home' => 'seguridad',
     'seguridad_catalogos' => 'seguridad',
     'seguridad_usuarios' => 'seguridad',
@@ -168,6 +174,23 @@ $sidebarModules = [
                         'icon' => 'fa-sitemap',
                     ],
                 ],
+            ],
+        ],
+    ],
+    'reportes' => [
+        'title' => 'Reportes',
+        'items' => [
+            [
+                'key' => 'reporte_asistencia',
+                'label' => 'Reporte de asistencia',
+                'url' => baseUrl('reportes/asistencia'),
+                'icon' => 'fa-calendar-check-o',
+            ],
+            [
+                'key' => 'reporte_cuadro_final',
+                'label' => 'Cuadro final',
+                'url' => baseUrl('reportes/cuadro-final'),
+                'icon' => 'fa-table',
             ],
         ],
     ],
@@ -298,6 +321,7 @@ $permissionMap = [
     'docentes_materias' => 'asistencia.calendario.gestionar',
     'calificaciones' => ['calificaciones.configurar', 'calificaciones.plantillas.gestionar'],
     'reporte_asistencia' => 'asistencia.supervisar',
+    'reporte_cuadro_final' => ['calificaciones.validar', 'calificaciones.configurar', 'calificaciones.registrar'],
     'seguridad_home' => ['seguridad.usuarios', 'seguridad.roles_permisos', 'usuarios_temporales.gestionar'],
     'seguridad_catalogos' => 'seguridad.roles_permisos',
     'seguridad_usuarios' => 'seguridad.usuarios',
@@ -323,6 +347,7 @@ $canAccess = static function (string $key) use ($permissionMap, $userPermissions
 $modulePermissions = [
     'inicio' => ['dashboard.ver', 'matricula_temporal.ver', 'representante.matricula_nueva', 'estudiante.mi_matricula', 'representante.estudiantes', 'asistencia.ver_propia', 'asistencia.representante.ver', 'novedades.ver_propia', 'novedades.representante.ver'],
     'academico' => ['estudiantes.gestionar', 'personas.gestionar', 'matriculas.gestionar', 'asistencia.calendario.gestionar', 'asistencia.registrar', 'asistencia.supervisar', 'justificaciones.gestionar', 'asistencia.ver_propia', 'asistencia.representante.ver', 'novedades.registrar', 'novedades.supervisar', 'novedades.ver_propia', 'novedades.representante.ver', 'calificaciones.registrar', 'calificaciones.configurar'],
+    'reportes' => ['dashboard.ver', 'asistencia.supervisar', 'calificaciones.validar', 'calificaciones.configurar', 'calificaciones.registrar'],
     'configuracion' => ['configuracion.gestionar', 'catalogos.gestionar', 'cursos.gestionar', 'matriculas.documentos', 'asistencia.calendario.gestionar', 'calificaciones.configurar', 'calificaciones.plantillas.gestionar'],
     'seguridad' => ['seguridad.usuarios', 'seguridad.roles_permisos', 'usuarios_temporales.gestionar'],
 ];

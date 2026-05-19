@@ -260,6 +260,13 @@ class ModuleController extends Controller
                     'icon' => 'fa-calendar-check-o',
                     'permission' => 'asistencia.supervisar',
                 ],
+                [
+                    'label' => 'Cuadro final',
+                    'description' => 'Consolida promedios finales por estudiante, materia y curso.',
+                    'url' => baseUrl('reportes/cuadro-final'),
+                    'icon' => 'fa-table',
+                    'permission' => 'calificaciones.validar|calificaciones.configurar|calificaciones.registrar',
+                ],
             ]
         );
     }

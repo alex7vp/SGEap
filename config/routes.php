@@ -45,6 +45,7 @@ return static function (Router $router): void {
     $router->get('/configuracion/academica', [ModuleController::class, 'academicConfiguration']);
     $router->get('/reportes', [ModuleController::class, 'reports']);
     $router->get('/reportes/asistencia', [AttendanceController::class, 'reports']);
+    $router->get('/reportes/cuadro-final', [GradebookController::class, 'finalChart']);
     $router->get('/seguridad', [ModuleController::class, 'security']);
     $router->post('/logout', [AuthController::class, 'logout']);
 

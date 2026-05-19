@@ -3433,6 +3433,89 @@ thead .role-user-sticky {
     width: min(460px, calc(100vw - 32px));
 }
 
+.final-chart-heading {
+    display: grid;
+    gap: 3px;
+    margin-bottom: 10px;
+    color: var(--text);
+    font-size: 0.78rem;
+    text-align: center;
+    text-transform: uppercase;
+}
+
+.final-chart-wrap {
+    max-height: 68vh;
+}
+
+.final-chart-table {
+    width: max-content;
+    min-width: 100%;
+    table-layout: auto;
+    font-size: 0.68rem;
+}
+
+.final-chart-table th,
+.final-chart-table td {
+    padding: 2px 3px;
+    text-align: center;
+    white-space: nowrap;
+}
+
+.final-chart-table .final-chart-student-col {
+    position: sticky;
+    left: 34px;
+    z-index: 2;
+    min-width: 280px;
+    max-width: 340px;
+    text-align: left;
+    background: #ffffff;
+}
+
+.final-chart-table .final-chart-order-col {
+    position: sticky;
+    left: 0;
+    z-index: 3;
+    min-width: 34px;
+    background: #ffffff;
+}
+
+.final-chart-table thead .final-chart-student-col,
+.final-chart-table thead .final-chart-order-col {
+    z-index: 4;
+    background: #f6f9fc;
+}
+
+.final-chart-subject-head {
+    max-width: 86px;
+    font-size: 0.58rem;
+    white-space: normal;
+    line-height: 1.05;
+}
+
+.final-chart-average-col {
+    min-width: 44px;
+    font-weight: 700;
+    background: #f6ecff;
+    color: #54327c;
+}
+
+.final-chart-status-col {
+    min-width: 82px;
+    font-weight: 700;
+}
+
+.final-chart-table .is-low-average {
+    background: #fdecea;
+    color: #9f1c13;
+    font-weight: 700;
+}
+
+.final-chart-table .is-approved-average {
+    background: #f6ecff;
+    color: #54327c;
+    font-weight: 700;
+}
+
 @media (max-width: 640px) {
     .gradebook-selection-summary {
         grid-template-columns: 34px minmax(0, 1fr);
@@ -4423,6 +4506,48 @@ thead .role-user-sticky {
     .student-hourly-matrix-table,
     .student-hourly-summary-table {
         font-size: 0.66rem;
+    }
+
+    .final-chart-report-block {
+        padding: 0;
+    }
+
+    .final-chart-heading {
+        margin-bottom: 6px;
+        font-size: 0.62rem;
+    }
+
+    .final-chart-table {
+        width: 100%;
+        min-width: 0;
+        font-size: 0.48rem;
+    }
+
+    .final-chart-table th,
+    .final-chart-table td {
+        padding: 1px 2px;
+    }
+
+    .final-chart-table .final-chart-order-col,
+    .final-chart-table .final-chart-student-col {
+        position: static;
+    }
+
+    .final-chart-table .final-chart-student-col {
+        min-width: 130px;
+        max-width: 170px;
+        white-space: normal;
+        line-height: 1.05;
+    }
+
+    .final-chart-subject-head {
+        max-width: 56px;
+        font-size: 0.42rem;
+    }
+
+    .final-chart-average-col,
+    .final-chart-status-col {
+        min-width: 34px;
     }
 
     a {
