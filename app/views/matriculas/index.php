@@ -851,7 +851,7 @@ $healthConditionTemplate = ob_get_clean();
     <?php if (!$isTemporaryMatriculation && $activePanel === 'gestion'): ?>
     <section class="security-assignment-block" id="matriculas-registradas">
         <header class="security-assignment-header">
-            <div><h3>Gestion de matriculas</h3><p>Listado de matriculas correspondientes al periodo actual. Desde aqui puedes habilitar, editar y sincronizar accesos.</p></div>
+            <div><h3>Gestion de matriculas</h3><p>Listado de matriculas correspondientes al periodo actual. Desde aqui puedes habilitar rematricula de representantes, editar y sincronizar accesos.</p></div>
             <form
                 method="POST"
                 action="<?= htmlspecialchars(baseUrl('matriculas/sincronizar-accesos'), ENT_QUOTES, 'UTF-8'); ?>"

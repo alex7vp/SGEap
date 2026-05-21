@@ -163,6 +163,8 @@ INSERT INTO rol_permiso (rolid, prmid, rpeestado)
 SELECT r.rolid, p.prmid, true
 FROM rol r
 INNER JOIN permiso p ON p.prmcodigo IN (
+    'dashboard.ver',
+    'representante.estudiantes',
     'asistencia.representante.ver',
     'novedades.representante.ver',
     'calificaciones.representante.ver'

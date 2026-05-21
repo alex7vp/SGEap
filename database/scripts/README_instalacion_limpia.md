@@ -40,7 +40,7 @@ Despues de la estructura modular, ejecutar las mismas semillas listadas en la op
 
 ## Notas
 
-Los scripts `22` a `26` fueron absorbidos en el estado final de `21_calificaciones_grupos_materia.sql` y `08_permisos_funcionales_base.sql`, por eso ya no forman parte del flujo desde cero.
+Los scripts `22` a `26` fueron absorbidos en el estado final de `21_calificaciones_grupos_materia.sql` y `08_permisos_funcionales_base.sql`, por eso ya no forman parte del flujo desde cero. Si existe un script `22` posterior, debe tratarse como ajuste para bases ya instaladas, no como parte de una instalacion limpia.
 
 `database/scripts/14_regularizar_usuarios_estudiantes_importados.sql` sigue siendo una utilidad para bases con importacion historica. No forma parte de la instalacion limpia normal.
 

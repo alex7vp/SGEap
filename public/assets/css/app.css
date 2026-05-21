@@ -1476,6 +1476,30 @@ a.btn-primary.btn-icon-only.btn-icon-small:hover {
     color: #ffffff;
 }
 
+.grade-subject-group-filter {
+    display: inline-grid;
+    grid-template-columns: auto minmax(180px, 240px);
+    align-items: center;
+    gap: 8px;
+    margin: 2px 0 8px;
+    padding: 6px 8px;
+    border: 1px solid #c7d6e4;
+    background: #f4f8fb;
+}
+
+.grade-subject-group-filter label {
+    color: var(--muted);
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.grade-subject-group-filter select {
+    min-height: 26px;
+    padding: 3px 24px 3px 8px;
+    font-size: 0.74rem;
+}
+
 .grade-profile-edit-form .grade-component-row {
     display: grid;
     grid-template-columns: minmax(150px, 1.35fr) minmax(70px, 0.55fr) minmax(140px, 1fr) 28px;
@@ -3072,6 +3096,11 @@ thead .role-user-sticky {
 
 .status-switch-form {
     margin: 0;
+}
+
+.representative-matriculation-switch-form {
+    display: inline-flex;
+    margin-top: 4px;
 }
 
 .justification-action-group {

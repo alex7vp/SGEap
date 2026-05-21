@@ -150,6 +150,7 @@ return static function (Router $router): void {
     $router->post('/matriculas/actualizar', [MatriculationController::class, 'update']);
     $router->post('/matriculas/actualizar-modulo', [MatriculationController::class, 'updateModule']);
     $router->post('/matriculas/estado', [MatriculationController::class, 'toggleStatus']);
+    $router->post('/matriculas/representante/rematricula', [MatriculationController::class, 'toggleRepresentativeMatriculation']);
     $router->post('/matriculas/sincronizar-accesos', [MatriculationController::class, 'syncAccesses']);
     $router->post('/matriculas/sincronizar-accesos/matricula', [MatriculationController::class, 'syncMatriculationAccesses']);
     $router->post('/cursos', [CourseController::class, 'store']);

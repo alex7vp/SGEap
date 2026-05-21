@@ -327,6 +327,74 @@ class AttendanceModel extends Model
         return ['created' => $created, 'skipped' => $skipped];
     }
 
+    public function syncCourseSubjects(int $courseId, array $subjectIds, string $startDate, ?int $order): array
+    {
+        $subjectIds = array_values(array_unique(array_filter(
+            array_map(static fn (mixed $subjectId): int => (int) $subjectId, $subjectIds),
+            static fn (int $subjectId): bool => $subjectId > 0
+        )));
+        $selected = array_fill_keys($subjectIds, true);
+        $existing = $this->activeCourseSubjectIds($courseId);
+        $maxOrder = $order ?? $this->maxCourseSubjectOrder($courseId) + 1;
+        $insert = $this->db->prepare(
+            "INSERT INTO materia_curso (curid, asgid, mtcfecha_inicio, mtcorden, mtcestado)
+             VALUES (:course_id, :subject_id, :start_date, :sort_order, true)"
+        );
+        $deactivate = $this->db->prepare(
+            "UPDATE materia_curso
+             SET mtcestado = false,
+                 mtcfecha_fin = CURRENT_DATE,
+                 mtcfecha_modificacion = CURRENT_TIMESTAMP
+             WHERE curid = :course_id
+               AND asgid = :subject_id
+               AND mtcestado = true"
+        );
+
+        $created = 0;
+        $removed = 0;
+        $kept = 0;
+
+        $this->db->beginTransaction();
+
+        try {
+            foreach ($existing as $subjectId => $_) {
+                if (isset($selected[$subjectId])) {
+                    $kept++;
+                    continue;
+                }
+
+                $deactivate->execute([
+                    'course_id' => $courseId,
+                    'subject_id' => $subjectId,
+                ]);
+                $removed += $deactivate->rowCount();
+            }
+
+            $index = 0;
+            foreach ($subjectIds as $subjectId) {
+                if (isset($existing[$subjectId])) {
+                    continue;
+                }
+
+                $insert->execute([
+                    'course_id' => $courseId,
+                    'subject_id' => $subjectId,
+                    'start_date' => $startDate,
+                    'sort_order' => $maxOrder + $index,
+                ]);
+                $created++;
+                $index++;
+            }
+
+            $this->db->commit();
+        } catch (\Throwable $exception) {
+            $this->db->rollBack();
+            throw $exception;
+        }
+
+        return ['created' => $created, 'removed' => $removed, 'kept' => $kept];
+    }
+
     public function updateCourseSubjectStatus(int $courseSubjectId, bool $status): void
     {
         $endDateSql = $status ? 'NULL' : 'CURRENT_DATE';

@@ -1083,8 +1083,8 @@ class AttendanceController extends Controller
         $startDate = $this->validDateOrToday((string) ($_POST['mtcfecha_inicio'] ?? ''));
         $order = trim((string) ($_POST['mtcorden'] ?? '')) !== '' ? max(1, (int) $_POST['mtcorden']) : null;
 
-        if ($courseId <= 0 || $subjectIds === []) {
-            sessionFlash('error', 'Debe seleccionar curso y al menos una asignatura.');
+        if ($courseId <= 0) {
+            sessionFlash('error', 'Debe seleccionar un curso valido.');
             $this->redirect('/configuracion/academica/materias-curso');
         }
 
@@ -1098,16 +1098,20 @@ class AttendanceController extends Controller
         $attendanceModel = new AttendanceModel();
 
         try {
-            $result = $attendanceModel->createCourseSubjectsBulk($courseId, $subjectIds, $startDate, $order);
+            $result = $attendanceModel->syncCourseSubjects($courseId, $subjectIds, $startDate, $order);
             $message = 'Materias registradas: ' . (string) $result['created'] . '.';
 
-            if ((int) $result['skipped'] > 0) {
-                $message .= ' Ya existian activas: ' . (string) $result['skipped'] . '.';
+            if ((int) $result['removed'] > 0) {
+                $message .= ' Materias retiradas: ' . (string) $result['removed'] . '.';
             }
 
-            sessionFlash((int) $result['created'] > 0 ? 'success' : 'error', $message);
+            if ((int) $result['created'] === 0 && (int) $result['removed'] === 0) {
+                $message .= ' Sin cambios.';
+            }
+
+            sessionFlash('success', $message);
         } catch (Throwable) {
-            sessionFlash('error', 'No se pudieron registrar las materias del curso.');
+            sessionFlash('error', 'No se pudieron actualizar las materias del curso.');
         }
 
         $this->redirect('/configuracion/academica/materias-curso');

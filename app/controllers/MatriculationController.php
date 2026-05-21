@@ -22,6 +22,7 @@ class MatriculationController extends Controller
         $activePanel = $this->activePanel();
         $viewedPeriod = currentAcademicPeriod();
         $enabledMatriculationPeriod = $matriculationConfigurationModel->findEnabledPeriod();
+        $enabledMatriculationPeriodId = $enabledMatriculationPeriod !== false ? (int) $enabledMatriculationPeriod['pleid'] : null;
         $newMatriculaPeriod = $enabledMatriculationPeriod !== false ? $enabledMatriculationPeriod : $viewedPeriod;
         $matriculationConfiguration = is_array($newMatriculaPeriod)
             ? $matriculationConfigurationModel->findByPeriodId((int) $newMatriculaPeriod['pleid'])
@@ -62,7 +63,9 @@ class MatriculationController extends Controller
             'birthTypes' => $matriculationModel->allBirthTypes(),
             'enrollmentStatuses' => $matriculationModel->allEnrollmentStatuses(),
             'documents' => $documents,
-            'matriculas' => $viewedPeriod !== null ? $matriculationModel->allByPeriod((int) $viewedPeriod['pleid']) : [],
+            'matriculas' => $viewedPeriod !== null
+                ? $matriculationModel->allByPeriod((int) $viewedPeriod['pleid'], [], $enabledMatriculationPeriodId)
+                : [],
             'managementCourses' => is_array($viewedPeriod) ? $matriculationModel->allCoursesByPeriod((int) $viewedPeriod['pleid']) : [],
             'canEditMatriculas' => $this->canEditMatriculations($user),
             'success' => null,
@@ -70,6 +73,7 @@ class MatriculationController extends Controller
             'matriculaFormFeedback' => $this->matriculaFormFeedback(),
             'matriculaListFeedback' => $this->matriculaListFeedback(),
             'old' => $this->oldFormData(),
+            'canToggleRepresentativeMatriculation' => $enabledMatriculationPeriodId !== null,
         ]);
     }
 
@@ -81,6 +85,8 @@ class MatriculationController extends Controller
 
         $period = currentAcademicPeriod();
         $periodId = is_array($period) ? (int) $period['pleid'] : 0;
+        $enabledPeriod = (new MatriculationConfigurationModel())->findEnabledPeriod();
+        $enabledPeriodId = $enabledPeriod !== false ? (int) $enabledPeriod['pleid'] : null;
 
         if ($periodId <= 0) {
             echo json_encode([
@@ -97,10 +103,14 @@ class MatriculationController extends Controller
             'curid' => (int) ($_GET['curid'] ?? 0),
             'emdid' => (int) ($_GET['emdid'] ?? 0),
             'usuario' => trim((string) ($_GET['usuario'] ?? '')),
-        ]);
+        ], $enabledPeriodId);
 
         echo json_encode([
-            'html' => $this->matriculationRowsHtml($matriculas, $this->canEditMatriculations($user)),
+            'html' => $this->matriculationRowsHtml(
+                $matriculas,
+                $this->canEditMatriculations($user),
+                $enabledPeriodId !== null
+            ),
             'count' => count($matriculas),
             'isEmpty' => $matriculas === [],
             'emptyHtml' => '<div class="empty-state">No se encontraron matriculas con esos filtros.</div>',
@@ -428,6 +438,77 @@ class MatriculationController extends Controller
                 ? 'Matricula habilitada correctamente. El estudiante queda activo.'
                 : 'Matricula inhabilitada correctamente. El estudiante queda inactivo.'
         );
+        $this->redirect($redirectTo);
+    }
+
+    public function toggleRepresentativeMatriculation(): void
+    {
+        $user = $this->requireAuth();
+
+        $representativeUserId = (int) ($_POST['rep_usuid'] ?? 0);
+        $representativePersonId = (int) ($_POST['rep_perid'] ?? 0);
+        $redirectTo = trim((string) ($_POST['redirect_to'] ?? '/matriculas?panel=gestion#matriculas-registradas'));
+        $period = (new MatriculationConfigurationModel())->findEnabledPeriod();
+
+        if ($representativeUserId <= 0 || $representativePersonId <= 0) {
+            $this->flashMatriculaListFeedback('error', 'El representante seleccionado no es valido.');
+            $this->redirect($redirectTo);
+        }
+
+        if ($period === false) {
+            $this->flashMatriculaListFeedback('error', 'No existe un periodo lectivo con matricula habilitada.');
+            $this->redirect($redirectTo);
+        }
+
+        $userModel = new UserModel();
+        $representativeUser = $userModel->userWithPerson($representativeUserId);
+
+        if ($representativeUser === false
+            || (int) ($representativeUser['perid'] ?? 0) !== $representativePersonId
+        ) {
+            $this->flashMatriculaListFeedback('error', 'El representante seleccionado no es valido.');
+            $this->redirect($redirectTo);
+        }
+
+        $authorizationModel = new RepresentativeMatriculationAuthorizationModel();
+        $activeAuthorization = $authorizationModel->activeByUserAndPeriod($representativeUserId, (int) $period['pleid']);
+
+        try {
+            if ($activeAuthorization !== false) {
+                $authorizationModel->annul(
+                    (int) $activeAuthorization['rhmid'],
+                    (int) ($user['usuid'] ?? 0),
+                    'Deshabilitado desde gestion de matriculas'
+                );
+                $userModel->syncRoleByPerson($representativePersonId, 'Representante matricula nueva', false);
+
+                $this->flashMatriculaListFeedback('success', 'Matricula para el proximo periodo lectivo deshabilitada correctamente.');
+            } else {
+                if (empty($representativeUser['usuestado'])) {
+                    $this->flashMatriculaListFeedback('error', 'El representante seleccionado no tiene un usuario activo.');
+                    $this->redirect($redirectTo);
+                }
+
+                if (!$userModel->userHasRole($representativeUserId, 'Representante')) {
+                    $this->flashMatriculaListFeedback('error', 'El representante seleccionado no tiene rol formal de representante.');
+                    $this->redirect($redirectTo);
+                }
+
+                $authorizationModel->createForUser(
+                    $representativeUserId,
+                    (int) $period['pleid'],
+                    (int) ($user['usuid'] ?? 0),
+                    null,
+                    'Habilitado desde gestion de matriculas'
+                );
+                $userModel->assignRoleToUser($representativeUserId, 'Representante matricula nueva');
+
+                $this->flashMatriculaListFeedback('success', 'Habilitar matricula para el proximo periodo lectivo.');
+            }
+        } catch (\Throwable $exception) {
+            $this->flashMatriculaListFeedback('error', $exception->getMessage());
+        }
+
         $this->redirect($redirectTo);
     }
 
@@ -1625,8 +1706,9 @@ class MatriculationController extends Controller
         );
     }
 
-    private function matriculationRowsHtml(array $matriculas, bool $canEditMatriculas): string
+    private function matriculationRowsHtml(array $matriculas, bool $canEditMatriculas, bool $canToggleRepresentativeMatriculation): string
     {
+        $canToggleRepresentativeMatriculation = $canToggleRepresentativeMatriculation;
         ob_start();
         require BASE_PATH . '/app/views/matriculas/_rows.php';
 

@@ -145,10 +145,11 @@ class MatriculationModel extends Model
         return $types[0];
     }
 
-    public function allByPeriod(int $periodId, array $filters = []): array
+    public function allByPeriod(int $periodId, array $filters = [], ?int $authorizationPeriodId = null): array
     {
         $conditions = ['c.pleid = :period_id'];
         $params = ['period_id' => $periodId];
+        $params['authorization_period_id'] = $authorizationPeriodId;
         $search = trim((string) ($filters['q'] ?? ''));
         $courseId = (int) ($filters['curid'] ?? 0);
         $statusId = (int) ($filters['emdid'] ?? 0);
@@ -196,12 +197,17 @@ class MatriculationModel extends Model
                     u.usuid AS student_usuid,
                     u.usunombre AS student_usunombre,
                     u.usuestado AS student_usuestado,
+                    rp.perid AS rep_perid,
                     rp.perapellidos AS rep_apellidos,
                     rp.pernombres AS rep_nombres,
                     pt.ptenombre AS rep_parentesco,
                     ru.usuid AS rep_usuid,
                     ru.usunombre AS rep_usunombre,
-                    ru.usuestado AS rep_usuestado
+                    ru.usuestado AS rep_usuestado,
+                    rhm.rhmid AS rep_rhmid,
+                    rhm.rhmestado AS rep_rhmestado,
+                    rhm.rhmfecha_expiracion AS rep_rhmfecha_expiracion,
+                    rhm.rhmfecha_uso AS rep_rhmfecha_uso
              FROM {$this->table} m
              INNER JOIN estudiante e ON e.estid = m.estid
              INNER JOIN persona p ON p.perid = e.perid
@@ -215,6 +221,11 @@ class MatriculationModel extends Model
              LEFT JOIN persona rp ON rp.perid = mr.perid
              LEFT JOIN usuario ru ON ru.perid = rp.perid
              LEFT JOIN parentesco pt ON pt.pteid = mr.pteid
+             LEFT JOIN representante_habilitacion_matricula rhm
+                    ON rhm.usuid = ru.usuid
+                   AND rhm.pleid = COALESCE(:authorization_period_id, -1)
+                   AND rhm.rhmestado = 'ACTIVO'
+                   AND (rhm.rhmfecha_expiracion IS NULL OR rhm.rhmfecha_expiracion >= CURRENT_TIMESTAMP)
              WHERE {$whereSql}
              ORDER BY m.matfecha DESC, p.perapellidos ASC, p.pernombres ASC"
         );

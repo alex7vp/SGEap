@@ -29,12 +29,19 @@ $subjectDisplayTypes = ['CUANTITATIVA', 'CUALITATIVA', 'MIXTA'];
 $subjectGroupCalculationModes = ['PROMEDIO_SIMPLE', 'PROMEDIO_PONDERADO', 'SUMA'];
 $subjectGroupDisplayModes = ['GRUPO', 'REPRESENTANTE'];
 $subjectConfigurationAreas = [];
+$subjectConfigurationGrades = [];
 foreach ($subjectConfigurations as $subjectConfiguration) {
     $areaId = (int) ($subjectConfiguration['areaid'] ?? 0);
     if ($areaId > 0) {
         $subjectConfigurationAreas[$areaId] = (string) ($subjectConfiguration['areanombre'] ?? '');
     }
+
+    $gradeId = (int) ($subjectConfiguration['graid'] ?? 0);
+    if ($gradeId > 0) {
+        $subjectConfigurationGrades[$gradeId] = (string) ($subjectConfiguration['granombre'] ?? '');
+    }
 }
+asort($subjectConfigurationGrades);
 ?>
 <p class="module-note">Revisa y ajusta la configuracion real del periodo antes de activar el perfil para registro de notas.</p>
 
@@ -425,6 +432,18 @@ foreach ($subjectConfigurations as $subjectConfiguration) {
         <?php if (empty($subjectConfigurations)): ?>
             <div class="empty-state">No hay materias aplicables. Configura primero las asignaciones del perfil.</div>
         <?php else: ?>
+            <?php if (count($subjectConfigurationGrades) > 1): ?>
+                <div class="grade-subject-group-filter" data-subject-group-grade-filter-wrap>
+                    <label for="subject-group-grade-filter">Grado</label>
+                    <select id="subject-group-grade-filter" data-subject-group-grade-filter>
+                        <option value="">Todos los grados</option>
+                        <?php foreach ($subjectConfigurationGrades as $gradeId => $gradeName): ?>
+                            <option value="<?= $h($gradeId); ?>"><?= $h($gradeName); ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+            <?php endif; ?>
+
             <div class="table-wrap">
                 <table class="data-table">
                     <thead>
@@ -477,7 +496,7 @@ foreach ($subjectConfigurations as $subjectConfiguration) {
                                     <select name="groups[<?= $h($groupId); ?>][gmcmtcid_representante]" disabled data-grade-profile-field>
                                         <option value="">Sin representante</option>
                                         <?php foreach ($subjectConfigurations as $subject): ?>
-                                            <option value="<?= $h($subject['mtcid']); ?>" <?= (int) ($group['gmcmtcid_representante'] ?? 0) === (int) $subject['mtcid'] ? 'selected' : ''; ?>>
+                                            <option value="<?= $h($subject['mtcid']); ?>" data-grade-id="<?= $h($subject['graid'] ?? ''); ?>" <?= (int) ($group['gmcmtcid_representante'] ?? 0) === (int) $subject['mtcid'] ? 'selected' : ''; ?>>
                                                 <?= $h($subject['granombre'] . ' ' . $subject['prlnombre'] . ' | ' . $subject['asgnombre']); ?>
                                             </option>
                                         <?php endforeach; ?>
@@ -497,7 +516,7 @@ foreach ($subjectConfigurations as $subjectConfiguration) {
                                     <div hidden data-grade-profile-edit-control>
                                     <?php foreach ($subjectConfigurations as $subject): ?>
                                         <?php $checked = in_array((int) $subject['mtcid'], $groupSubjectIds, true); ?>
-                                        <label class="checkbox-inline">
+                                        <label class="checkbox-inline" data-subject-group-subject data-grade-id="<?= $h($subject['graid'] ?? ''); ?>">
                                             <input
                                                 type="checkbox"
                                                 name="groups[<?= $h($groupId); ?>][mtcid][]"
@@ -550,7 +569,7 @@ foreach ($subjectConfigurations as $subjectConfiguration) {
                                     <select name="new_groups[0][gmcmtcid_representante]" disabled data-grade-profile-field>
                                         <option value="">Sin representante</option>
                                         <?php foreach ($subjectConfigurations as $subject): ?>
-                                            <option value="<?= $h($subject['mtcid']); ?>"><?= $h($subject['granombre'] . ' ' . $subject['prlnombre'] . ' | ' . $subject['asgnombre']); ?></option>
+                                            <option value="<?= $h($subject['mtcid']); ?>" data-grade-id="<?= $h($subject['graid'] ?? ''); ?>"><?= $h($subject['granombre'] . ' ' . $subject['prlnombre'] . ' | ' . $subject['asgnombre']); ?></option>
                                         <?php endforeach; ?>
                                     </select>
                                 </td>
@@ -561,7 +580,7 @@ foreach ($subjectConfigurations as $subjectConfiguration) {
                                 <td><input type="checkbox" name="new_groups[0][gmcestado]" value="1" checked disabled data-grade-profile-field></td>
                                 <td>
                                     <?php foreach ($subjectConfigurations as $subject): ?>
-                                        <label class="checkbox-inline">
+                                        <label class="checkbox-inline" data-subject-group-subject data-grade-id="<?= $h($subject['graid'] ?? ''); ?>">
                                             <input
                                                 type="checkbox"
                                                 name="new_groups[0][mtcid][]"

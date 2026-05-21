@@ -3241,11 +3241,50 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const addSubjectGroupButton = gradeProfileForm.querySelector('[data-subject-group-add]');
         const newSubjectGroupRow = gradeProfileForm.querySelector('[data-subject-group-new-row]');
+        const subjectGroupGradeFilter = gradeProfileForm.querySelector('[data-subject-group-grade-filter]');
+
+        const applySubjectGroupGradeFilter = () => {
+            if (!(subjectGroupGradeFilter instanceof HTMLSelectElement)) {
+                return;
+            }
+
+            const gradeId = subjectGroupGradeFilter.value;
+
+            gradeProfileForm.querySelectorAll('[data-subject-group-subject]').forEach((subjectOption) => {
+                if (!(subjectOption instanceof HTMLElement)) {
+                    return;
+                }
+
+                const input = subjectOption.querySelector('input');
+                const isSelectedGrade = gradeId === '' || subjectOption.dataset.gradeId === gradeId;
+                const isChecked = input instanceof HTMLInputElement && input.checked;
+
+                subjectOption.hidden = !isSelectedGrade && !isChecked;
+            });
+
+            gradeProfileForm.querySelectorAll('select[name$="[gmcmtcid_representante]"]').forEach((representativeSelect) => {
+                if (!(representativeSelect instanceof HTMLSelectElement)) {
+                    return;
+                }
+
+                Array.from(representativeSelect.options).forEach((option) => {
+                    const optionGradeId = option.dataset.gradeId || '';
+                    const isSelectedGrade = gradeId === '' || optionGradeId === '' || optionGradeId === gradeId;
+                    option.hidden = !isSelectedGrade && !option.selected;
+                });
+            });
+        };
+
+        if (subjectGroupGradeFilter instanceof HTMLSelectElement) {
+            subjectGroupGradeFilter.addEventListener('change', applySubjectGroupGradeFilter);
+            applySubjectGroupGradeFilter();
+        }
 
         if (addSubjectGroupButton instanceof HTMLButtonElement && newSubjectGroupRow instanceof HTMLTableRowElement) {
             addSubjectGroupButton.addEventListener('click', () => {
                 newSubjectGroupRow.hidden = false;
                 addSubjectGroupButton.hidden = true;
+                applySubjectGroupGradeFilter();
                 newSubjectGroupRow.querySelector('input, select')?.focus();
             });
         }
@@ -3349,14 +3388,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 if (checkbox instanceof HTMLInputElement) {
                     checkbox.checked = isAssigned;
-                    checkbox.disabled = isAssigned;
+                    checkbox.disabled = false;
                 }
 
                 if (status instanceof HTMLElement) {
-                    status.textContent = isAssigned ? 'Ya asignada' : 'Disponible';
+                    status.textContent = isAssigned ? 'Ya asignada, desmarque para retirar' : 'Disponible';
                 }
 
-                row.classList.toggle('is-deleted', isAssigned);
+                row.classList.toggle('is-deleted', false);
             });
         };
 
@@ -3364,15 +3403,6 @@ document.addEventListener('DOMContentLoaded', () => {
             courseSelect.addEventListener('change', updateCourseSubjectRows);
             updateCourseSubjectRows();
         }
-
-        courseSubjectBulkForm.addEventListener('submit', (event) => {
-            const selected = courseSubjectBulkForm.querySelectorAll('[data-course-subject-checkbox]:checked:not(:disabled)');
-
-            if (selected.length === 0) {
-                event.preventDefault();
-                window.alert('Seleccione al menos una asignatura nueva para el curso.');
-            }
-        });
     }
 
     const teacherSubjectBulkForm = document.querySelector('[data-teacher-subject-bulk-form]');
