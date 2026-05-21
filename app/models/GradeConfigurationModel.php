@@ -982,6 +982,7 @@ class GradeConfigurationModel extends Model
                      gmcvisualizacion = :display_mode,
                      gmcpromediable = :averages,
                      gmcvisible_libreta = :report_visible,
+                     gmcusa_equivalencia = :uses_equivalence,
                      gmcestado = :status,
                      gmcorden = :order_number,
                      gmcfecha_modificacion = CURRENT_TIMESTAMP
@@ -1408,6 +1409,7 @@ class GradeConfigurationModel extends Model
             'display_mode' => $displayMode,
             'averages' => empty($data['gmcpromediable']) ? 'false' : 'true',
             'report_visible' => empty($data['gmcvisible_libreta']) ? 'false' : 'true',
+            'uses_equivalence' => empty($data['gmcusa_equivalencia']) ? 'false' : 'true',
             'status' => empty($data['gmcestado']) ? 'false' : 'true',
             'order_number' => max(1, (int) ($data['gmcorden'] ?? 1)),
         ];
@@ -1482,6 +1484,7 @@ class GradeConfigurationModel extends Model
                 gmcvisualizacion,
                 gmcpromediable,
                 gmcvisible_libreta,
+                gmcusa_equivalencia,
                 gmcestado,
                 gmcorden
              ) VALUES (
@@ -1494,6 +1497,7 @@ class GradeConfigurationModel extends Model
                 :display_mode,
                 :averages,
                 :report_visible,
+                :uses_equivalence,
                 :status,
                 :order_number
              )
@@ -1614,6 +1618,7 @@ class GradeConfigurationModel extends Model
                     gmc.gmcdescripcion,
                     gmc.gmcpromediable AS grupo_promediable,
                     gmc.gmcvisible_libreta AS grupo_visible_libreta,
+                    gmc.gmcusa_equivalencia AS grupo_usa_equivalencia,
                     gd.gmcdvisible_detalle,
                     CASE
                         WHEN gmc.gmcid IS NULL THEN COALESCE(mcc.mccpromediable, true)

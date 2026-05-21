@@ -26,6 +26,12 @@ $canOwnAttendance = $can('asistencia.ver_propia');
 $canRepresentativeAttendance = $can('asistencia.representante.ver');
 $canOwnNovelties = $can('novedades.ver_propia');
 $canRepresentativeNovelties = $can('novedades.representante.ver');
+$canGradesModule = $can('calificaciones.registrar')
+    || $can('calificaciones.editar')
+    || $can('calificaciones.configurar')
+    || $can('calificaciones.validar')
+    || $can('calificaciones.publicar')
+    || $can('calificaciones.auditoria.ver');
 $canNoveltiesModule = $can('novedades.registrar')
     || $can('novedades.supervisar')
     || $canOwnNovelties
@@ -76,6 +82,7 @@ $metricCards = array_values(array_filter($metricCards, static fn (array $card): 
 
 $quickLinks = [
     ['visible' => $canAttendanceModule, 'label' => 'Novedades y asistencia', 'url' => baseUrl('asistencia')],
+    ['visible' => $canGradesModule, 'label' => 'Calificaciones', 'url' => baseUrl('calificaciones/registro')],
     ['visible' => $canOwnMatriculation, 'label' => 'Mi matricula', 'url' => baseUrl('mi-matricula')],
     ['visible' => $canOwnAttendance || $canOwnNovelties, 'label' => 'Mi asistencia y novedades', 'url' => baseUrl('asistencia/mi-asistencia')],
     ['visible' => $canRepresentativeStudents, 'label' => 'Mis estudiantes', 'url' => baseUrl('dashboard')],

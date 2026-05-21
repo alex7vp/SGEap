@@ -45,6 +45,7 @@ return static function (Router $router): void {
     $router->get('/configuracion/academica', [ModuleController::class, 'academicConfiguration']);
     $router->get('/reportes', [ModuleController::class, 'reports']);
     $router->get('/reportes/asistencia', [AttendanceController::class, 'reports']);
+    $router->get('/reportes/libreta', [GradebookController::class, 'reportCard']);
     $router->get('/reportes/cuadro-final', [GradebookController::class, 'finalChart']);
     $router->get('/seguridad', [ModuleController::class, 'security']);
     $router->post('/logout', [AuthController::class, 'logout']);
@@ -105,6 +106,7 @@ return static function (Router $router): void {
     $router->post('/seguridad/catalogos/actualizar', [SecurityController::class, 'updateCatalogItem']);
     $router->post('/seguridad/catalogos/eliminar', [SecurityController::class, 'deleteCatalogItem']);
     $router->get('/seguridad/roles-permisos', [SecurityController::class, 'rolePermissions']);
+    $router->get('/seguridad/roles-permisos/buscar', [SecurityController::class, 'searchRolePermissions']);
     $router->get('/seguridad/usuarios-roles', [SecurityController::class, 'userRoles']);
     $router->get('/seguridad/usuarios-roles/buscar', [SecurityController::class, 'searchUserRoles']);
     $router->post('/seguridad/usuarios', [SecurityController::class, 'storeUser']);

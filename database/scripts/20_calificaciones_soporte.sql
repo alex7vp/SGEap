@@ -292,17 +292,3 @@ LEFT JOIN materia_calificacion_config mcc
     ON mcc.mtcid = v.mtcid
     AND mcc.pcaid = v.pcaid
     AND mcc.mccestado = true;
-
-INSERT INTO permiso (prmnombre, prmcodigo, prmdescripcion, prmestado)
-VALUES
-    ('Calificaciones - plantillas', 'calificaciones.plantillas.gestionar', 'Gestion de plantillas base de configuracion de calificaciones', true)
-ON CONFLICT (prmcodigo) DO NOTHING;
-
-INSERT INTO rol_permiso (rolid, prmid, rpeestado)
-SELECT r.rolid, p.prmid, true
-FROM rol r
-INNER JOIN permiso p ON p.prmcodigo = 'calificaciones.plantillas.gestionar'
-WHERE r.rolnombre IN ('Administrador', 'Rector', 'Coordinador')
-ON CONFLICT (rolid, prmid) DO UPDATE
-SET rpeestado = EXCLUDED.rpeestado,
-    rpefecha_modificacion = CURRENT_TIMESTAMP;

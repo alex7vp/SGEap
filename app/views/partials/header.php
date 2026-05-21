@@ -76,6 +76,7 @@ $sectionModuleMap = [
     'calificaciones' => 'configuracion',
     'reportes_home' => 'reportes',
     'reporte_asistencia' => 'reportes',
+    'reporte_libreta' => 'reportes',
     'reporte_cuadro_final' => 'reportes',
     'seguridad_home' => 'seguridad',
     'seguridad_catalogos' => 'seguridad',
@@ -187,6 +188,12 @@ $sidebarModules = [
                 'icon' => 'fa-calendar-check-o',
             ],
             [
+                'key' => 'reporte_libreta',
+                'label' => 'Libreta de calificaciones',
+                'url' => baseUrl('reportes/libreta'),
+                'icon' => 'fa-file-text-o',
+            ],
+            [
                 'key' => 'reporte_cuadro_final',
                 'label' => 'Cuadro final',
                 'url' => baseUrl('reportes/cuadro-final'),
@@ -292,14 +299,14 @@ $permissionMap = [
     'novedades_supervision' => 'novedades.supervisar',
     'novedades_propias' => 'novedades.ver_propia',
     'novedades_representante' => 'novedades.representante.ver',
-    'academico_home' => ['estudiantes.gestionar', 'personas.gestionar', 'matriculas.gestionar', 'asistencia.calendario.gestionar', 'asistencia.registrar', 'asistencia.supervisar', 'justificaciones.gestionar', 'asistencia.ver_propia', 'asistencia.representante.ver', 'novedades.registrar', 'novedades.supervisar', 'novedades.ver_propia', 'novedades.representante.ver'],
+    'academico_home' => ['estudiantes.gestionar', 'personas.gestionar', 'matriculas.gestionar', 'asistencia.calendario.gestionar', 'asistencia.registrar', 'asistencia.supervisar', 'justificaciones.gestionar', 'asistencia.ver_propia', 'asistencia.representante.ver', 'novedades.registrar', 'novedades.supervisar', 'novedades.ver_propia', 'novedades.representante.ver', 'calificaciones.registrar', 'calificaciones.editar', 'calificaciones.configurar', 'calificaciones.validar', 'calificaciones.publicar', 'calificaciones.auditoria.ver'],
     'estudiantes' => 'estudiantes.gestionar',
     'personal' => 'personas.gestionar',
     'personal_register' => 'personas.gestionar',
     'personal_assignment' => 'personas.gestionar',
     'personal_listing' => 'personas.gestionar',
     'matriculas' => 'matriculas.gestionar',
-    'calificaciones_registro' => ['asistencia.registrar', 'calificaciones.registrar', 'calificaciones.configurar'],
+    'calificaciones_registro' => ['asistencia.registrar', 'calificaciones.registrar', 'calificaciones.editar', 'calificaciones.configurar', 'calificaciones.validar', 'calificaciones.publicar', 'calificaciones.auditoria.ver'],
     'asistencia_home' => ['asistencia.calendario.gestionar', 'asistencia.registrar', 'asistencia.supervisar', 'justificaciones.gestionar', 'asistencia.ver_propia', 'asistencia.representante.ver', 'novedades.registrar', 'novedades.supervisar', 'novedades.ver_propia', 'novedades.representante.ver'],
     'asistencia_configuracion' => 'asistencia.calendario.gestionar',
     'asistencia_calendario' => 'asistencia.calendario.gestionar',
@@ -321,7 +328,8 @@ $permissionMap = [
     'docentes_materias' => 'asistencia.calendario.gestionar',
     'calificaciones' => ['calificaciones.configurar', 'calificaciones.plantillas.gestionar'],
     'reporte_asistencia' => 'asistencia.supervisar',
-    'reporte_cuadro_final' => ['calificaciones.validar', 'calificaciones.configurar', 'calificaciones.registrar'],
+    'reporte_libreta' => ['calificaciones.validar', 'calificaciones.configurar', 'calificaciones.registrar', 'calificaciones.editar', 'calificaciones.publicar'],
+    'reporte_cuadro_final' => ['calificaciones.validar', 'calificaciones.configurar', 'calificaciones.registrar', 'calificaciones.editar'],
     'seguridad_home' => ['seguridad.usuarios', 'seguridad.roles_permisos', 'usuarios_temporales.gestionar'],
     'seguridad_catalogos' => 'seguridad.roles_permisos',
     'seguridad_usuarios' => 'seguridad.usuarios',
@@ -346,8 +354,8 @@ $canAccess = static function (string $key) use ($permissionMap, $userPermissions
 };
 $modulePermissions = [
     'inicio' => ['dashboard.ver', 'matricula_temporal.ver', 'representante.matricula_nueva', 'estudiante.mi_matricula', 'representante.estudiantes', 'asistencia.ver_propia', 'asistencia.representante.ver', 'novedades.ver_propia', 'novedades.representante.ver'],
-    'academico' => ['estudiantes.gestionar', 'personas.gestionar', 'matriculas.gestionar', 'asistencia.calendario.gestionar', 'asistencia.registrar', 'asistencia.supervisar', 'justificaciones.gestionar', 'asistencia.ver_propia', 'asistencia.representante.ver', 'novedades.registrar', 'novedades.supervisar', 'novedades.ver_propia', 'novedades.representante.ver', 'calificaciones.registrar', 'calificaciones.configurar'],
-    'reportes' => ['dashboard.ver', 'asistencia.supervisar', 'calificaciones.validar', 'calificaciones.configurar', 'calificaciones.registrar'],
+    'academico' => ['estudiantes.gestionar', 'personas.gestionar', 'matriculas.gestionar', 'asistencia.calendario.gestionar', 'asistencia.registrar', 'asistencia.supervisar', 'justificaciones.gestionar', 'asistencia.ver_propia', 'asistencia.representante.ver', 'novedades.registrar', 'novedades.supervisar', 'novedades.ver_propia', 'novedades.representante.ver', 'calificaciones.registrar', 'calificaciones.editar', 'calificaciones.configurar', 'calificaciones.validar', 'calificaciones.publicar', 'calificaciones.auditoria.ver'],
+    'reportes' => ['dashboard.ver', 'asistencia.supervisar', 'calificaciones.validar', 'calificaciones.configurar', 'calificaciones.registrar', 'calificaciones.editar', 'calificaciones.publicar'],
     'configuracion' => ['configuracion.gestionar', 'catalogos.gestionar', 'cursos.gestionar', 'matriculas.documentos', 'asistencia.calendario.gestionar', 'calificaciones.configurar', 'calificaciones.plantillas.gestionar'],
     'seguridad' => ['seguridad.usuarios', 'seguridad.roles_permisos', 'usuarios_temporales.gestionar'],
 ];
@@ -586,7 +594,21 @@ foreach ($logoPatterns as $logoPattern) {
             </header>
 
             <div class="content-body">
-                <?php if (!empty($error)): ?>
+                <?php if (($currentSection ?? '') === 'calificaciones_registro' && (!empty($error) || !empty($success))): ?>
+                    <dialog class="calendar-dialog gradebook-feedback-dialog" data-gradebook-feedback-dialog>
+                        <header class="security-assignment-header">
+                            <div>
+                                <h3><?= !empty($error) ? 'No se pudo completar la accion' : 'Accion completada'; ?></h3>
+                                <p><?= htmlspecialchars((string) (!empty($error) ? $error : $success), ENT_QUOTES, 'UTF-8'); ?></p>
+                            </div>
+                        </header>
+                        <div class="actions-row">
+                            <button class="btn-primary btn-inline" type="button" data-gradebook-feedback-close>Aceptar</button>
+                        </div>
+                    </dialog>
+                <?php endif; ?>
+
+                <?php if (($currentSection ?? '') !== 'calificaciones_registro' && !empty($error)): ?>
                     <div class="alert alert-error alert-dismissible" data-alert>
                         <span><?= htmlspecialchars((string) $error, ENT_QUOTES, 'UTF-8'); ?></span>
                         <button class="alert-close" type="button" aria-label="Cerrar notificacion" data-alert-close>
@@ -595,7 +617,7 @@ foreach ($logoPatterns as $logoPattern) {
                     </div>
                 <?php endif; ?>
 
-                <?php if (!empty($success)): ?>
+                <?php if (($currentSection ?? '') !== 'calificaciones_registro' && !empty($success)): ?>
                     <div class="alert alert-success alert-dismissible" data-alert>
                         <span><?= htmlspecialchars((string) $success, ENT_QUOTES, 'UTF-8'); ?></span>
                         <button class="alert-close" type="button" aria-label="Cerrar notificacion" data-alert-close>

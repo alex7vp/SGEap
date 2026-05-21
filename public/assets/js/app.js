@@ -28,6 +28,111 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    const gradebookFeedbackDialog = document.querySelector('[data-gradebook-feedback-dialog]');
+
+    if (gradebookFeedbackDialog instanceof HTMLDialogElement) {
+        const closeButton = gradebookFeedbackDialog.querySelector('[data-gradebook-feedback-close]');
+
+        if (typeof gradebookFeedbackDialog.showModal === 'function') {
+            gradebookFeedbackDialog.showModal();
+        } else {
+            gradebookFeedbackDialog.setAttribute('open', 'open');
+        }
+
+        if (closeButton instanceof HTMLButtonElement) {
+            closeButton.addEventListener('click', () => {
+                if (typeof gradebookFeedbackDialog.close === 'function') {
+                    gradebookFeedbackDialog.close('confirm');
+                    return;
+                }
+
+                gradebookFeedbackDialog.removeAttribute('open');
+            });
+        }
+    }
+
+    const rolePermissionFilter = document.querySelector('[data-role-permission-filter]');
+    const rolePermissionSelect = document.querySelector('[data-role-permission-select]');
+    const rolePermissionPanel = document.querySelector('[data-role-permission-panel]');
+    const rolePermissionStatus = document.querySelector('[data-role-permission-status]');
+
+    if (
+        rolePermissionFilter instanceof HTMLFormElement
+        && rolePermissionSelect instanceof HTMLSelectElement
+        && rolePermissionPanel instanceof HTMLElement
+    ) {
+        const syncRolePermissionUrl = () => {
+            const url = new URL(rolePermissionFilter.action, window.location.origin);
+            url.searchParams.set(rolePermissionSelect.name || 'rolid', rolePermissionSelect.value);
+            window.history.replaceState({}, '', url.toString());
+        };
+
+        const wireLoadedAlerts = () => {
+            rolePermissionPanel.querySelectorAll('[data-alert-close]').forEach((button) => {
+                if (!(button instanceof HTMLButtonElement)) {
+                    return;
+                }
+
+                button.addEventListener('click', () => {
+                    const alert = button.closest('[data-alert]');
+
+                    if (alert instanceof HTMLElement) {
+                        alert.remove();
+                    }
+                });
+            });
+        };
+
+        const loadRolePermissions = async () => {
+            const baseUrl = rolePermissionSelect.dataset.rolePermissionUrl || '';
+
+            if (baseUrl === '') {
+                rolePermissionFilter.submit();
+                return;
+            }
+
+            const selectedOption = rolePermissionSelect.selectedOptions[0];
+
+            if (rolePermissionStatus instanceof HTMLElement) {
+                rolePermissionStatus.textContent = 'Cargando permisos...';
+            }
+
+            const url = new URL(baseUrl, window.location.origin);
+            url.searchParams.set('rolid', rolePermissionSelect.value);
+
+            try {
+                const response = await fetch(url.toString(), {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                });
+
+                if (!response.ok) {
+                    throw new Error('Role permission request failed');
+                }
+
+                const payload = await response.json();
+                rolePermissionPanel.innerHTML = payload.html || '<div class="empty-state">No se pudo cargar el rol seleccionado.</div>';
+                wireLoadedAlerts();
+                syncRolePermissionUrl();
+
+                if (rolePermissionStatus instanceof HTMLElement) {
+                    rolePermissionStatus.textContent = selectedOption
+                        ? 'Mostrando permisos de ' + selectedOption.textContent.trim()
+                        : 'Seleccione un rol';
+                }
+            } catch (error) {
+                rolePermissionPanel.innerHTML = '<div class="empty-state">No se pudo cargar el rol seleccionado.</div>';
+
+                if (rolePermissionStatus instanceof HTMLElement) {
+                    rolePermissionStatus.textContent = 'Error al cargar permisos';
+                }
+            }
+        };
+
+        rolePermissionSelect.addEventListener('change', loadRolePermissions);
+    }
+
     const gradebookTables = document.querySelectorAll('[data-gradebook-table]');
 
     gradebookTables.forEach((table) => {
@@ -89,6 +194,16 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         });
 
+        const pendingEditActivityId = new URLSearchParams(window.location.search).get('edit_aciid');
+
+        if (pendingEditActivityId) {
+            const pendingEditButton = table.querySelector(`[data-gradebook-edit-column="${CSS.escape(pendingEditActivityId)}"]`);
+
+            if (pendingEditButton instanceof HTMLButtonElement && !pendingEditButton.disabled) {
+                pendingEditButton.click();
+            }
+        }
+
         inputs.forEach((input) => {
             if (!(input instanceof HTMLInputElement)) {
                 return;
@@ -114,6 +229,77 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             });
         }
+    });
+
+    document.querySelectorAll('[data-report-card-chart]').forEach((canvas) => {
+        if (!(canvas instanceof HTMLCanvasElement) || typeof window.Chart === 'undefined') {
+            return;
+        }
+
+        let payload = { labels: [], scores: [], datasets: [] };
+
+        try {
+            payload = JSON.parse(canvas.dataset.reportCard || '{}');
+        } catch (error) {
+            payload = { labels: [], scores: [], datasets: [] };
+        }
+
+        if (!Array.isArray(payload.labels) || payload.labels.length === 0) {
+            return;
+        }
+
+        const palette = [
+            ['#dd6b13', 'rgba(221, 107, 19, 0.88)'],
+            ['#082a66', 'rgba(8, 42, 102, 0.88)'],
+            ['#2f8f83', 'rgba(47, 143, 131, 0.88)'],
+        ];
+        const datasets = Array.isArray(payload.datasets) && payload.datasets.length > 0
+            ? payload.datasets.map((dataset, index) => {
+                const colors = palette[index % palette.length];
+
+                return {
+                    label: dataset.label || 'Promedio',
+                    data: Array.isArray(dataset.data) ? dataset.data : [],
+                    borderColor: colors[0],
+                    backgroundColor: colors[1],
+                    borderWidth: 1,
+                };
+            })
+            : [{
+                label: 'Promedio',
+                data: Array.isArray(payload.scores) ? payload.scores : [],
+                borderColor: '#0f4c81',
+                backgroundColor: 'rgba(15, 76, 129, 0.72)',
+                borderWidth: 1,
+            }];
+
+        new window.Chart(canvas, {
+            type: 'bar',
+            data: {
+                labels: payload.labels,
+                datasets,
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: datasets.length > 1 },
+                },
+                scales: {
+                    y: {
+                        min: 6,
+                        max: 10,
+                    },
+                    x: {
+                        ticks: {
+                            autoSkip: false,
+                            maxRotation: 45,
+                            minRotation: 0,
+                        },
+                    },
+                },
+            },
+        });
     });
 
     const gradeProfileActivationForm = document.querySelector('[data-grade-profile-activate-form]');

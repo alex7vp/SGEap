@@ -45,11 +45,11 @@ class ModuleController extends Controller
                     'permission' => 'asistencia.calendario.gestionar|asistencia.registrar|asistencia.supervisar|justificaciones.gestionar|asistencia.ver_propia|asistencia.representante.ver|novedades.registrar|novedades.supervisar|novedades.ver_propia|novedades.representante.ver',
                 ],
                 [
-                    'label' => 'Registro de calificaciones',
-                    'description' => 'Prepara la matriz de notas por docente, materia, subperiodo y componente.',
+                    'label' => 'Calificaciones',
+                    'description' => 'Permite registrar o consultar notas por curso, materia, subperiodo y componente.',
                     'url' => baseUrl('calificaciones/registro'),
                     'icon' => 'fa-check-square',
-                    'permission' => 'asistencia.registrar|calificaciones.registrar|calificaciones.configurar',
+                    'permission' => 'asistencia.registrar|calificaciones.registrar|calificaciones.editar|calificaciones.configurar|calificaciones.validar|calificaciones.publicar|calificaciones.auditoria.ver',
                 ],
             ]
         );
@@ -265,7 +265,14 @@ class ModuleController extends Controller
                     'description' => 'Consolida promedios finales por estudiante, materia y curso.',
                     'url' => baseUrl('reportes/cuadro-final'),
                     'icon' => 'fa-table',
-                    'permission' => 'calificaciones.validar|calificaciones.configurar|calificaciones.registrar',
+                    'permission' => 'calificaciones.validar|calificaciones.configurar|calificaciones.registrar|calificaciones.editar',
+                ],
+                [
+                    'label' => 'Libreta de calificaciones',
+                    'description' => 'Genera la libreta parcial por curso, estudiante y trimestre.',
+                    'url' => baseUrl('reportes/libreta'),
+                    'icon' => 'fa-file-text-o',
+                    'permission' => 'calificaciones.validar|calificaciones.configurar|calificaciones.registrar|calificaciones.editar|calificaciones.publicar',
                 ],
             ]
         );

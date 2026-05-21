@@ -20,6 +20,7 @@ CREATE TABLE grupo_materia_calificacion (
     gmcvisualizacion varchar(20) NOT NULL DEFAULT 'GRUPO',
     gmcpromediable boolean NOT NULL DEFAULT true,
     gmcvisible_libreta boolean NOT NULL DEFAULT true,
+    gmcusa_equivalencia boolean NOT NULL DEFAULT false,
     gmcestado boolean NOT NULL DEFAULT true,
     gmcorden integer NOT NULL,
     gmcfecha_creacion timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -157,6 +158,7 @@ SELECT
     g.gmcvisualizacion,
     g.gmcpromediable,
     g.gmcvisible_libreta,
+    g.gmcusa_equivalencia,
     g.gmcestado,
     g.gmcorden,
     d.gmcdid,
@@ -192,6 +194,7 @@ SELECT
     gd.gmcvisualizacion,
     gd.gmcpromediable AS grupo_promediable,
     gd.gmcvisible_libreta AS grupo_visible_libreta,
+    gd.gmcusa_equivalencia AS grupo_usa_equivalencia,
     gd.gmcorden AS grupo_orden,
     gd.gmcdpeso AS grupo_materia_peso,
     gd.gmcdorden AS grupo_materia_orden,
@@ -211,17 +214,3 @@ LEFT JOIN vw_calificacion_grupo_materia_detalle gd
     AND gd.mtcid = c.mtcid
     AND gd.gmcestado = true
     AND gd.gmcdestado = true;
-
-INSERT INTO permiso (prmnombre, prmcodigo, prmdescripcion, prmestado)
-VALUES
-    ('Calificaciones - grupos de materias', 'calificaciones.grupos_materias.configurar', 'Configuracion de materias que se calculan como una sola nota', true)
-ON CONFLICT (prmcodigo) DO NOTHING;
-
-INSERT INTO rol_permiso (rolid, prmid, rpeestado)
-SELECT r.rolid, p.prmid, true
-FROM rol r
-INNER JOIN permiso p ON p.prmcodigo = 'calificaciones.grupos_materias.configurar'
-WHERE r.rolnombre IN ('Administrador', 'Rector', 'Coordinador')
-ON CONFLICT (rolid, prmid) DO UPDATE
-SET rpeestado = EXCLUDED.rpeestado,
-    rpefecha_modificacion = CURRENT_TIMESTAMP;

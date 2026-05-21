@@ -21,7 +21,7 @@ class CourseModel extends Model
              INNER JOIN nivel_educativo n ON n.nedid = g.nedid
              INNER JOIN paralelo p ON p.prlid = c.prlid
              WHERE c.pleid = :period_id
-             ORDER BY n.nednombre ASC, g.granombre ASC, p.prlnombre ASC"
+             ORDER BY n.nedid ASC, g.graid ASC, p.prlid ASC"
         );
         $statement->execute(['period_id' => $periodId]);
 
@@ -34,7 +34,7 @@ class CourseModel extends Model
             "SELECT g.graid, g.granombre, n.nednombre
              FROM grado g
              INNER JOIN nivel_educativo n ON n.nedid = g.nedid
-             ORDER BY n.nednombre ASC, g.granombre ASC"
+             ORDER BY n.nedid ASC, g.graid ASC"
         );
 
         return $statement->fetchAll();

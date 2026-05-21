@@ -563,6 +563,12 @@ class SecurityController extends Controller
     {
         $user = $this->requireAuth();
         $rolePermissionModel = new RolePermissionModel();
+        $roles = $rolePermissionModel->allRoles();
+        $selectedRoleId = (int) ($_GET['rolid'] ?? 0);
+
+        if ($selectedRoleId <= 0 && !empty($roles)) {
+            $selectedRoleId = (int) $roles[0]['rolid'];
+        }
 
         $this->view('seguridad.roles_permisos', [
             'appName' => config('app')['name'] ?? 'SGEap',
@@ -570,11 +576,51 @@ class SecurityController extends Controller
             'currentModule' => 'seguridad',
             'currentSection' => 'seguridad_roles_permisos',
             'user' => $user,
-            'roles' => $rolePermissionModel->allRoles(),
+            'roles' => $roles,
             'permissions' => $rolePermissionModel->allPermissions(),
             'assignedPermissions' => $rolePermissionModel->assignedPermissionIdsByRole(),
             'assignmentFeedback' => $this->assignmentFeedback(),
+            'selectedRoleId' => $selectedRoleId,
         ]);
+    }
+
+    public function searchRolePermissions(): void
+    {
+        $this->requireAuth();
+
+        $roleId = (int) ($_GET['rolid'] ?? 0);
+        $rolePermissionModel = new RolePermissionModel();
+        $roles = $rolePermissionModel->allRoles();
+        $role = null;
+
+        foreach ($roles as $candidate) {
+            if ((int) $candidate['rolid'] === $roleId) {
+                $role = $candidate;
+                break;
+            }
+        }
+
+        header('Content-Type: application/json; charset=UTF-8');
+
+        if ($role === null) {
+            echo json_encode([
+                'html' => '<div class="empty-state">Seleccione un rol valido para consultar permisos.</div>',
+                'isEmpty' => true,
+                'roleId' => $roleId,
+            ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            return;
+        }
+
+        echo json_encode([
+            'html' => $this->renderRolePermissionPanel(
+                $role,
+                $rolePermissionModel->allPermissions(),
+                $rolePermissionModel->assignedPermissionIdsByRole(),
+                $this->assignmentFeedback()
+            ),
+            'isEmpty' => false,
+            'roleId' => $roleId,
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     }
 
     public function userRoles(): void
@@ -635,12 +681,12 @@ class SecurityController extends Controller
             $rolePermissionModel->syncRolePermissions($roleId, $permissionIds);
         } catch (\RuntimeException $exception) {
             $this->flashAssignmentFeedback('error', $roleId, $exception->getMessage());
-            $this->redirectToRolePermissions($anchor);
+            $this->redirectToRolePermissions($anchor, $roleId);
             return;
         }
 
         $this->flashAssignmentFeedback('success', $roleId, 'Permisos actualizados correctamente para el rol seleccionado.');
-        $this->redirectToRolePermissions($anchor);
+        $this->redirectToRolePermissions($anchor, $roleId);
     }
 
     public function updateUserRoles(): void
@@ -847,9 +893,13 @@ class SecurityController extends Controller
         $this->redirect($path);
     }
 
-    private function redirectToRolePermissions(string $anchor = ''): void
+    private function redirectToRolePermissions(string $anchor = '', int $roleId = 0): void
     {
         $path = '/seguridad/roles-permisos';
+
+        if ($roleId > 0) {
+            $path .= '?rolid=' . $roleId;
+        }
 
         if ($anchor !== '') {
             $path .= '#' . ltrim($anchor, '#');
@@ -873,6 +923,13 @@ class SecurityController extends Controller
     {
         ob_start();
         require BASE_PATH . '/app/views/seguridad/_user_role_rows.php';
+        return (string) ob_get_clean();
+    }
+
+    private function renderRolePermissionPanel(array $role, array $permissions, array $assignedPermissions, ?array $assignmentFeedback = null): string
+    {
+        ob_start();
+        require BASE_PATH . '/app/views/seguridad/_role_permission_panel.php';
         return (string) ob_get_clean();
     }
 

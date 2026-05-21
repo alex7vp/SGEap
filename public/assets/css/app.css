@@ -2528,6 +2528,221 @@ a.btn-primary.btn-icon-only.btn-icon-small:hover {
     gap: 18px;
 }
 
+.report-card-block {
+    display: grid;
+    gap: 18px;
+}
+
+.report-card-heading {
+    display: grid;
+    gap: 4px;
+    text-align: center;
+}
+
+.report-card-heading strong {
+    font-size: 1.1rem;
+}
+
+.report-card-grid {
+    display: block;
+}
+
+.report-card-table {
+    min-width: 760px;
+}
+
+.report-card-table th,
+.report-card-table td {
+    text-align: center;
+}
+
+.report-card-header-note {
+    display: block;
+    margin-top: 3px;
+    color: var(--muted);
+    font-size: 0.74rem;
+    font-weight: 600;
+}
+
+.report-card-table .report-card-subject {
+    text-align: left;
+    font-weight: 700;
+}
+
+.report-card-table .report-card-selected-term {
+    font-weight: 800;
+}
+
+.report-card-chart-panel {
+    min-height: 330px;
+    padding: 14px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: #ffffff;
+}
+
+.report-card-reference {
+    display: grid;
+    gap: 12px;
+}
+
+.report-card-attendance {
+    display: grid;
+    gap: 12px;
+}
+
+.report-card-attendance h3 {
+    margin: 0;
+    font-size: 1rem;
+}
+
+.report-card-attendance-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.report-card-attendance-grid article {
+    display: grid;
+    gap: 4px;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: #ffffff;
+    text-align: center;
+}
+
+.report-card-attendance-grid strong {
+    font-size: 1.2rem;
+}
+
+.report-card-attendance-grid span {
+    color: var(--muted);
+    font-size: 0.82rem;
+}
+
+.report-card-attendance-table {
+    width: auto;
+    min-width: 420px;
+}
+
+.report-card-attendance-table th,
+.report-card-attendance-table td {
+    text-align: center;
+}
+
+.report-card-attendance-table td {
+    font-weight: 700;
+    background: #eef6ff;
+}
+
+.report-card-attendance-table .report-card-total-cell {
+    background: #8fb8ed;
+    color: #071d42;
+}
+
+.report-card-reference h3 {
+    margin: 0;
+    font-size: 1rem;
+}
+
+.report-card-reference-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.report-card-reference-grid article {
+    display: grid;
+    gap: 4px;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: #f8fbfe;
+}
+
+.report-card-reference-grid p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.84rem;
+    line-height: 1.35;
+}
+
+.report-card-reference-table {
+    width: 100%;
+    min-width: 680px;
+}
+
+.report-card-reference-table th {
+    background: #5d9bd3;
+    color: #000000;
+    text-align: center;
+}
+
+.report-card-reference-table td {
+    border-color: #222222;
+    vertical-align: middle;
+}
+
+.report-card-reference-score,
+.report-card-reference-code {
+    width: 44px;
+    text-align: center;
+    font-weight: 700;
+}
+
+.report-card-reference-equivalence {
+    width: 72px;
+    text-align: center;
+    font-weight: 700;
+}
+
+.permission-grid-single {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+.filters-bar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 18px;
+}
+
+.filters-bar .input-group {
+    flex: 1 1 280px;
+    margin: 0;
+}
+
+.filters-bar .cell-subtitle {
+    margin-left: auto;
+}
+
+.role-permission-filter-bar {
+    align-items: flex-start;
+}
+
+.role-permission-filter-group {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    min-width: min(100%, 520px);
+}
+
+.role-permission-filter-group select {
+    min-width: 0;
+}
+
+.role-permission-filter-button {
+    border-radius: 0 8px 8px 0;
+    min-width: 108px;
+    box-shadow: none;
+}
+
+.role-permission-filter-group select + .role-permission-filter-button {
+    margin-left: -1px;
+}
+
 .security-assignment-block + .security-assignment-block {
     margin-top: 24px;
 }
@@ -2590,6 +2805,67 @@ a.btn-primary.btn-icon-only.btn-icon-small:hover {
 .permission-list {
     display: grid;
     gap: 10px;
+}
+
+.permission-category-list {
+    display: grid;
+    gap: 12px;
+}
+
+.permission-category {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: #ffffff;
+    overflow: hidden;
+}
+
+.permission-category-summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 14px 16px;
+    background: #f8fbfe;
+    color: var(--text);
+    cursor: pointer;
+    list-style: none;
+}
+
+.permission-category-summary::-webkit-details-marker {
+    display: none;
+}
+
+.permission-category-summary span {
+    display: grid;
+    gap: 3px;
+}
+
+.permission-category-summary strong {
+    font-size: 0.95rem;
+}
+
+.permission-category-summary small {
+    color: var(--muted);
+    font-size: 0.78rem;
+}
+
+.permission-category-summary i {
+    color: var(--primary);
+    transition: transform 0.2s ease;
+}
+
+.permission-category[open] .permission-category-summary {
+    background: #eaf3fb;
+    border-bottom: 1px solid var(--border);
+}
+
+.permission-category[open] .permission-category-summary i {
+    transform: rotate(180deg);
+}
+
+.permission-list-compact {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding: 14px;
 }
 
 .permission-option {
@@ -3433,6 +3709,18 @@ thead .role-user-sticky {
     width: min(460px, calc(100vw - 32px));
 }
 
+.calendar-dialog.gradebook-feedback-dialog {
+    width: min(460px, calc(100vw - 32px));
+}
+
+.gradebook-feedback-dialog .security-assignment-header {
+    margin-bottom: 16px;
+}
+
+.gradebook-feedback-dialog .security-assignment-header p {
+    margin-top: 6px;
+}
+
 .final-chart-heading {
     display: grid;
     gap: 3px;
@@ -3727,6 +4015,16 @@ thead .role-user-sticky {
     .permission-grid,
     .data-summary-grid,
     .form-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .permission-list-compact {
+        grid-template-columns: 1fr;
+    }
+
+    .report-card-grid,
+    .report-card-attendance-grid,
+    .report-card-reference-grid {
         grid-template-columns: 1fr;
     }
 
@@ -4369,6 +4667,10 @@ thead .role-user-sticky {
 }
 
 @media print {
+    body:has(.report-card-block) {
+        page: report-landscape;
+    }
+
     body:has(.report-print-landscape) {
         page: report-landscape;
     }
@@ -4385,6 +4687,7 @@ thead .role-user-sticky {
     .topbar,
     .sidebar-card,
     .content-header,
+    .module-note,
     .print-hidden,
     .alert,
     .report-results-block .security-assignment-header {
@@ -4548,6 +4851,86 @@ thead .role-user-sticky {
     .final-chart-average-col,
     .final-chart-status-col {
         min-width: 34px;
+    }
+
+    .report-card-block {
+        gap: 4px;
+        padding: 0;
+    }
+
+    .report-card-heading {
+        gap: 1px;
+        margin-bottom: 3px;
+        font-size: 0.58rem;
+        line-height: 1.05;
+    }
+
+    .report-card-heading strong {
+        font-size: 0.72rem;
+        text-transform: uppercase;
+    }
+
+    .report-card-table {
+        width: 100%;
+        min-width: 0;
+        font-size: 0.36rem;
+    }
+
+    .report-card-table th,
+    .report-card-table td {
+        padding: 0.5px 1px;
+        line-height: 1;
+    }
+
+    .report-card-chart-panel {
+        min-height: 78px;
+        height: 78px;
+        padding: 3px;
+        border-color: #d1d5db;
+    }
+
+    .report-card-attendance {
+        gap: 3px;
+    }
+
+    .report-card-attendance h3 {
+        display: none;
+    }
+
+    .report-card-attendance-table {
+        min-width: 0;
+        width: auto;
+        font-size: 0.48rem;
+    }
+
+    .report-card-attendance-table th,
+    .report-card-attendance-table td {
+        padding: 1px 4px;
+    }
+
+    .report-card-reference {
+        gap: 2px;
+    }
+
+    .report-card-reference-table {
+        min-width: 0;
+        font-size: 0.42rem;
+        line-height: 1.05;
+    }
+
+    .report-card-reference-table th,
+    .report-card-reference-table td {
+        padding: 1px 2px;
+    }
+
+    .report-card-reference-score,
+    .report-card-reference-code {
+        width: 24px;
+    }
+
+    .report-card-reference-equivalence {
+        width: 50px;
+        font-size: 0.32rem;
     }
 
     a {

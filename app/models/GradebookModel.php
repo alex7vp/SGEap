@@ -25,7 +25,7 @@ class GradebookModel extends Model
              INNER JOIN paralelo p ON p.prlid = c.prlid
              WHERE c.pleid = :period_id
                AND c.curestado = true
-             ORDER BY n.nednombre ASC, g.granombre ASC, p.prlnombre ASC"
+             ORDER BY n.nedid ASC, g.graid ASC, p.prlid ASC"
         );
         $statement->execute(['period_id' => $periodId]);
 
@@ -96,7 +96,11 @@ class GradebookModel extends Model
                AND mcd.mcdestado = true
                AND v.pleid = :period_id
                AND v.mtcestado = true
-             ORDER BY v.granombre ASC, v.prlnombre ASC, v.areanombre ASC, v.asgnombre ASC"
+             ORDER BY v.graid ASC,
+                      v.prlid ASC,
+                      COALESCE(v.mtcorden, 9999) ASC,
+                      v.areaid ASC,
+                      v.asgid ASC"
         );
         $statement->execute([
             'person_id' => $personId,
@@ -115,6 +119,100 @@ class GradebookModel extends Model
         }
 
         return false;
+    }
+
+    public function courseSubjects(int $courseId, int $periodId): array
+    {
+        $statement = $this->db->prepare(
+            "SELECT
+                NULL::integer AS mcdid,
+                v.mtcid,
+                v.curid,
+                v.graid,
+                cfg.nedid,
+                v.granombre,
+                v.prlnombre,
+                v.areanombre,
+                v.asgnombre,
+                v.mtcnombre_mostrar,
+                cfg.pcaid,
+                cfg.pcanombre,
+                cfg.pcatipo_base,
+                p.pcaminima,
+                p.pcamaxima,
+                cfg.tipo_registro,
+                cfg.tipo_visualizacion,
+                cfg.promediable,
+                cfg.visible_libreta,
+                cfg.usa_equivalencia,
+                cfg.gmcid,
+                cfg.gmcnombre,
+                cfg.promedia_como_materia_individual,
+                cfg.visible_como_materia_individual
+             FROM vw_materia_curso v
+             LEFT JOIN vw_calificacion_materia_config_agrupada cfg
+                ON cfg.mtcid = v.mtcid
+                AND cfg.pleid = v.pleid
+             LEFT JOIN perfil_calificacion p ON p.pcaid = cfg.pcaid
+             WHERE v.curid = :course_id
+               AND v.pleid = :period_id
+               AND v.mtcestado = true
+             ORDER BY COALESCE(v.mtcorden, 9999) ASC,
+                      v.areaid ASC,
+                      v.asgid ASC"
+        );
+        $statement->execute([
+            'course_id' => $courseId,
+            'period_id' => $periodId,
+        ]);
+
+        return $statement->fetchAll();
+    }
+
+    public function selectedCourseSubject(int $periodId, int $courseSubjectId): array|false
+    {
+        $statement = $this->db->prepare(
+            "SELECT
+                NULL::integer AS mcdid,
+                v.mtcid,
+                v.curid,
+                v.graid,
+                cfg.nedid,
+                v.granombre,
+                v.prlnombre,
+                v.areanombre,
+                v.asgnombre,
+                v.mtcnombre_mostrar,
+                cfg.pcaid,
+                cfg.pcanombre,
+                cfg.pcatipo_base,
+                p.pcaminima,
+                p.pcamaxima,
+                cfg.tipo_registro,
+                cfg.tipo_visualizacion,
+                cfg.promediable,
+                cfg.visible_libreta,
+                cfg.usa_equivalencia,
+                cfg.gmcid,
+                cfg.gmcnombre,
+                cfg.promedia_como_materia_individual,
+                cfg.visible_como_materia_individual
+             FROM vw_materia_curso v
+             LEFT JOIN vw_calificacion_materia_config_agrupada cfg
+                ON cfg.mtcid = v.mtcid
+                AND cfg.pleid = v.pleid
+             LEFT JOIN perfil_calificacion p ON p.pcaid = cfg.pcaid
+             WHERE v.mtcid = :course_subject_id
+               AND v.pleid = :period_id
+               AND v.mtcestado = true
+             LIMIT 1"
+        );
+        $statement->execute([
+            'course_subject_id' => $courseSubjectId,
+            'period_id' => $periodId,
+        ]);
+
+        return $statement->fetch();
     }
 
     public function subperiods(int $profileId): array
@@ -184,6 +282,70 @@ class GradebookModel extends Model
         ]);
 
         return $statement->fetch();
+    }
+
+    public function qualitativeScale(int $profileId): array
+    {
+        $statement = $this->db->prepare(
+            "SELECT
+                ecacodigo,
+                ecanombre,
+                ecadescripcion,
+                ecavalor_minimo,
+                ecavalor_maximo,
+                ecaorden
+             FROM escala_cualitativa
+             WHERE pcaid = :profile_id
+               AND ecaestado = true
+             ORDER BY ecaorden ASC"
+        );
+        $statement->execute(['profile_id' => $profileId]);
+
+        return $statement->fetchAll();
+    }
+
+    public function attendanceSummaryForReportCard(int $periodId, int $matriculationId, string $startDate, string $endDate): array
+    {
+        $statement = $this->db->prepare(
+            "SELECT
+                COUNT(ae.aesid) AS total_registros,
+                COUNT(ae.aesid) FILTER (WHERE ae.aesestado = 'ASISTENCIA') AS total_asistencias,
+                COUNT(ae.aesid) FILTER (WHERE ae.aesestado = 'ATRASO') AS total_atrasos,
+                COUNT(ae.aesid) FILTER (WHERE ae.aesestado = 'FALTA_JUSTIFICADA') AS total_faltas_justificadas,
+                COUNT(ae.aesid) FILTER (WHERE ae.aesestado = 'FALTA_INJUSTIFICADA') AS total_faltas_injustificadas,
+                COUNT(DISTINCT ca.cafecha) FILTER (
+                    WHERE ae.aesestado IN ('ASISTENCIA', 'ATRASO')
+                ) AS dias_asistidos,
+                COUNT(DISTINCT ca.cafecha) FILTER (
+                    WHERE ae.aesestado IN ('FALTA_JUSTIFICADA', 'FALTA_INJUSTIFICADA')
+                ) AS dias_con_falta
+             FROM matricula m
+             INNER JOIN asistencia_estudiante ae ON ae.estid = m.estid
+             INNER JOIN sesion_clase sc ON sc.sclid = ae.sclid
+             INNER JOIN calendario_asistencia ca ON ca.caid = sc.caid
+             WHERE m.matid = :matriculation_id
+               AND ca.pleid = :period_id
+               AND ca.cafecha BETWEEN :start_date AND :end_date
+               AND sc.sclestado <> 'ANULADA'"
+        );
+        $statement->execute([
+            'matriculation_id' => $matriculationId,
+            'period_id' => $periodId,
+            'start_date' => $startDate,
+            'end_date' => $endDate,
+        ]);
+
+        $summary = $statement->fetch() ?: [];
+
+        return [
+            'total_registros' => (int) ($summary['total_registros'] ?? 0),
+            'total_asistencias' => (int) ($summary['total_asistencias'] ?? 0),
+            'total_atrasos' => (int) ($summary['total_atrasos'] ?? 0),
+            'total_faltas_justificadas' => (int) ($summary['total_faltas_justificadas'] ?? 0),
+            'total_faltas_injustificadas' => (int) ($summary['total_faltas_injustificadas'] ?? 0),
+            'dias_asistidos' => (int) ($summary['dias_asistidos'] ?? 0),
+            'dias_con_falta' => (int) ($summary['dias_con_falta'] ?? 0),
+        ];
     }
 
     public function activitiesBySubperiod(int $courseSubjectId, int $subperiodId): array
@@ -433,11 +595,13 @@ class GradebookModel extends Model
                 p.pcaaprobacion,
                 cfg.promediable,
                 cfg.visible_libreta,
+                cfg.usa_equivalencia,
                 cfg.gmcid,
                 cfg.gmcnombre,
                 cfg.gmcmodo_calculo,
                 cfg.grupo_promediable,
                 cfg.grupo_visible_libreta,
+                cfg.grupo_usa_equivalencia,
                 cfg.grupo_orden,
                 cfg.grupo_materia_peso,
                 cfg.grupo_materia_orden,
@@ -474,6 +638,7 @@ class GradebookModel extends Model
                         'key' => 'group-' . $groupId,
                         'name' => (string) $row['gmcnombre'],
                         'promediable' => $this->truthy($row['grupo_promediable'] ?? true),
+                        'uses_equivalence' => $this->truthy($row['grupo_usa_equivalencia'] ?? false),
                         'approval' => is_numeric($row['pcaaprobacion'] ?? null) ? (float) $row['pcaaprobacion'] : 7.0,
                         'items' => [],
                         'order' => (int) ($row['grupo_orden'] ?? $row['mtcorden'] ?? 9999),
@@ -500,6 +665,7 @@ class GradebookModel extends Model
                 'key' => 'subject-' . (int) $row['mtcid'],
                 'name' => (string) $row['asgnombre'],
                 'promediable' => $this->truthy($row['promedia_como_materia_individual'] ?? $row['promediable'] ?? true),
+                'uses_equivalence' => $this->truthy($row['usa_equivalencia'] ?? true),
                 'approval' => is_numeric($row['pcaaprobacion'] ?? null) ? (float) $row['pcaaprobacion'] : 7.0,
                 'items' => [[
                     'mtcid' => (int) $row['mtcid'],

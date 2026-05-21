@@ -26,7 +26,7 @@ class GradeModel extends Model
                 "SELECT g.graid, g.nedid, g.granombre, n.nednombre
                  FROM {$this->table} g
                  INNER JOIN nivel_educativo n ON n.nedid = g.nedid
-                 ORDER BY n.nednombre ASC, g.granombre ASC"
+                 ORDER BY n.nedid ASC, g.graid ASC"
             );
 
             return $statement->fetchAll();
@@ -38,7 +38,7 @@ class GradeModel extends Model
              INNER JOIN nivel_educativo n ON n.nedid = g.nedid
              WHERE g.granombre ILIKE :term
                 OR n.nednombre ILIKE :term
-             ORDER BY n.nednombre ASC, g.granombre ASC"
+             ORDER BY n.nedid ASC, g.graid ASC"
         );
         $statement->execute(['term' => '%' . $normalizedTerm . '%']);
 
@@ -50,7 +50,7 @@ class GradeModel extends Model
         $statement = $this->db->query(
             "SELECT nedid, nednombre
              FROM nivel_educativo
-             ORDER BY nednombre ASC"
+             ORDER BY nedid ASC"
         );
 
         return $statement->fetchAll();

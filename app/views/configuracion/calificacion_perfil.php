@@ -436,6 +436,7 @@ foreach ($subjectConfigurations as $subjectConfiguration) {
                             <th>Representante</th>
                             <th>Promedia</th>
                             <th>Libreta</th>
+                            <th>Equiv.</th>
                             <th>Orden</th>
                             <th>Estado</th>
                             <th>Materias</th>
@@ -484,6 +485,7 @@ foreach ($subjectConfigurations as $subjectConfiguration) {
                                 </td>
                                 <td><input type="checkbox" name="groups[<?= $h($groupId); ?>][gmcpromediable]" value="1" <?= !empty($group['gmcpromediable']) ? 'checked' : ''; ?> disabled data-grade-profile-field></td>
                                 <td><input type="checkbox" name="groups[<?= $h($groupId); ?>][gmcvisible_libreta]" value="1" <?= !empty($group['gmcvisible_libreta']) ? 'checked' : ''; ?> disabled data-grade-profile-field></td>
+                                <td><input type="checkbox" name="groups[<?= $h($groupId); ?>][gmcusa_equivalencia]" value="1" <?= !empty($group['gmcusa_equivalencia']) ? 'checked' : ''; ?> disabled data-grade-profile-field></td>
                                 <td><input type="number" name="groups[<?= $h($groupId); ?>][gmcorden]" min="1" value="<?= $h($group['gmcorden']); ?>" disabled data-grade-profile-field></td>
                                 <td><input type="checkbox" name="groups[<?= $h($groupId); ?>][gmcestado]" value="1" <?= !empty($group['gmcestado']) ? 'checked' : ''; ?> disabled data-grade-profile-field></td>
                                 <td>
@@ -554,6 +556,7 @@ foreach ($subjectConfigurations as $subjectConfiguration) {
                                 </td>
                                 <td><input type="checkbox" name="new_groups[0][gmcpromediable]" value="1" checked disabled data-grade-profile-field></td>
                                 <td><input type="checkbox" name="new_groups[0][gmcvisible_libreta]" value="1" checked disabled data-grade-profile-field></td>
+                                <td><input type="checkbox" name="new_groups[0][gmcusa_equivalencia]" value="1" disabled data-grade-profile-field></td>
                                 <td><input type="number" name="new_groups[0][gmcorden]" min="1" value="<?= $h(count($subjectGroups) + 1); ?>" disabled data-grade-profile-field></td>
                                 <td><input type="checkbox" name="new_groups[0][gmcestado]" value="1" checked disabled data-grade-profile-field></td>
                                 <td>
@@ -572,7 +575,7 @@ foreach ($subjectConfigurations as $subjectConfiguration) {
                                 </td>
                             </tr>
                         <?php elseif (empty($subjectGroups)): ?>
-                            <tr><td colspan="10">Este perfil no tiene grupos de materias.</td></tr>
+                            <tr><td colspan="11">Este perfil no tiene grupos de materias.</td></tr>
                         <?php endif; ?>
                     </tbody>
                 </table>
