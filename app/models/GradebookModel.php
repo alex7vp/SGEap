@@ -284,6 +284,92 @@ class GradebookModel extends Model
         return $statement->fetch();
     }
 
+    public function activeGradeEntryAuthorization(int $courseSubjectId, int $subperiodId): array|false
+    {
+        $statement = $this->db->prepare(
+            "SELECT h.*, u.usunombre
+             FROM habilitacion_registro_calificacion h
+             INNER JOIN usuario u ON u.usuid = h.usuid_registro
+             WHERE h.spcid = :subperiod_id
+               AND h.mtcid = :course_subject_id
+               AND h.hrcestado = 'ACTIVA'
+               AND CURRENT_TIMESTAMP BETWEEN h.hrcfecha_inicio AND h.hrcfecha_fin
+             ORDER BY h.hrcfecha_fin DESC
+             LIMIT 1"
+        );
+        $statement->execute([
+            'course_subject_id' => $courseSubjectId,
+            'subperiod_id' => $subperiodId,
+        ]);
+
+        return $statement->fetch();
+    }
+
+    public function enableGradeEntryForSubperiod(
+        int $profileId,
+        int $subperiodId,
+        int $courseSubjectId,
+        string $enabledUntil,
+        string $reason,
+        int $userId
+    ): void {
+        $statement = $this->db->prepare(
+            "INSERT INTO habilitacion_registro_calificacion (
+                pcaid,
+                spcid,
+                mtcid,
+                hrcfecha_fin,
+                hrcmotivo,
+                usuid_registro
+             ) VALUES (
+                :profile_id,
+                :subperiod_id,
+                :course_subject_id,
+                :enabled_until,
+                :reason,
+                :user_id
+             )"
+        );
+        $statement->execute([
+            'profile_id' => $profileId,
+            'subperiod_id' => $subperiodId,
+            'course_subject_id' => $courseSubjectId,
+            'enabled_until' => $enabledUntil,
+            'reason' => $reason,
+            'user_id' => $userId,
+        ]);
+
+        $audit = $this->db->prepare(
+            "INSERT INTO auditoria_calificacion (
+                usuid,
+                auctipo_accion,
+                aucentidad,
+                aucentidad_id,
+                aucvalor_anterior,
+                aucvalor_nuevo,
+                aucmotivo
+             ) VALUES (
+                :user_id,
+                'SUBPERIODO_REABIERTO',
+                'habilitacion_registro_calificacion',
+                currval(pg_get_serial_sequence('habilitacion_registro_calificacion', 'hrcid')),
+                NULL,
+                :new_value,
+                :reason
+             )"
+        );
+        $audit->execute([
+            'user_id' => $userId,
+            'new_value' => json_encode([
+                'pcaid' => $profileId,
+                'spcid' => $subperiodId,
+                'mtcid' => $courseSubjectId,
+                'hrcfecha_fin' => $enabledUntil,
+            ]),
+            'reason' => $reason,
+        ]);
+    }
+
     public function qualitativeScale(int $profileId): array
     {
         $statement = $this->db->prepare(

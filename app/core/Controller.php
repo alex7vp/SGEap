@@ -69,6 +69,7 @@ abstract class Controller
             '/calificaciones/registro' => 'asistencia.registrar|calificaciones.registrar|calificaciones.editar|calificaciones.configurar|calificaciones.validar|calificaciones.publicar|calificaciones.auditoria.ver',
             '/calificaciones/actividad' => 'asistencia.registrar|calificaciones.registrar|calificaciones.editar|calificaciones.configurar',
             '/calificaciones/notas' => 'asistencia.registrar|calificaciones.registrar|calificaciones.editar|calificaciones.configurar',
+            '/calificaciones/habilitar-subperiodo' => 'calificaciones.configurar|calificaciones.validar|calificaciones.publicar|calificaciones.editar',
             '/asistencia' => 'asistencia.calendario.gestionar|asistencia.registrar|asistencia.supervisar|justificaciones.gestionar|asistencia.ver_propia|asistencia.representante.ver|novedades.registrar|novedades.supervisar|novedades.ver_propia|novedades.representante.ver',
             '/novedades' => 'novedades.registrar|novedades.supervisar|novedades.ver_propia|novedades.representante.ver',
             '/novedades/registro' => 'novedades.registrar|novedades.supervisar',

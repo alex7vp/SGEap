@@ -17,10 +17,14 @@ $selectedCourse = is_array($selectedCourse ?? null) ? $selectedCourse : false;
 $selectedCourseId = (int) ($selectedCourseId ?? 0);
 $useAdministrativeSelection = !empty($useAdministrativeSelection);
 $canEditSelectedSubject = !empty($canEditSelectedSubject);
+$canAuthorizeGradeEntry = !empty($canAuthorizeGradeEntry);
+$gradeEntryAuthorization = is_array($gradeEntryAuthorization ?? null) ? $gradeEntryAuthorization : false;
 $showFinalAverages = (bool) ($showFinalAverages ?? false);
 $today = (string) ($today ?? date('Y-m-d'));
 $selectedSubperiod = false;
 $selectedSubperiodInRange = false;
+$selectedSubperiodAuthorized = false;
+$selectedSubperiodCanRegister = false;
 $componentPrefixes = [];
 $gradeMinimum = is_array($selectedSubject) && is_numeric($selectedSubject['pcaminima'] ?? null) ? (float) $selectedSubject['pcaminima'] : 0.0;
 $gradeMaximum = is_array($selectedSubject) && is_numeric($selectedSubject['pcamaxima'] ?? null) ? (float) $selectedSubject['pcamaxima'] : 10.0;
@@ -29,6 +33,8 @@ foreach ($subperiods as $subperiod) {
     if ((int) ($subperiod['spcid'] ?? 0) === (int) ($selectedSubperiodId ?? 0)) {
         $selectedSubperiod = $subperiod;
         $selectedSubperiodInRange = $today >= (string) $subperiod['spcfecha_inicio'] && $today <= (string) $subperiod['spcfecha_fin'];
+        $selectedSubperiodAuthorized = $gradeEntryAuthorization !== false;
+        $selectedSubperiodCanRegister = $selectedSubperiodInRange || $selectedSubperiodAuthorized;
         break;
     }
 }
@@ -300,6 +306,15 @@ foreach (($components[(int) ($selectedSubperiodId ?? 0)] ?? []) as $component) {
                 <?php if (empty($components[$selectedSubperiodId])): ?>
                     <div class="empty-state">Este subperiodo no tiene componentes activos configurados.</div>
                 <?php else: ?>
+                    <?php if ($canAuthorizeGradeEntry && !$selectedSubperiodInRange && is_array($selectedSubperiod)): ?>
+                        <form id="gradebook-reopen-form" method="POST" action="<?= $h(baseUrl('calificaciones/habilitar-subperiodo')); ?>">
+                            <input type="hidden" name="mtcid" value="<?= $h($selectedSubject['mtcid']); ?>">
+                            <input type="hidden" name="spcid" value="<?= $h($selectedSubperiodId); ?>">
+                            <?php if ($useAdministrativeSelection): ?>
+                                <input type="hidden" name="curid" value="<?= $h($selectedCourseId); ?>">
+                            <?php endif; ?>
+                        </form>
+                    <?php endif; ?>
                     <form method="POST" action="<?= $h(baseUrl('calificaciones/notas')); ?>">
                         <input type="hidden" name="mtcid" value="<?= $h($selectedSubject['mtcid']); ?>">
                         <input type="hidden" name="spcid" value="<?= $h($selectedSubperiodId); ?>">
@@ -312,7 +327,7 @@ foreach (($components[(int) ($selectedSubperiodId ?? 0)] ?? []) as $component) {
                                 Cambiar subperiodo
                             </a>
                             <?php if ($canEditSelectedSubject): ?>
-                                <button type="submit" class="btn-primary btn-auto" <?= $selectedSubperiodInRange ? '' : 'disabled'; ?>>
+                                <button type="submit" class="btn-primary btn-auto" <?= $selectedSubperiodCanRegister ? '' : 'disabled'; ?>>
                                     <i class="fa fa-floppy-o" aria-hidden="true"></i>
                                     Guardar notas
                                 </button>
@@ -320,8 +335,31 @@ foreach (($components[(int) ($selectedSubperiodId ?? 0)] ?? []) as $component) {
                         </div>
                         <?php if (!$canEditSelectedSubject): ?>
                             <div class="empty-state">Vista de consulta. Solo el docente asignado puede agregar actividades o editar notas.</div>
+                        <?php elseif ($selectedSubperiodAuthorized): ?>
+                            <div class="flash-message success">
+                                Registro habilitado temporalmente hasta <?= $h((string) $gradeEntryAuthorization['hrcfecha_fin']); ?>.
+                                Motivo: <?= $h((string) $gradeEntryAuthorization['hrcmotivo']); ?>
+                            </div>
                         <?php elseif (!$selectedSubperiodInRange): ?>
                             <div class="empty-state">Este subperiodo esta fuera del rango de registro. Las notas quedan solo en lectura.</div>
+                        <?php endif; ?>
+                        <?php if ($canAuthorizeGradeEntry && !$selectedSubperiodInRange && is_array($selectedSubperiod)): ?>
+                            <div class="data-form gradebook-reopen-form">
+                                <div class="form-grid">
+                                    <div class="input-group">
+                                        <span class="input-addon">Habilitar hasta</span>
+                                        <input type="datetime-local" name="hrcfecha_fin" required form="gradebook-reopen-form">
+                                    </div>
+                                    <div class="input-group">
+                                        <span class="input-addon">Motivo</span>
+                                        <input type="text" name="hrcmotivo" maxlength="250" required placeholder="Motivo de reapertura" form="gradebook-reopen-form">
+                                    </div>
+                                    <button type="submit" class="btn-secondary btn-auto" form="gradebook-reopen-form">
+                                        <i class="fa fa-unlock" aria-hidden="true"></i>
+                                        Habilitar registro
+                                    </button>
+                                </div>
+                            </div>
                         <?php endif; ?>
                         <div class="table-wrap gradebook-table-wrap">
                             <table class="data-table gradebook-register-table" data-gradebook-table>
@@ -353,7 +391,7 @@ foreach (($components[(int) ($selectedSubperiodId ?? 0)] ?? []) as $component) {
                                                         class="gradebook-edit-activity-button"
                                                         title="Editar esta columna"
                                                         data-gradebook-edit-column="<?= $h($activity['aciid']); ?>"
-                                                        <?= $selectedSubperiodInRange && $canEditSelectedSubject ? '' : 'disabled'; ?>
+                                                        <?= $selectedSubperiodCanRegister && $canEditSelectedSubject ? '' : 'disabled'; ?>
                                                     >
                                                         <i class="fa fa-pencil" aria-hidden="true"></i>
                                                     </button>
@@ -364,7 +402,7 @@ foreach (($components[(int) ($selectedSubperiodId ?? 0)] ?? []) as $component) {
                                                     type="button"
                                                     class="gradebook-add-activity-button"
                                                     title="Agregar actividad"
-                                                    <?= $selectedSubperiodInRange && $canEditSelectedSubject ? '' : 'disabled'; ?>
+                                                    <?= $selectedSubperiodCanRegister && $canEditSelectedSubject ? '' : 'disabled'; ?>
                                                     onclick="document.getElementById('gradebook-activity-dialog-<?= $h($componentId); ?>').showModal()"
                                                 >
                                                     <i class="fa fa-plus" aria-hidden="true"></i>
@@ -402,7 +440,7 @@ foreach (($components[(int) ($selectedSubperiodId ?? 0)] ?? []) as $component) {
                                                             value="<?= $gradeValue !== null ? $h(number_format($gradeValue, 2, '.', '')) : ''; ?>"
                                                             class="gradebook-grade-input <?= $gradeValue !== null && $gradeValue < 7 ? 'is-low-grade' : ''; ?>"
                                                             title="Rango permitido: <?= $h(number_format($gradeMinimum, 2, ',', '')); ?> a <?= $h(number_format($gradeMaximum, 2, ',', '')); ?>"
-                                                            <?= $selectedSubperiodInRange && $canEditSelectedSubject ? 'readonly tabindex="-1"' : 'disabled'; ?>
+                                                            <?= $selectedSubperiodCanRegister && $canEditSelectedSubject ? 'readonly tabindex="-1"' : 'disabled'; ?>
                                                         >
                                                     </td>
                                                 <?php endforeach; ?>

@@ -19,6 +19,7 @@ class GradebookController extends Controller
             ? $model->teacherSubjects((int) ($user['perid'] ?? 0), $periodId)
             : [];
         $canEditAnyGradebook = $this->hasPermission('calificaciones.editar', $user);
+        $canAuthorizeGradeEntry = $this->canAuthorizeGradeEntry($user);
         $canBrowseAllGradebook = $this->hasAnyPermission([
             'calificaciones.editar',
             'calificaciones.configurar',
@@ -61,6 +62,7 @@ class GradebookController extends Controller
         $students = [];
         $activities = [];
         $grades = [];
+        $gradeEntryAuthorization = false;
 
         if ($selectedSubject !== false && !empty($selectedSubject['pcaid'])) {
             $profileId = (int) $selectedSubject['pcaid'];
@@ -92,6 +94,10 @@ class GradebookController extends Controller
 
                 $grades = $model->gradesByActivities($activityIds);
             }
+
+            if ($selectedSubperiodId > 0) {
+                $gradeEntryAuthorization = $model->activeGradeEntryAuthorization((int) $selectedSubject['mtcid'], $selectedSubperiodId);
+            }
         }
 
         $this->view('calificaciones.registro', [
@@ -106,6 +112,8 @@ class GradebookController extends Controller
             'selectedCourseId' => $selectedCourseId,
             'useAdministrativeSelection' => $useAdministrativeSelection,
             'canEditSelectedSubject' => $canEditSelectedSubject,
+            'canAuthorizeGradeEntry' => $canAuthorizeGradeEntry,
+            'gradeEntryAuthorization' => $gradeEntryAuthorization,
             'subjects' => $subjects,
             'selectedSubjectId' => $selectedSubjectId,
             'selectedSubperiodId' => $selectedSubperiodId,
@@ -172,8 +180,7 @@ class GradebookController extends Controller
 
         if (
             $subperiod === false
-            || date('Y-m-d') < (string) $subperiod['spcfecha_inicio']
-            || date('Y-m-d') > (string) $subperiod['spcfecha_fin']
+            || !$this->subperiodAllowsGradeEntry($model, $subperiod, $courseSubjectId)
         ) {
             sessionFlash('error', 'El subperiodo esta fuera del rango permitido para registrar actividades.');
             $this->redirect($redirect);
@@ -238,8 +245,7 @@ class GradebookController extends Controller
 
         if (
             $subperiod === false
-            || date('Y-m-d') < (string) $subperiod['spcfecha_inicio']
-            || date('Y-m-d') > (string) $subperiod['spcfecha_fin']
+            || !$this->subperiodAllowsGradeEntry($model, $subperiod, $courseSubjectId)
         ) {
             sessionFlash('error', 'El subperiodo esta fuera del rango permitido para editar calificaciones.');
             $this->redirect($redirect);
@@ -267,6 +273,73 @@ class GradebookController extends Controller
         }
 
         sessionFlash('success', $saved > 0 ? 'Calificaciones guardadas correctamente.' : 'No se registraron cambios de calificaciones.');
+        $this->redirect($redirect);
+    }
+
+    public function enableSubperiodGradeEntry(): void
+    {
+        $user = $this->requireAuth();
+
+        if (!$this->canAuthorizeGradeEntry($user)) {
+            sessionFlash('error', 'No tienes permisos para habilitar registro de notas fuera de fecha.');
+            $this->redirect('/calificaciones/registro');
+        }
+
+        $period = currentAcademicPeriod();
+        $periodId = $period !== null ? (int) $period['pleid'] : 0;
+        $model = new GradebookModel();
+        $courseSubjectId = (int) ($_POST['mtcid'] ?? 0);
+        $subperiodId = (int) ($_POST['spcid'] ?? 0);
+        $courseId = (int) ($_POST['curid'] ?? 0);
+        $enabledUntil = trim((string) ($_POST['hrcfecha_fin'] ?? ''));
+        $reason = trim((string) ($_POST['hrcmotivo'] ?? ''));
+        $redirect = $this->gradebookRedirect($courseSubjectId, $subperiodId, $courseId);
+
+        if ($periodId <= 0 || $courseSubjectId <= 0 || $subperiodId <= 0 || $enabledUntil === '' || $reason === '') {
+            sessionFlash('error', 'Complete la fecha limite y el motivo de habilitacion.');
+            $this->redirect($redirect);
+        }
+
+        $selectedSubject = $model->selectedCourseSubject($periodId, $courseSubjectId);
+
+        if ($selectedSubject === false || empty($selectedSubject['pcaid'])) {
+            sessionFlash('error', 'La materia seleccionada no esta disponible para habilitar registro.');
+            $this->redirect($redirect);
+        }
+
+        if ($courseId <= 0) {
+            $courseId = (int) ($selectedSubject['curid'] ?? 0);
+            $redirect = $this->gradebookRedirect($courseSubjectId, $subperiodId, $courseId);
+        }
+
+        $subperiod = $model->subperiodByProfile((int) $selectedSubject['pcaid'], $subperiodId);
+        $enabledUntilSql = str_replace('T', ' ', $enabledUntil);
+
+        if ($subperiod === false) {
+            sessionFlash('error', 'El subperiodo seleccionado no pertenece al perfil activo.');
+            $this->redirect($redirect);
+        }
+
+        if (date('Y-m-d') <= (string) $subperiod['spcfecha_fin']) {
+            sessionFlash('error', 'Solo se habilitan subperiodos que ya pasaron su fecha final.');
+            $this->redirect($redirect);
+        }
+
+        if (strtotime($enabledUntilSql) === false || strtotime($enabledUntilSql) <= time()) {
+            sessionFlash('error', 'La fecha limite de habilitacion debe ser posterior al momento actual.');
+            $this->redirect($redirect);
+        }
+
+        $model->enableGradeEntryForSubperiod(
+            (int) $selectedSubject['pcaid'],
+            $subperiodId,
+            $courseSubjectId,
+            $enabledUntilSql,
+            $reason,
+            (int) $user['usuid']
+        );
+
+        sessionFlash('success', 'Registro de notas habilitado temporalmente para el subperiodo.');
         $this->redirect($redirect);
     }
 
@@ -790,6 +863,27 @@ class GradebookController extends Controller
         }
 
         return '';
+    }
+
+    private function canAuthorizeGradeEntry(array $user): bool
+    {
+        return $this->hasAnyPermission([
+            'calificaciones.configurar',
+            'calificaciones.validar',
+            'calificaciones.publicar',
+            'calificaciones.editar',
+        ], $user);
+    }
+
+    private function subperiodAllowsGradeEntry(GradebookModel $model, array $subperiod, int $courseSubjectId): bool
+    {
+        $today = date('Y-m-d');
+
+        if ($today >= (string) $subperiod['spcfecha_inicio'] && $today <= (string) $subperiod['spcfecha_fin']) {
+            return true;
+        }
+
+        return $model->activeGradeEntryAuthorization($courseSubjectId, (int) $subperiod['spcid']) !== false;
     }
 
     private function gradebookRedirect(int $courseSubjectId, int $subperiodId = 0, int $courseId = 0, int $editActivityId = 0): string

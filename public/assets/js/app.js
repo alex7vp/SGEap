@@ -32,6 +32,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (gradebookFeedbackDialog instanceof HTMLDialogElement) {
         const closeButton = gradebookFeedbackDialog.querySelector('[data-gradebook-feedback-close]');
+        const dispatchGradebookFeedbackClosed = () => {
+            document.dispatchEvent(new CustomEvent('gradebook-feedback-closed'));
+        };
+
+        gradebookFeedbackDialog.addEventListener('close', dispatchGradebookFeedbackClosed, { once: true });
 
         if (typeof gradebookFeedbackDialog.showModal === 'function') {
             gradebookFeedbackDialog.showModal();
@@ -47,6 +52,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 gradebookFeedbackDialog.removeAttribute('open');
+                dispatchGradebookFeedbackClosed();
             });
         }
     }
@@ -161,36 +167,49 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         };
 
+        const activateGradebookColumn = (button, shouldFocus = true) => {
+            const columnId = button.dataset.gradebookEditColumn;
+
+            if (!columnId) {
+                return;
+            }
+
+            deactivateColumns();
+            button.classList.add('is-active');
+
+            const columnInputs = Array.from(table.querySelectorAll(`[data-gradebook-column="${CSS.escape(columnId)}"]`))
+                .filter((input) => input instanceof HTMLInputElement);
+
+            columnInputs.forEach((input) => {
+                if (input instanceof HTMLInputElement && !input.disabled) {
+                    input.readOnly = false;
+                    input.tabIndex = 0;
+                    input.classList.add('is-active-column');
+                }
+            });
+
+            const firstEditableInput = columnInputs.find((input) => input instanceof HTMLInputElement && !input.disabled);
+
+            if (shouldFocus && firstEditableInput instanceof HTMLInputElement) {
+                window.setTimeout(() => {
+                    firstEditableInput.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'center',
+                        inline: 'center',
+                    });
+                    firstEditableInput.focus({ preventScroll: true });
+                    firstEditableInput.select();
+                }, 80);
+            }
+        };
+
         editButtons.forEach((button) => {
             if (!(button instanceof HTMLButtonElement)) {
                 return;
             }
 
             button.addEventListener('click', () => {
-                const columnId = button.dataset.gradebookEditColumn;
-
-                if (!columnId) {
-                    return;
-                }
-
-                deactivateColumns();
-                button.classList.add('is-active');
-
-                const columnInputs = Array.from(table.querySelectorAll(`[data-gradebook-column="${CSS.escape(columnId)}"]`))
-                    .filter((input) => input instanceof HTMLInputElement);
-
-                columnInputs.forEach((input) => {
-                    if (input instanceof HTMLInputElement && !input.disabled) {
-                        input.readOnly = false;
-                        input.tabIndex = 0;
-                        input.classList.add('is-active-column');
-                    }
-                });
-
-                if (columnInputs[0] instanceof HTMLInputElement) {
-                    columnInputs[0].focus();
-                    columnInputs[0].select();
-                }
+                activateGradebookColumn(button);
             });
         });
 
@@ -200,7 +219,16 @@ document.addEventListener('DOMContentLoaded', () => {
             const pendingEditButton = table.querySelector(`[data-gradebook-edit-column="${CSS.escape(pendingEditActivityId)}"]`);
 
             if (pendingEditButton instanceof HTMLButtonElement && !pendingEditButton.disabled) {
-                pendingEditButton.click();
+                const feedbackDialog = document.querySelector('[data-gradebook-feedback-dialog]');
+
+                if (feedbackDialog instanceof HTMLDialogElement && feedbackDialog.open) {
+                    activateGradebookColumn(pendingEditButton, false);
+                    document.addEventListener('gradebook-feedback-closed', () => {
+                        activateGradebookColumn(pendingEditButton, true);
+                    }, { once: true });
+                } else {
+                    activateGradebookColumn(pendingEditButton);
+                }
             }
         }
 
@@ -1699,12 +1727,12 @@ document.addEventListener('DOMContentLoaded', () => {
             alertHost.hidden = false;
         };
 
-        const setFamilyFieldsDisabled = (row, disabled) => {
+        const setFamilyImmutableFieldsDisabled = (row, disabled) => {
             if (!(row instanceof HTMLElement)) {
                 return;
             }
 
-            row.querySelectorAll('[data-family-person-field]').forEach((field) => {
+            row.querySelectorAll('[data-family-immutable-field]').forEach((field) => {
                 if (field instanceof HTMLInputElement || field instanceof HTMLSelectElement || field instanceof HTMLTextAreaElement) {
                     field.disabled = disabled;
                 }
@@ -1716,7 +1744,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            row.querySelectorAll('[data-family-dependent]:not([data-family-person-field])').forEach((field) => {
+            row.querySelectorAll('[data-family-detail-field]').forEach((field) => {
                 if (field instanceof HTMLInputElement || field instanceof HTMLSelectElement || field instanceof HTMLTextAreaElement) {
                     field.disabled = disabled;
                 }
@@ -1808,7 +1836,7 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         const enableFamilyRowForManualEntry = (row) => {
-            setFamilyFieldsDisabled(row, false);
+            setFamilyImmutableFieldsDisabled(row, false);
             setFamilyDetailFieldsDisabled(row, false);
             setFamilyAlert(row, '');
         };
@@ -1827,13 +1855,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (shouldBeVisible) {
                     if (row.querySelector('[data-family-person-id]') instanceof HTMLInputElement
                         && Number.parseInt(row.querySelector('[data-family-person-id]').value || '0', 10) > 0) {
-                        setFamilyFieldsDisabled(row, true);
+                        setFamilyImmutableFieldsDisabled(row, true);
                         setFamilyDetailFieldsDisabled(row, false);
                     } else {
                         enableFamilyRowForManualEntry(row);
                     }
                 } else {
-                    setFamilyFieldsDisabled(row, true);
+                    setFamilyImmutableFieldsDisabled(row, true);
                     setFamilyDetailFieldsDisabled(row, true);
                     setFamilyAlert(row, '');
                 }
@@ -2085,8 +2113,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 if (!/^\d{10}$/.test(cedula)) {
                     clearFamilyFields(row);
-                    setFamilyFieldsDisabled(row, true);
-                    setFamilyDetailFieldsDisabled(row, true);
+                    setFamilyImmutableFieldsDisabled(row, false);
+                    setFamilyDetailFieldsDisabled(row, false);
                     setFamilyAlert(row, 'La cedula debe tener 10 digitos.');
                     syncRepresentativeOptions();
                     return;
@@ -2094,8 +2122,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 if (hasDuplicateFamilyCedula(row, cedula)) {
                     clearFamilyFields(row);
-                    setFamilyFieldsDisabled(row, true);
-                    setFamilyDetailFieldsDisabled(row, true);
+                    setFamilyImmutableFieldsDisabled(row, false);
+                    setFamilyDetailFieldsDisabled(row, false);
                     setFamilyAlert(row, 'Esta persona ya fue agregada en otra seccion o coincide con el estudiante.');
                     syncRepresentativeOptions();
                     return;
@@ -2124,7 +2152,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         if (cedulaInput instanceof HTMLInputElement) {
                             cedulaInput.value = cedula;
                         }
-                        setFamilyFieldsDisabled(row, false);
+                        setFamilyImmutableFieldsDisabled(row, false);
                         setFamilyDetailFieldsDisabled(row, false);
                         setFamilyAlert(row, payload.message || 'Persona no registrada, favor completar los datos.');
                         syncRepresentativeOptions();
@@ -2156,7 +2184,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
                     });
 
-                    setFamilyFieldsDisabled(row, true);
+                    setFamilyImmutableFieldsDisabled(row, true);
                     setFamilyDetailFieldsDisabled(row, false);
                     setFamilyAlert(row, '');
                     syncRepresentativeOptions();
@@ -2186,7 +2214,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
 
                     clearFamilyFields(row);
-                    setFamilyFieldsDisabled(row, true);
+                    setFamilyImmutableFieldsDisabled(row, false);
                     setFamilyDetailFieldsDisabled(row, true);
                     setFamilyAlert(row, '');
                     syncRepresentativeOptions();
@@ -2251,7 +2279,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 clearFamilyFields(row);
-                setFamilyFieldsDisabled(row, true);
+                setFamilyImmutableFieldsDisabled(row, true);
                 setFamilyDetailFieldsDisabled(row, true);
                 setFamilyAlert(row, '');
                 setFamilyRowVisible(slot, false);

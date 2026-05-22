@@ -33,6 +33,7 @@ return static function (Router $router): void {
     $router->get('/calificaciones/registro', [GradebookController::class, 'register']);
     $router->post('/calificaciones/actividad', [GradebookController::class, 'storeActivity']);
     $router->post('/calificaciones/notas', [GradebookController::class, 'saveGrades']);
+    $router->post('/calificaciones/habilitar-subperiodo', [GradebookController::class, 'enableSubperiodGradeEntry']);
     $router->get('/asistencia', [ModuleController::class, 'attendance']);
     $router->get('/novedades', [NoveltyController::class, 'index']);
     $router->get('/novedades/registro', [NoveltyController::class, 'register']);

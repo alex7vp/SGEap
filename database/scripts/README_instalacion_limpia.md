@@ -35,12 +35,13 @@ Si se prefiere revisar o ejecutar la estructura por bloques, usar este orden:
 10. `database/scripts/19_calificaciones_promocion.sql`
 11. `database/scripts/20_calificaciones_soporte.sql`
 12. `database/scripts/21_calificaciones_grupos_materia.sql`
+13. `database/scripts/23_calificaciones_habilitacion_registro.sql`
 
 Despues de la estructura modular, ejecutar las mismas semillas listadas en la opcion recomendada.
 
 ## Notas
 
-Los scripts `22` a `26` fueron absorbidos en el estado final de `21_calificaciones_grupos_materia.sql` y `08_permisos_funcionales_base.sql`, por eso ya no forman parte del flujo desde cero. Si existe un script `22` posterior, debe tratarse como ajuste para bases ya instaladas, no como parte de una instalacion limpia.
+Los scripts `22` a `26` antiguos fueron absorbidos en el estado final de `21_calificaciones_grupos_materia.sql` y `08_permisos_funcionales_base.sql`. Los scripts posteriores que existan en esta carpeta son ajustes incrementales para bases ya instaladas, salvo que tambien esten listados en la opcion modular.
 
 `database/scripts/14_regularizar_usuarios_estudiantes_importados.sql` sigue siendo una utilidad para bases con importacion historica. No forma parte de la instalacion limpia normal.
 

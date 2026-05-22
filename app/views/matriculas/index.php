@@ -254,11 +254,9 @@ $renderFamilyFields = static function (
 ): void {
     $relationshipLabel = $fixedRelationship !== null ? (string) ($fixedRelationship['ptenombre'] ?? '') : '';
     $personId = (int) ($family['perid'] ?? 0);
-    $hasManualData = trim((string) ($family['pernombres'] ?? '')) !== '' || trim((string) ($family['perapellidos'] ?? '')) !== '';
-    $isEditable = $personId <= 0 && $hasManualData;
-    $isLocked = $personId > 0;
-    $personDisabledAttribute = !$isEditable && !$isLocked ? 'disabled' : ($isLocked ? 'disabled' : '');
-    $familyDisabledAttribute = !$isEditable && !$isLocked ? 'disabled' : '';
+    $immutableDisabledAttribute = $personId > 0 ? 'disabled' : '';
+    $detailDisabledAttribute = '';
+    $relationshipDisabledAttribute = $fixedRelationship !== null || $personId > 0 ? 'disabled' : '';
     ?>
     <div class="family-lookup-row">
         <div class="input-group">
@@ -271,6 +269,8 @@ $renderFamilyFields = static function (
                 inputmode="numeric"
                 value="<?= htmlspecialchars((string) ($family['percedula'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>"
                 data-family-cedula
+                data-family-immutable-field
+                <?= $immutableDisabledAttribute; ?>
             >
         </div>
         <button
@@ -282,41 +282,39 @@ $renderFamilyFields = static function (
             Buscar
         </button>
     </div>
-    <div class="family-lookup-alert" data-family-lookup-alert <?= (!$isEditable && !$isLocked) ? 'hidden' : ''; ?>>
-        <?php if ($isEditable): ?>
-            <div class="alert alert-error form-field-alert">
-                <span>Persona no registrada, favor completar los datos.</span>
-            </div>
-        <?php endif; ?>
+    <div class="family-lookup-alert" data-family-lookup-alert hidden>
+        <div class="alert alert-error form-field-alert">
+            <span>Persona no registrada, favor completar los datos.</span>
+        </div>
     </div>
     <input type="hidden" name="family[<?= htmlspecialchars((string) $index, ENT_QUOTES, 'UTF-8'); ?>][perid]" value="<?= htmlspecialchars((string) $personId, ENT_QUOTES, 'UTF-8'); ?>" data-family-person-id>
     <div class="form-grid">
-        <div class="form-group"><div class="input-group"><span class="input-addon">Sexo</span><select name="family[<?= htmlspecialchars((string) $index, ENT_QUOTES, 'UTF-8'); ?>][persexo]" data-family-dependent data-family-person-field data-submit-enable <?= $personDisabledAttribute; ?>><option value="">Seleccione</option><option value="Masculino" <?= ($family['persexo'] ?? '') === 'Masculino' ? 'selected' : ''; ?>>Masculino</option><option value="Femenino" <?= ($family['persexo'] ?? '') === 'Femenino' ? 'selected' : ''; ?>>Femenino</option></select></div></div>
-        <div class="form-group"><div class="input-group"><span class="input-addon">Nombres</span><input name="family[<?= htmlspecialchars((string) $index, ENT_QUOTES, 'UTF-8'); ?>][pernombres]" value="<?= htmlspecialchars((string) ($family['pernombres'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" data-family-field="nombres" data-family-dependent data-family-person-field data-submit-enable <?= $personDisabledAttribute; ?>></div></div>
-        <div class="form-group"><div class="input-group"><span class="input-addon">Apellidos</span><input name="family[<?= htmlspecialchars((string) $index, ENT_QUOTES, 'UTF-8'); ?>][perapellidos]" value="<?= htmlspecialchars((string) ($family['perapellidos'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" data-family-field="apellidos" data-family-dependent data-family-person-field data-submit-enable <?= $personDisabledAttribute; ?>></div></div>
+        <div class="form-group"><div class="input-group"><span class="input-addon">Sexo</span><select name="family[<?= htmlspecialchars((string) $index, ENT_QUOTES, 'UTF-8'); ?>][persexo]" data-family-dependent data-family-detail-field data-submit-enable <?= $detailDisabledAttribute; ?>><option value="">Seleccione</option><option value="Masculino" <?= ($family['persexo'] ?? '') === 'Masculino' ? 'selected' : ''; ?>>Masculino</option><option value="Femenino" <?= ($family['persexo'] ?? '') === 'Femenino' ? 'selected' : ''; ?>>Femenino</option></select></div></div>
+        <div class="form-group"><div class="input-group"><span class="input-addon">Nombres</span><input name="family[<?= htmlspecialchars((string) $index, ENT_QUOTES, 'UTF-8'); ?>][pernombres]" value="<?= htmlspecialchars((string) ($family['pernombres'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" data-family-field="nombres" data-family-dependent data-family-immutable-field data-submit-enable <?= $immutableDisabledAttribute; ?>></div></div>
+        <div class="form-group"><div class="input-group"><span class="input-addon">Apellidos</span><input name="family[<?= htmlspecialchars((string) $index, ENT_QUOTES, 'UTF-8'); ?>][perapellidos]" value="<?= htmlspecialchars((string) ($family['perapellidos'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" data-family-field="apellidos" data-family-dependent data-family-immutable-field data-submit-enable <?= $immutableDisabledAttribute; ?>></div></div>
         <?php if ($fixedRelationship !== null): ?>
             <div class="form-group">
                 <div class="input-group">
                     <span class="input-addon">Parentesco</span>
-                    <input type="text" value="<?= htmlspecialchars($relationshipLabel, ENT_QUOTES, 'UTF-8'); ?>" readonly>
+                    <input type="text" value="<?= htmlspecialchars($relationshipLabel, ENT_QUOTES, 'UTF-8'); ?>" readonly data-family-immutable-field>
                     <input type="hidden" name="family[<?= htmlspecialchars((string) $index, ENT_QUOTES, 'UTF-8'); ?>][pteid]" value="<?= htmlspecialchars((string) ($fixedRelationship['pteid'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>">
                 </div>
             </div>
         <?php else: ?>
-            <div class="form-group"><div class="input-group"><span class="input-addon">Parentesco</span><select name="family[<?= htmlspecialchars((string) $index, ENT_QUOTES, 'UTF-8'); ?>][pteid]" data-family-field="parentesco" data-family-dependent data-submit-enable <?= $familyDisabledAttribute; ?>><option value="">Seleccione</option><?php foreach ($relationships as $relationship): ?><option value="<?= htmlspecialchars((string) $relationship['pteid'], ENT_QUOTES, 'UTF-8'); ?>" <?= (int) ($family['pteid'] ?? 0) === (int) $relationship['pteid'] ? 'selected' : ''; ?>><?= htmlspecialchars((string) $relationship['ptenombre'], ENT_QUOTES, 'UTF-8'); ?></option><?php endforeach; ?></select></div></div>
+            <div class="form-group"><div class="input-group"><span class="input-addon">Parentesco</span><select name="family[<?= htmlspecialchars((string) $index, ENT_QUOTES, 'UTF-8'); ?>][pteid]" data-family-field="parentesco" data-family-dependent data-family-immutable-field data-submit-enable <?= $relationshipDisabledAttribute; ?>><option value="">Seleccione</option><?php foreach ($relationships as $relationship): ?><option value="<?= htmlspecialchars((string) $relationship['pteid'], ENT_QUOTES, 'UTF-8'); ?>" <?= (int) ($family['pteid'] ?? 0) === (int) $relationship['pteid'] ? 'selected' : ''; ?>><?= htmlspecialchars((string) $relationship['ptenombre'], ENT_QUOTES, 'UTF-8'); ?></option><?php endforeach; ?></select></div></div>
         <?php endif; ?>
-        <div class="form-group"><div class="input-group"><span class="input-addon">Estado civil</span><select name="family[<?= htmlspecialchars((string) $index, ENT_QUOTES, 'UTF-8'); ?>][eciid]" data-family-dependent data-family-person-field data-submit-enable <?= $personDisabledAttribute; ?>><option value="">Seleccione</option><?php foreach ($civilStatuses as $civilStatus): ?><option value="<?= htmlspecialchars((string) $civilStatus['eciid'], ENT_QUOTES, 'UTF-8'); ?>" <?= (int) ($family['eciid'] ?? 0) === (int) $civilStatus['eciid'] ? 'selected' : ''; ?>><?= htmlspecialchars((string) $civilStatus['ecinombre'], ENT_QUOTES, 'UTF-8'); ?></option><?php endforeach; ?></select></div></div>
-        <div class="form-group"><div class="input-group"><span class="input-addon">Instruccion</span><select name="family[<?= htmlspecialchars((string) $index, ENT_QUOTES, 'UTF-8'); ?>][istid]" data-family-dependent data-submit-enable <?= $familyDisabledAttribute; ?>><option value="">Seleccione</option><?php foreach ($instructionLevels as $instructionLevel): ?><option value="<?= htmlspecialchars((string) $instructionLevel['istid'], ENT_QUOTES, 'UTF-8'); ?>" <?= (int) ($family['istid'] ?? 0) === (int) $instructionLevel['istid'] ? 'selected' : ''; ?>><?= htmlspecialchars((string) $instructionLevel['istnombre'], ENT_QUOTES, 'UTF-8'); ?></option><?php endforeach; ?></select></div></div>
-        <div class="form-group"><div class="input-group"><span class="input-addon">Nacimiento</span><input name="family[<?= htmlspecialchars((string) $index, ENT_QUOTES, 'UTF-8'); ?>][perfechanacimiento]" type="date" value="<?= htmlspecialchars((string) ($family['perfechanacimiento'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" data-family-dependent data-family-person-field data-submit-enable <?= $personDisabledAttribute; ?>></div></div>
-        <div class="form-group"><div class="input-group"><span class="input-addon">Celular</span><input name="family[<?= htmlspecialchars((string) $index, ENT_QUOTES, 'UTF-8'); ?>][pertelefono1]" placeholder="(09) 9894 5698" maxlength="14" inputmode="numeric" value="<?= htmlspecialchars((string) ($family['pertelefono1'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" data-phone-mask data-family-dependent data-family-person-field data-submit-enable <?= $personDisabledAttribute; ?>></div></div>
-        <div class="form-group"><div class="input-group"><span class="input-addon">Correo</span><input name="family[<?= htmlspecialchars((string) $index, ENT_QUOTES, 'UTF-8'); ?>][percorreo]" type="email" value="<?= htmlspecialchars((string) ($family['percorreo'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" data-family-dependent data-family-person-field data-submit-enable <?= $personDisabledAttribute; ?>></div></div>
-        <div class="form-group"><div class="input-group"><span class="input-addon">Profesion</span><input name="family[<?= htmlspecialchars((string) $index, ENT_QUOTES, 'UTF-8'); ?>][perprofesion]" value="<?= htmlspecialchars((string) ($family['perprofesion'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" data-family-dependent data-family-person-field data-submit-enable <?= $personDisabledAttribute; ?>></div></div>
-        <div class="form-group"><div class="input-group"><span class="input-addon">Ocupacion</span><input name="family[<?= htmlspecialchars((string) $index, ENT_QUOTES, 'UTF-8'); ?>][perocupacion]" value="<?= htmlspecialchars((string) ($family['perocupacion'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" data-family-dependent data-family-person-field data-submit-enable <?= $personDisabledAttribute; ?>></div></div>
-        <div class="form-group"><div class="input-group"><span class="input-addon">Lugar de trabajo</span><input name="family[<?= htmlspecialchars((string) $index, ENT_QUOTES, 'UTF-8'); ?>][perlugardetrabajo]" value="<?= htmlspecialchars((string) ($family['perlugardetrabajo'] ?? $family['famlugardetrabajo'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" data-family-dependent data-family-person-field data-submit-enable <?= $personDisabledAttribute; ?>></div></div>
+        <div class="form-group"><div class="input-group"><span class="input-addon">Estado civil</span><select name="family[<?= htmlspecialchars((string) $index, ENT_QUOTES, 'UTF-8'); ?>][eciid]" data-family-dependent data-family-detail-field data-submit-enable <?= $detailDisabledAttribute; ?>><option value="">Seleccione</option><?php foreach ($civilStatuses as $civilStatus): ?><option value="<?= htmlspecialchars((string) $civilStatus['eciid'], ENT_QUOTES, 'UTF-8'); ?>" <?= (int) ($family['eciid'] ?? 0) === (int) $civilStatus['eciid'] ? 'selected' : ''; ?>><?= htmlspecialchars((string) $civilStatus['ecinombre'], ENT_QUOTES, 'UTF-8'); ?></option><?php endforeach; ?></select></div></div>
+        <div class="form-group"><div class="input-group"><span class="input-addon">Instruccion</span><select name="family[<?= htmlspecialchars((string) $index, ENT_QUOTES, 'UTF-8'); ?>][istid]" data-family-dependent data-family-detail-field data-submit-enable <?= $detailDisabledAttribute; ?>><option value="">Seleccione</option><?php foreach ($instructionLevels as $instructionLevel): ?><option value="<?= htmlspecialchars((string) $instructionLevel['istid'], ENT_QUOTES, 'UTF-8'); ?>" <?= (int) ($family['istid'] ?? 0) === (int) $instructionLevel['istid'] ? 'selected' : ''; ?>><?= htmlspecialchars((string) $instructionLevel['istnombre'], ENT_QUOTES, 'UTF-8'); ?></option><?php endforeach; ?></select></div></div>
+        <div class="form-group"><div class="input-group"><span class="input-addon">Nacimiento</span><input name="family[<?= htmlspecialchars((string) $index, ENT_QUOTES, 'UTF-8'); ?>][perfechanacimiento]" type="date" value="<?= htmlspecialchars((string) ($family['perfechanacimiento'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" data-family-dependent data-family-detail-field data-submit-enable <?= $detailDisabledAttribute; ?>></div></div>
+        <div class="form-group"><div class="input-group"><span class="input-addon">Celular</span><input name="family[<?= htmlspecialchars((string) $index, ENT_QUOTES, 'UTF-8'); ?>][pertelefono1]" placeholder="(09) 9894 5698" maxlength="14" inputmode="numeric" value="<?= htmlspecialchars((string) ($family['pertelefono1'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" data-phone-mask data-family-dependent data-family-detail-field data-submit-enable <?= $detailDisabledAttribute; ?>></div></div>
+        <div class="form-group"><div class="input-group"><span class="input-addon">Correo</span><input name="family[<?= htmlspecialchars((string) $index, ENT_QUOTES, 'UTF-8'); ?>][percorreo]" type="email" value="<?= htmlspecialchars((string) ($family['percorreo'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" data-family-dependent data-family-detail-field data-submit-enable <?= $detailDisabledAttribute; ?>></div></div>
+        <div class="form-group"><div class="input-group"><span class="input-addon">Profesion</span><input name="family[<?= htmlspecialchars((string) $index, ENT_QUOTES, 'UTF-8'); ?>][perprofesion]" value="<?= htmlspecialchars((string) ($family['perprofesion'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" data-family-dependent data-family-detail-field data-submit-enable <?= $detailDisabledAttribute; ?>></div></div>
+        <div class="form-group"><div class="input-group"><span class="input-addon">Ocupacion</span><input name="family[<?= htmlspecialchars((string) $index, ENT_QUOTES, 'UTF-8'); ?>][perocupacion]" value="<?= htmlspecialchars((string) ($family['perocupacion'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" data-family-dependent data-family-detail-field data-submit-enable <?= $detailDisabledAttribute; ?>></div></div>
+        <div class="form-group"><div class="input-group"><span class="input-addon">Lugar de trabajo</span><input name="family[<?= htmlspecialchars((string) $index, ENT_QUOTES, 'UTF-8'); ?>][perlugardetrabajo]" value="<?= htmlspecialchars((string) ($family['perlugardetrabajo'] ?? $family['famlugardetrabajo'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" data-family-dependent data-family-detail-field data-submit-enable <?= $detailDisabledAttribute; ?>></div></div>
         <label class="resource-option resource-option-switch family-switch-inline">
             <span>Habla ingles</span>
             <span class="switch-control">
-                <input type="checkbox" name="family[<?= htmlspecialchars((string) $index, ENT_QUOTES, 'UTF-8'); ?>][perhablaingles]" value="1" <?= !empty($family['perhablaingles']) ? 'checked' : ''; ?> data-family-dependent data-family-person-field data-submit-enable <?= $personDisabledAttribute; ?>>
+                <input type="checkbox" name="family[<?= htmlspecialchars((string) $index, ENT_QUOTES, 'UTF-8'); ?>][perhablaingles]" value="1" <?= !empty($family['perhablaingles']) ? 'checked' : ''; ?> data-family-dependent data-family-detail-field data-submit-enable <?= $detailDisabledAttribute; ?>>
                 <span class="switch-slider" aria-hidden="true"></span>
             </span>
         </label>
