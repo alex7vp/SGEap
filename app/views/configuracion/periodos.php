@@ -5,10 +5,23 @@ declare(strict_types=1);
 require BASE_PATH . '/app/views/partials/header.php';
 
 $editingPeriodId = (int) ($old['pleid'] ?? 0);
+$selectedPeriodMode = $editingPeriodId > 0 || empty($periods) ? 'form' : 'list';
 ?>
 <p class="module-note">Administra los periodos lectivos del sistema y define cual queda disponible como referencia para la sesion actual.</p>
 
-<section class="security-assignment-block">
+<section class="security-assignment-block grade-profile-creation-block" data-period-view-mode>
+    <div class="grade-profile-mode-selector" role="radiogroup" aria-label="Vista de periodos lectivos">
+        <label class="grade-profile-mode-option">
+            <input type="radio" name="period_view_mode" value="form" <?= $selectedPeriodMode === 'form' ? 'checked' : ''; ?> data-period-view-radio>
+            <span><?= $editingPeriodId > 0 ? 'Editar periodo' : 'Nuevo periodo'; ?></span>
+        </label>
+        <label class="grade-profile-mode-option">
+            <input type="radio" name="period_view_mode" value="list" <?= $selectedPeriodMode === 'list' ? 'checked' : ''; ?> data-period-view-radio>
+            <span>Periodos registrados</span>
+        </label>
+    </div>
+
+    <div data-period-view-panel="form" <?= $selectedPeriodMode === 'form' ? '' : 'hidden'; ?>>
     <header class="security-assignment-header">
         <div>
             <h3><?= $editingPeriodId > 0 ? 'Editar periodo lectivo' : 'Nuevo periodo lectivo'; ?></h3>
@@ -68,9 +81,9 @@ $editingPeriodId = (int) ($old['pleid'] ?? 0);
             </button>
         </div>
     </form>
-</section>
+    </div>
 
-<section class="security-assignment-block" id="periodos-registrados">
+    <div id="periodos-registrados" data-period-view-panel="list" <?= $selectedPeriodMode === 'list' ? '' : 'hidden'; ?>>
     <header class="security-assignment-header">
         <div>
             <h3>Periodos registrados</h3>
@@ -140,6 +153,7 @@ $editingPeriodId = (int) ($old['pleid'] ?? 0);
             </table>
         </div>
     <?php endif; ?>
+    </div>
 </section>
 
 <?php require BASE_PATH . '/app/views/partials/footer.php'; ?>

@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Core\Controller;
+use App\Models\AttendanceModel;
+use App\Models\CourseModel;
+use App\Models\GradeModel;
 
 class ModuleController extends Controller
 {
@@ -165,84 +168,120 @@ class ModuleController extends Controller
 
     public function academicConfiguration(): void
     {
-        $this->renderModuleHome(
-            'configuracion',
-            'configuracion_academica',
-            'Configuracion academica',
-            'Centraliza las configuraciones que intervienen en los procesos academicos, de matricula y asistencia.',
+        $user = $this->requireAuth();
+        $gradeModel = new GradeModel();
+        $courseModel = new CourseModel();
+        $attendanceModel = new AttendanceModel();
+        $period = currentAcademicPeriod();
+        $periodId = $period !== null ? (int) $period['pleid'] : 0;
+        $grades = $gradeModel->allOrdered();
+        $courses = $periodId > 0 ? $courseModel->allByPeriod($periodId) : [];
+        $areas = $attendanceModel->areas();
+        $subjects = $attendanceModel->subjects();
+        $courseSubjects = $periodId > 0 ? $attendanceModel->courseSubjectsByPeriod($periodId) : [];
+        $activeCourseSubjects = array_values(array_filter(
+            $courseSubjects,
+            static fn (array $subject): bool => !empty($subject['mtcestado'])
+        ));
+        $views = array_values(array_filter([
             [
-                [
-                    'label' => 'Periodos lectivos',
-                    'description' => 'Define periodos, vigencias y el periodo activo oficial.',
-                    'url' => baseUrl('configuracion/periodos'),
-                    'icon' => 'fa-calendar',
-                    'permission' => 'configuracion.gestionar',
-                ],
-                [
-                    'label' => 'Configuracion de matricula',
-                    'description' => 'Abre o cierra la matricula ordinaria y extraordinaria por periodo.',
-                    'url' => baseUrl('configuracion/matricula'),
-                    'icon' => 'fa-wpforms',
-                    'permission' => 'configuracion.gestionar',
-                ],
-                [
-                    'label' => 'Grados',
-                    'description' => 'Gestiona la estructura de grados usada por cursos y matriculas.',
-                    'url' => baseUrl('grados'),
-                    'icon' => 'fa-sitemap',
-                    'permission' => 'catalogos.gestionar',
-                ],
-                [
-                    'label' => 'Cursos por periodo',
-                    'description' => 'Relaciona niveles, grados y paralelos dentro de cada periodo.',
-                    'url' => baseUrl('cursos'),
-                    'icon' => 'fa-book',
-                    'permission' => 'cursos.gestionar',
-                ],
-                [
-                    'label' => 'Areas academicas',
-                    'description' => 'Gestiona las areas usadas para organizar las asignaturas institucionales.',
-                    'url' => baseUrl('configuracion/academica/areas'),
-                    'icon' => 'fa-folder-open',
-                    'permission' => 'asistencia.calendario.gestionar',
-                ],
-                [
-                    'label' => 'Asignaturas',
-                    'description' => 'Administra las materias base por area academica.',
-                    'url' => baseUrl('configuracion/academica/asignaturas'),
-                    'icon' => 'fa-bookmark',
-                    'permission' => 'asistencia.calendario.gestionar',
-                ],
-                [
-                    'label' => 'Materias por curso',
-                    'description' => 'Relaciona asignaturas con los cursos activos del periodo.',
-                    'url' => baseUrl('configuracion/academica/materias-curso'),
-                    'icon' => 'fa-list-ol',
-                    'permission' => 'asistencia.calendario.gestionar',
-                ],
-                [
-                    'label' => 'Designacion de docentes',
-                    'description' => 'Vincula docentes con las materias que dictan en cada curso.',
-                    'url' => baseUrl('configuracion/academica/docentes'),
-                    'icon' => 'fa-user-plus',
-                    'permission' => 'asistencia.calendario.gestionar',
-                ],
-                [
-                    'label' => 'Calificaciones',
-                    'description' => 'Crea perfiles de evaluacion por periodo desde plantillas base.',
-                    'url' => baseUrl('configuracion/academica/calificaciones'),
-                    'icon' => 'fa-check-square',
-                    'permission' => 'calificaciones.configurar|calificaciones.plantillas.gestionar',
-                ],
-                [
-                    'label' => 'Configuracion de asistencia',
-                    'description' => 'Define el rango real de clases usado por el calendario de asistencia.',
-                    'url' => baseUrl('asistencia/configuracion'),
-                    'icon' => 'fa-calendar-check-o',
-                    'permission' => 'asistencia.calendario.gestionar',
-                ],
-            ]
-        );
+                'key' => 'grados',
+                'label' => 'Grados',
+                'permission' => 'catalogos.gestionar',
+            ],
+            [
+                'key' => 'cursos',
+                'label' => 'Cursos',
+                'permission' => 'cursos.gestionar',
+            ],
+            [
+                'key' => 'areas',
+                'label' => 'Areas academicas',
+                'permission' => 'asistencia.calendario.gestionar',
+            ],
+            [
+                'key' => 'asignaturas',
+                'label' => 'Asignaturas',
+                'permission' => 'asistencia.calendario.gestionar',
+            ],
+            [
+                'key' => 'materias',
+                'label' => 'Materias por curso',
+                'permission' => 'asistencia.calendario.gestionar',
+            ],
+            [
+                'key' => 'docentes',
+                'label' => 'Asignacion de docentes',
+                'permission' => 'asistencia.calendario.gestionar',
+            ],
+        ], fn (array $view): bool => $this->hasPermission((string) $view['permission'], $user)));
+        $selectedView = (string) ($_GET['view'] ?? ($views[0]['key'] ?? ''));
+
+        if (!in_array($selectedView, array_column($views, 'key'), true)) {
+            $selectedView = (string) ($views[0]['key'] ?? '');
+        }
+
+        $this->view('configuracion.academica', [
+            'appName' => config('app')['name'] ?? 'SGEap',
+            'pageTitle' => 'Configuracion academica',
+            'currentModule' => 'configuracion',
+            'currentSection' => 'configuracion_academica',
+            'user' => $user,
+            'academicViews' => $views,
+            'selectedAcademicView' => $selectedView,
+            'currentPeriod' => $period,
+            'grades' => $grades,
+            'parallels' => $courseModel->allParallels(),
+            'courses' => $courses,
+            'activeCourses' => array_values(array_filter($courses, static fn (array $course): bool => !empty($course['curestado']))),
+            'areas' => $areas,
+            'activeAreas' => $attendanceModel->activeAreas(),
+            'subjects' => $subjects,
+            'activeSubjects' => $attendanceModel->activeSubjects(),
+            'courseSubjects' => $courseSubjects,
+            'activeCourseSubjects' => $activeCourseSubjects,
+            'teachers' => $attendanceModel->activeTeachers(),
+            'teacherAssignments' => $periodId > 0 ? $attendanceModel->activeTeacherAssignmentsByCourseSubject($periodId) : [],
+            'gradeListFeedback' => $this->gradeListFeedback(),
+            'courseListFeedback' => $this->courseListFeedback(),
+            'success' => sessionFlash('success'),
+            'error' => sessionFlash('error'),
+            'old' => [
+                'graid' => sessionFlash('old_course_grade') ?? '',
+                'prlid' => sessionFlash('old_course_parallel') ?? '',
+                'curestado' => sessionFlash('old_course_status') ?? '1',
+            ],
+        ]);
+    }
+
+    private function gradeListFeedback(): ?array
+    {
+        $type = sessionFlash('grade_list_feedback_type');
+        $message = sessionFlash('grade_list_feedback_message');
+
+        if ($type === null || $message === null) {
+            return null;
+        }
+
+        return [
+            'type' => $type,
+            'message' => $message,
+        ];
+    }
+
+    private function courseListFeedback(): ?array
+    {
+        $type = sessionFlash('course_list_feedback_type');
+        $message = sessionFlash('course_list_feedback_message');
+
+        if ($type === null || $message === null) {
+            return null;
+        }
+
+        return [
+            'type' => $type,
+            'message' => $message,
+        ];
     }
 
     public function reports(): void

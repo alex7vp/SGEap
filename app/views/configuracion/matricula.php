@@ -6,6 +6,7 @@ require BASE_PATH . '/app/views/partials/header.php';
 
 $editingConfigurationId = (int) ($old['cmid'] ?? 0);
 $today = date('Y-m-d');
+$selectedMatriculationConfigMode = $editingConfigurationId > 0 || empty($settings) ? 'form' : 'list';
 ?>
 <nav class="module-subnav" aria-label="Submodulos de configuracion de matricula">
     <a class="is-active" href="<?= htmlspecialchars(baseUrl('configuracion/matricula'), ENT_QUOTES, 'UTF-8'); ?>">Configuracion de matricula</a>
@@ -13,7 +14,20 @@ $today = date('Y-m-d');
 </nav>
 <p class="module-note">Administra la ventana ordinaria y extraordinaria de matricula para cada periodo lectivo sin alterar el estado activo del periodo.</p>
 
-<section class="security-assignment-block">
+<section class="security-assignment-block grade-profile-creation-block" data-matriculation-config-view-mode>
+    <div class="grade-profile-mode-selector" role="radiogroup" aria-label="Vista de configuracion de matricula">
+        <label class="grade-profile-mode-option">
+            <input type="radio" name="matriculation_config_view_mode" value="form" <?= $selectedMatriculationConfigMode === 'form' ? 'checked' : ''; ?> data-matriculation-config-view-radio>
+            <span><?= $editingConfigurationId > 0 ? 'Editar configuracion' : 'Nueva configuracion'; ?></span>
+        </label>
+        <label class="grade-profile-mode-option">
+            <input type="radio" name="matriculation_config_view_mode" value="list" <?= $selectedMatriculationConfigMode === 'list' ? 'checked' : ''; ?> data-matriculation-config-view-radio>
+            <span>Configuraciones registradas</span>
+        </label>
+    </div>
+</section>
+
+<section class="security-assignment-block" data-matriculation-config-view-panel="form" <?= $selectedMatriculationConfigMode === 'form' ? '' : 'hidden'; ?>>
     <header class="security-assignment-header">
         <div>
             <h3><?= $editingConfigurationId > 0 ? 'Editar configuracion de matricula' : 'Nueva configuracion de matricula'; ?></h3>
@@ -105,7 +119,7 @@ $today = date('Y-m-d');
     </form>
 </section>
 
-<section class="security-assignment-block" id="configuracion-matricula-registrada">
+<section class="security-assignment-block" id="configuracion-matricula-registrada" data-matriculation-config-view-panel="list" <?= $selectedMatriculationConfigMode === 'list' ? '' : 'hidden'; ?>>
     <header class="security-assignment-header">
         <div>
             <h3>Configuraciones registradas</h3>

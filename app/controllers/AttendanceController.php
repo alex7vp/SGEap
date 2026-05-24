@@ -39,85 +39,26 @@ class AttendanceController extends Controller
 
     public function academicAreas(): void
     {
-        $user = $this->requireAuth();
-        $attendanceModel = new AttendanceModel();
-
-        $this->view('configuracion.areas_academicas', [
-            'appName' => config('app')['name'] ?? 'SGEap',
-            'pageTitle' => 'Areas academicas',
-            'currentSection' => 'areas_academicas',
-            'user' => $user,
-            'areas' => $attendanceModel->areas(),
-            'success' => sessionFlash('success'),
-            'error' => sessionFlash('error'),
-        ]);
+        $this->requireAuth();
+        $this->redirect('/configuracion/academica?view=areas');
     }
 
     public function academicSubjects(): void
     {
-        $user = $this->requireAuth();
-        $attendanceModel = new AttendanceModel();
-
-        $this->view('configuracion.asignaturas', [
-            'appName' => config('app')['name'] ?? 'SGEap',
-            'pageTitle' => 'Asignaturas',
-            'currentSection' => 'asignaturas',
-            'user' => $user,
-            'areas' => $attendanceModel->areas(),
-            'activeAreas' => $attendanceModel->activeAreas(),
-            'subjects' => $attendanceModel->subjects(),
-            'success' => sessionFlash('success'),
-            'error' => sessionFlash('error'),
-        ]);
+        $this->requireAuth();
+        $this->redirect('/configuracion/academica?view=asignaturas');
     }
 
     public function academicCourseSubjects(): void
     {
-        $user = $this->requireAuth();
-        $period = currentAcademicPeriod();
-        $periodId = $period !== null ? (int) $period['pleid'] : 0;
-        $attendanceModel = new AttendanceModel();
-        $courseModel = new CourseModel();
-
-        $this->view('configuracion.materias_curso', [
-            'appName' => config('app')['name'] ?? 'SGEap',
-            'pageTitle' => 'Materias por curso',
-            'currentSection' => 'materias_curso',
-            'user' => $user,
-            'currentPeriod' => $period,
-            'courses' => $periodId > 0 ? array_values(array_filter(
-                $courseModel->allByPeriod($periodId),
-                static fn (array $course): bool => !empty($course['curestado'])
-            )) : [],
-            'subjects' => $attendanceModel->activeSubjects(),
-            'courseSubjects' => $periodId > 0 ? $attendanceModel->courseSubjectsByPeriod($periodId) : [],
-            'success' => sessionFlash('success'),
-            'error' => sessionFlash('error'),
-        ]);
+        $this->requireAuth();
+        $this->redirect('/configuracion/academica?view=materias');
     }
 
     public function academicTeachers(): void
     {
-        $user = $this->requireAuth();
-        $period = currentAcademicPeriod();
-        $periodId = $period !== null ? (int) $period['pleid'] : 0;
-        $attendanceModel = new AttendanceModel();
-
-        $this->view('configuracion.docentes_materias', [
-            'appName' => config('app')['name'] ?? 'SGEap',
-            'pageTitle' => 'Designacion de docentes',
-            'currentSection' => 'docentes_materias',
-            'user' => $user,
-            'currentPeriod' => $period,
-            'courseSubjects' => $periodId > 0 ? array_values(array_filter(
-                $attendanceModel->courseSubjectsByPeriod($periodId),
-                static fn (array $subject): bool => !empty($subject['mtcestado'])
-            )) : [],
-            'teachers' => $attendanceModel->activeTeachers(),
-            'teacherAssignments' => $periodId > 0 ? $attendanceModel->activeTeacherAssignmentsByCourseSubject($periodId) : [],
-            'success' => sessionFlash('success'),
-            'error' => sessionFlash('error'),
-        ]);
+        $this->requireAuth();
+        $this->redirect('/configuracion/academica?view=docentes');
     }
 
     public function saveConfiguration(): void
@@ -951,7 +892,7 @@ class AttendanceController extends Controller
 
         if ($name === '') {
             sessionFlash('error', 'El nombre del area es obligatorio.');
-            $this->redirect('/configuracion/academica/areas');
+            $this->redirect('/configuracion/academica?view=areas');
         }
 
         try {
@@ -961,7 +902,7 @@ class AttendanceController extends Controller
             sessionFlash('error', 'No se pudo registrar el area. Revise si ya existe con el mismo nombre.');
         }
 
-        $this->redirect('/configuracion/academica/areas');
+        $this->redirect('/configuracion/academica?view=areas');
     }
 
     public function updateArea(): void
@@ -973,7 +914,7 @@ class AttendanceController extends Controller
 
         if ($areaId <= 0 || $name === '') {
             sessionFlash('error', 'Los datos del area no son validos.');
-            $this->redirect('/configuracion/academica/areas');
+            $this->redirect('/configuracion/academica?view=areas');
         }
 
         try {
@@ -983,7 +924,7 @@ class AttendanceController extends Controller
             sessionFlash('error', 'No se pudo actualizar el area. Revise si ya existe con el mismo nombre.');
         }
 
-        $this->redirect('/configuracion/academica/areas');
+        $this->redirect('/configuracion/academica?view=areas');
     }
 
     public function toggleArea(): void
@@ -995,12 +936,12 @@ class AttendanceController extends Controller
 
         if ($areaId <= 0) {
             sessionFlash('error', 'El area seleccionada no es valida.');
-            $this->redirect('/configuracion/academica/areas');
+            $this->redirect('/configuracion/academica?view=areas');
         }
 
         (new AttendanceModel())->updateAreaStatus($areaId, $status);
         sessionFlash('success', 'Estado del area actualizado correctamente.');
-        $this->redirect('/configuracion/academica/areas');
+        $this->redirect('/configuracion/academica?view=areas');
     }
 
     public function storeSubject(): void
@@ -1012,7 +953,7 @@ class AttendanceController extends Controller
 
         if ($areaId <= 0 || $name === '') {
             sessionFlash('error', 'Debe seleccionar area e ingresar el nombre de la asignatura.');
-            $this->redirect('/configuracion/academica/asignaturas');
+            $this->redirect('/configuracion/academica?view=asignaturas');
         }
 
         try {
@@ -1022,7 +963,7 @@ class AttendanceController extends Controller
             sessionFlash('error', 'No se pudo registrar la asignatura. Revise si ya existe en esa area.');
         }
 
-        $this->redirect('/configuracion/academica/asignaturas');
+        $this->redirect('/configuracion/academica?view=asignaturas');
     }
 
     public function updateSubject(): void
@@ -1035,7 +976,7 @@ class AttendanceController extends Controller
 
         if ($subjectId <= 0 || $areaId <= 0 || $name === '') {
             sessionFlash('error', 'Los datos de la asignatura no son validos.');
-            $this->redirect('/configuracion/academica/asignaturas');
+            $this->redirect('/configuracion/academica?view=asignaturas');
         }
 
         try {
@@ -1045,7 +986,7 @@ class AttendanceController extends Controller
             sessionFlash('error', 'No se pudo actualizar la asignatura. Revise si ya existe en esa area.');
         }
 
-        $this->redirect('/configuracion/academica/asignaturas');
+        $this->redirect('/configuracion/academica?view=asignaturas');
     }
 
     public function toggleSubject(): void
@@ -1057,12 +998,12 @@ class AttendanceController extends Controller
 
         if ($subjectId <= 0) {
             sessionFlash('error', 'La asignatura seleccionada no es valida.');
-            $this->redirect('/configuracion/academica/asignaturas');
+            $this->redirect('/configuracion/academica?view=asignaturas');
         }
 
         (new AttendanceModel())->updateSubjectStatus($subjectId, $status);
         sessionFlash('success', 'Estado de la asignatura actualizado correctamente.');
-        $this->redirect('/configuracion/academica/asignaturas');
+        $this->redirect('/configuracion/academica?view=asignaturas');
     }
 
     public function storeCourseSubject(): void
@@ -1073,7 +1014,7 @@ class AttendanceController extends Controller
 
         if ($period === null) {
             sessionFlash('error', 'Debe seleccionar un periodo lectivo antes de registrar materias.');
-            $this->redirect('/configuracion/academica/materias-curso');
+            $this->redirect('/configuracion/academica?view=materias');
         }
 
         $courseId = (int) ($_POST['curid'] ?? 0);
@@ -1085,14 +1026,14 @@ class AttendanceController extends Controller
 
         if ($courseId <= 0) {
             sessionFlash('error', 'Debe seleccionar un curso valido.');
-            $this->redirect('/configuracion/academica/materias-curso');
+            $this->redirect('/configuracion/academica?view=materias');
         }
 
         $course = (new CourseModel())->findDetailed($courseId);
 
         if ($course === false || (int) $course['pleid'] !== (int) $period['pleid']) {
             sessionFlash('error', 'El curso seleccionado no pertenece al periodo actual.');
-            $this->redirect('/configuracion/academica/materias-curso');
+            $this->redirect('/configuracion/academica?view=materias');
         }
 
         $attendanceModel = new AttendanceModel();
@@ -1114,7 +1055,7 @@ class AttendanceController extends Controller
             sessionFlash('error', 'No se pudieron actualizar las materias del curso.');
         }
 
-        $this->redirect('/configuracion/academica/materias-curso');
+        $this->redirect('/configuracion/academica?view=materias');
     }
 
     public function toggleCourseSubject(): void
@@ -1129,7 +1070,7 @@ class AttendanceController extends Controller
 
         if ($period === null || $courseSubject === false || (int) $courseSubject['pleid'] !== (int) $period['pleid']) {
             sessionFlash('error', 'La materia seleccionada no es valida para el periodo actual.');
-            $this->redirect('/configuracion/academica/materias-curso');
+            $this->redirect('/configuracion/academica?view=materias');
         }
 
         try {
@@ -1139,7 +1080,7 @@ class AttendanceController extends Controller
             sessionFlash('error', 'No se pudo actualizar la materia. Revise si ya existe otra materia activa igual.');
         }
 
-        $this->redirect('/configuracion/academica/materias-curso');
+        $this->redirect('/configuracion/academica?view=materias');
     }
 
     public function assignTeacher(): void
@@ -1156,12 +1097,12 @@ class AttendanceController extends Controller
 
         if ($period === null || $courseSubjectIds === []) {
             sessionFlash('error', 'Seleccione al menos una materia valida para el periodo actual.');
-            $this->redirect('/configuracion/academica/docentes');
+            $this->redirect('/configuracion/academica?view=docentes');
         }
 
         if ($personId <= 0 || !(new PersonalModel())->personHasActiveStaffType($personId, 'Docente')) {
             sessionFlash('error', 'Debe seleccionar un docente activo.');
-            $this->redirect('/configuracion/academica/docentes');
+            $this->redirect('/configuracion/academica?view=docentes');
         }
 
         foreach ($courseSubjectIds as $courseSubjectId) {
@@ -1169,7 +1110,7 @@ class AttendanceController extends Controller
 
             if ($courseSubject === false || (int) $courseSubject['pleid'] !== (int) $period['pleid']) {
                 sessionFlash('error', 'Una materia seleccionada no es valida para el periodo actual.');
-                $this->redirect('/configuracion/academica/docentes');
+                $this->redirect('/configuracion/academica?view=docentes');
             }
         }
 
@@ -1186,7 +1127,7 @@ class AttendanceController extends Controller
             sessionFlash('error', 'No se pudieron asignar las materias. Revise si ya existen designaciones activas.');
         }
 
-        $this->redirect('/configuracion/academica/docentes');
+        $this->redirect('/configuracion/academica?view=docentes');
     }
 
     public function removeTeacher(): void
@@ -1200,12 +1141,12 @@ class AttendanceController extends Controller
 
         if ($period === null || $assignment === false || (int) $assignment['pleid'] !== (int) $period['pleid']) {
             sessionFlash('error', 'La asignacion seleccionada no es valida para el periodo actual.');
-            $this->redirect('/configuracion/academica/docentes');
+            $this->redirect('/configuracion/academica?view=docentes');
         }
 
         $attendanceModel->removeTeacher($assignmentId);
         sessionFlash('success', 'Docente retirado de la materia correctamente.');
-        $this->redirect('/configuracion/academica/docentes');
+        $this->redirect('/configuracion/academica?view=docentes');
     }
 
     private function validDateOrToday(string $date): string

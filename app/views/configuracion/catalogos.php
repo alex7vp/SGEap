@@ -3,14 +3,46 @@
 declare(strict_types=1);
 
 require BASE_PATH . '/app/views/partials/header.php';
+
+$selectedCatalogTable = (string) ($catalogFeedback['table'] ?? ($catalogs[0]['table'] ?? ''));
 ?>
 
 <p class="module-note">Este modulo centraliza los catalogos operativos. Por ahora queda en modo visualizacion para validar estructura y datos cargados.</p>
 
-<section class="catalog-grid">
+<?php if (!empty($catalogs)): ?>
+    <section class="security-assignment-block catalog-selector-block" data-base-catalog-selector>
+        <div class="grade-profile-mode-selector catalog-selector" role="radiogroup" aria-label="Seleccion de catalogo base">
+            <?php foreach ($catalogs as $catalog): ?>
+                <?php $catalogTable = (string) $catalog['table']; ?>
+                <label class="grade-profile-mode-option">
+                    <input
+                        type="radio"
+                        name="base_catalog_table"
+                        value="<?= htmlspecialchars($catalogTable, ENT_QUOTES, 'UTF-8'); ?>"
+                        <?= $selectedCatalogTable === $catalogTable ? 'checked' : ''; ?>
+                        data-base-catalog-radio
+                    >
+                    <span><?= htmlspecialchars((string) $catalog['label'], ENT_QUOTES, 'UTF-8'); ?></span>
+                </label>
+            <?php endforeach; ?>
+        </div>
+    </section>
+<?php endif; ?>
+
+<section class="catalog-grid catalog-single-view">
     <?php foreach ($catalogs as $catalog): ?>
         <?php $catalogAnchor = 'catalog-' . $catalog['table']; ?>
-        <article class="catalog-card" id="<?= htmlspecialchars($catalogAnchor, ENT_QUOTES, 'UTF-8'); ?>">
+        <?php
+        $isFeedbackCatalog = !empty($catalogFeedback) && ($catalogFeedback['table'] ?? '') === $catalog['table'];
+        $catalogTable = (string) $catalog['table'];
+        $isSelectedCatalog = $selectedCatalogTable === $catalogTable;
+        ?>
+        <article
+            class="catalog-card"
+            id="<?= htmlspecialchars($catalogAnchor, ENT_QUOTES, 'UTF-8'); ?>"
+            data-base-catalog-panel="<?= htmlspecialchars($catalogTable, ENT_QUOTES, 'UTF-8'); ?>"
+            <?= $isSelectedCatalog ? '' : 'hidden'; ?>
+        >
             <header class="catalog-card-header">
                 <div>
                     <h3><?= htmlspecialchars((string) $catalog['label'], ENT_QUOTES, 'UTF-8'); ?></h3>
@@ -19,7 +51,7 @@ require BASE_PATH . '/app/views/partials/header.php';
                 <span class="catalog-count"><?= count($catalog['rows']); ?> item(s)</span>
             </header>
 
-            <?php if (!empty($catalogFeedback) && ($catalogFeedback['table'] ?? '') === $catalog['table']): ?>
+            <?php if ($isFeedbackCatalog): ?>
                 <div class="catalog-feedback">
                     <div class="alert <?= ($catalogFeedback['type'] ?? '') === 'error' ? 'alert-error' : 'alert-success'; ?> alert-dismissible" data-alert>
                         <span><?= htmlspecialchars((string) ($catalogFeedback['message'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></span>
@@ -30,11 +62,22 @@ require BASE_PATH . '/app/views/partials/header.php';
                 </div>
             <?php endif; ?>
 
-            <?php if (empty($catalog['rows'])): ?>
-                <div class="empty-state">No hay registros cargados en este catalogo. Puedes agregar el primero desde la fila inferior.</div>
-            <?php endif; ?>
+            <form class="catalog-inline-form catalog-inline-create catalog-create-panel" method="POST" action="<?= htmlspecialchars(baseUrl('configuracion/catalogos'), ENT_QUOTES, 'UTF-8'); ?>">
+                <input type="hidden" name="catalog_table" value="<?= htmlspecialchars((string) $catalog['table'], ENT_QUOTES, 'UTF-8'); ?>">
+                <input type="hidden" name="redirect_anchor" value="<?= htmlspecialchars($catalogAnchor, ENT_QUOTES, 'UTF-8'); ?>">
+                <div class="input-group">
+                    <span class="input-addon">Nombre</span>
+                    <input type="text" name="catalog_name" placeholder="Agregar nuevo item al catalogo" required>
+                </div>
+                <button class="btn-primary btn-auto btn-icon-only btn-icon-small" type="submit" title="Guardar" aria-label="Guardar">
+                    <i class="fa fa-save" aria-hidden="true"></i>
+                </button>
+            </form>
 
-            <div class="table-wrap">
+            <?php if (empty($catalog['rows'])): ?>
+                <div class="empty-state">No hay registros cargados en este catalogo.</div>
+            <?php else: ?>
+                <div class="table-wrap">
                 <table class="data-table catalog-table">
                     <thead>
                         <tr>
@@ -69,7 +112,7 @@ require BASE_PATH . '/app/views/partials/header.php';
                                             <i class="fa fa-pencil" aria-hidden="true"></i>
                                         </button>
 
-                                        <form method="POST" action="<?= htmlspecialchars(baseUrl('configuracion/catalogos/eliminar'), ENT_QUOTES, 'UTF-8'); ?>" onsubmit="return confirm('Confirma que desea eliminar este registro del catalogo?');">
+                                        <form method="POST" action="<?= htmlspecialchars(baseUrl('configuracion/catalogos/eliminar'), ENT_QUOTES, 'UTF-8'); ?>" data-catalog-delete-form>
                                             <input type="hidden" name="catalog_table" value="<?= htmlspecialchars((string) $catalog['table'], ENT_QUOTES, 'UTF-8'); ?>">
                                             <input type="hidden" name="catalog_id" value="<?= htmlspecialchars((string) $row['id'], ENT_QUOTES, 'UTF-8'); ?>">
                                             <input type="hidden" name="redirect_anchor" value="<?= htmlspecialchars($catalogAnchor, ENT_QUOTES, 'UTF-8'); ?>">
@@ -81,23 +124,26 @@ require BASE_PATH . '/app/views/partials/header.php';
                                 </td>
                             </tr>
                         <?php endforeach; ?>
-                        <tr class="catalog-create-row">
-                            <td>Nuevo</td>
-                            <td colspan="2">
-                                <form class="catalog-inline-form catalog-inline-create" method="POST" action="<?= htmlspecialchars(baseUrl('configuracion/catalogos'), ENT_QUOTES, 'UTF-8'); ?>">
-                                    <input type="hidden" name="catalog_table" value="<?= htmlspecialchars((string) $catalog['table'], ENT_QUOTES, 'UTF-8'); ?>">
-                                    <input type="hidden" name="redirect_anchor" value="<?= htmlspecialchars($catalogAnchor, ENT_QUOTES, 'UTF-8'); ?>">
-                                    <input type="text" name="catalog_name" placeholder="Agregar nuevo item al catalogo" required>
-                                    <button class="btn-primary btn-auto btn-icon-only btn-icon-small" type="submit" title="Guardar" aria-label="Guardar">
-                                        <i class="fa fa-save" aria-hidden="true"></i>
-                                    </button>
-                                </form>
-                            </td>
-                        </tr>
                     </tbody>
                 </table>
-            </div>
+                </div>
+            <?php endif; ?>
         </article>
     <?php endforeach; ?>
 </section>
+
+<dialog class="calendar-dialog catalog-delete-dialog" data-catalog-delete-dialog>
+    <header class="security-assignment-header">
+        <div>
+            <h3>Eliminar registro</h3>
+            <p>Confirma que desea eliminar este registro del catalogo.</p>
+        </div>
+    </header>
+    <p class="module-note">Si el registro esta siendo usado por otros modulos, el sistema bloqueara la eliminacion.</p>
+    <div class="actions-row">
+        <button class="btn-secondary btn-auto" type="button" data-catalog-delete-cancel>Cancelar</button>
+        <button class="btn-primary btn-inline" type="button" data-catalog-delete-confirm>Eliminar</button>
+    </div>
+</dialog>
+
 <?php require BASE_PATH . '/app/views/partials/footer.php'; ?>

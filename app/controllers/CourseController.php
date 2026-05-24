@@ -11,28 +11,8 @@ class CourseController extends Controller
 {
     public function index(): void
     {
-        $user = $this->requireAuth();
-        $period = currentAcademicPeriod();
-        $courseModel = new CourseModel();
-
-        $this->view('cursos.index', [
-            'appName' => config('app')['name'] ?? 'SGEap',
-            'pageTitle' => 'Cursos',
-            'currentSection' => 'cursos',
-            'user' => $user,
-            'currentPeriod' => $period,
-            'courses' => $period !== null ? $courseModel->allByPeriod((int) $period['pleid']) : [],
-            'grades' => $courseModel->allGrades(),
-            'parallels' => $courseModel->allParallels(),
-            'success' => sessionFlash('success'),
-            'error' => sessionFlash('error'),
-            'courseListFeedback' => $this->courseListFeedback(),
-            'old' => [
-                'graid' => sessionFlash('old_course_grade') ?? '',
-                'prlid' => sessionFlash('old_course_parallel') ?? '',
-                'curestado' => sessionFlash('old_course_status') ?? '1',
-            ],
-        ]);
+        $this->requireAuth();
+        $this->redirect('/configuracion/academica?view=cursos');
     }
 
     public function store(): void
@@ -43,7 +23,7 @@ class CourseController extends Controller
 
         if ($period === null) {
             sessionFlash('error', 'Debe seleccionar un periodo lectivo antes de registrar cursos.');
-            $this->redirect('/cursos');
+            $this->redirect('/configuracion/academica?view=cursos');
         }
 
         $data = [
@@ -56,7 +36,7 @@ class CourseController extends Controller
         if ($data['graid'] <= 0 || $data['prlid'] <= 0) {
             $this->flashCourseFormData($data);
             sessionFlash('error', 'Debe seleccionar grado y paralelo.');
-            $this->redirect('/cursos');
+            $this->redirect('/configuracion/academica?view=cursos');
         }
 
         $courseModel = new CourseModel();
@@ -64,12 +44,12 @@ class CourseController extends Controller
         if ($courseModel->existsCombination($data['pleid'], $data['graid'], $data['prlid'])) {
             $this->flashCourseFormData($data);
             sessionFlash('error', 'Ya existe un curso registrado para ese grado y paralelo en el periodo actual.');
-            $this->redirect('/cursos');
+            $this->redirect('/configuracion/academica?view=cursos');
         }
 
         $courseModel->create($data);
         sessionFlash('success', 'Curso registrado correctamente para el periodo actual.');
-        $this->redirect('/cursos');
+        $this->redirect('/configuracion/academica?view=cursos#cursos-registrados');
     }
 
     public function toggleStatus(): void
@@ -82,17 +62,17 @@ class CourseController extends Controller
 
         if ($courseId <= 0) {
             $this->flashCourseListFeedback('error', 'El curso seleccionado no es valido.');
-            $this->redirect('/cursos#cursos-registrados');
+            $this->redirect('/configuracion/academica?view=cursos#cursos-registrados');
         }
 
         if ($courseModel->findDetailed($courseId) === false) {
             $this->flashCourseListFeedback('error', 'El curso solicitado no existe.');
-            $this->redirect('/cursos#cursos-registrados');
+            $this->redirect('/configuracion/academica?view=cursos#cursos-registrados');
         }
 
         $courseModel->updateStatus($courseId, $status);
         $this->flashCourseListFeedback('success', 'Estado del curso actualizado correctamente.');
-        $this->redirect('/cursos#cursos-registrados');
+        $this->redirect('/configuracion/academica?view=cursos#cursos-registrados');
     }
 
     private function flashCourseFormData(array $data): void

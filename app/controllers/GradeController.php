@@ -11,19 +11,8 @@ class GradeController extends Controller
 {
     public function index(): void
     {
-        $user = $this->requireAuth();
-        $gradeModel = new GradeModel();
-
-        $this->view('grados.index', [
-            'appName' => config('app')['name'] ?? 'SGEap',
-            'pageTitle' => 'Grados',
-            'currentSection' => 'grados',
-            'user' => $user,
-            'grades' => $gradeModel->allOrdered(),
-            'success' => null,
-            'error' => null,
-            'gradeListFeedback' => $this->gradeListFeedback(),
-        ]);
+        $this->requireAuth();
+        $this->redirect('/configuracion/academica?view=grados');
     }
 
     public function create(): void
@@ -102,7 +91,7 @@ class GradeController extends Controller
 
         $gradeModel->create($data);
         $this->flashGradeListFeedback('success', 'Grado registrado correctamente.');
-        $this->redirect('/grados#grados-registrados');
+        $this->redirect('/configuracion/academica?view=grados#grados-registrados');
     }
 
     public function update(): void
@@ -113,7 +102,7 @@ class GradeController extends Controller
 
         if ($gradeId <= 0) {
             $this->flashGradeListFeedback('error', 'El grado a actualizar no es valido.');
-            $this->redirect('/grados#grados-registrados');
+            $this->redirect('/configuracion/academica?view=grados#grados-registrados');
         }
 
         if ($data['nedid'] <= 0 || $data['granombre'] === '') {
@@ -126,7 +115,7 @@ class GradeController extends Controller
 
         if ($gradeModel->findDetailed($gradeId) === false) {
             $this->flashGradeListFeedback('error', 'El grado solicitado no existe.');
-            $this->redirect('/grados#grados-registrados');
+            $this->redirect('/configuracion/academica?view=grados#grados-registrados');
         }
 
         if ($gradeModel->existsCombination($data['nedid'], $data['granombre'], $gradeId)) {
@@ -137,7 +126,7 @@ class GradeController extends Controller
 
         $gradeModel->update($gradeId, $data);
         $this->flashGradeListFeedback('success', 'Grado actualizado correctamente.');
-        $this->redirect('/grados#grados-registrados');
+        $this->redirect('/configuracion/academica?view=grados#grados-registrados');
     }
 
     public function destroy(): void
@@ -147,23 +136,23 @@ class GradeController extends Controller
 
         if ($gradeId <= 0) {
             $this->flashGradeListFeedback('error', 'El grado a eliminar no es valido.');
-            $this->redirect('/grados#grados-registrados');
+            $this->redirect('/configuracion/academica?view=grados#grados-registrados');
         }
 
         $gradeModel = new GradeModel();
 
         if ($gradeModel->findDetailed($gradeId) === false) {
             $this->flashGradeListFeedback('error', 'El grado solicitado no existe.');
-            $this->redirect('/grados#grados-registrados');
+            $this->redirect('/configuracion/academica?view=grados#grados-registrados');
         }
 
         if (!$gradeModel->deleteById($gradeId)) {
             $this->flashGradeListFeedback('error', 'No se pudo eliminar el grado. Revise si ya esta siendo usado en cursos u otros registros academicos.');
-            $this->redirect('/grados#grados-registrados');
+            $this->redirect('/configuracion/academica?view=grados#grados-registrados');
         }
 
         $this->flashGradeListFeedback('success', 'Grado eliminado correctamente.');
-        $this->redirect('/grados#grados-registrados');
+        $this->redirect('/configuracion/academica?view=grados#grados-registrados');
     }
 
     public function search(): void

@@ -343,6 +343,157 @@ class GradeConfigurationModel extends Model
         }
     }
 
+    public function createBlankProfile(array $data, int $userId): int
+    {
+        $periodId = (int) ($data['pleid'] ?? 0);
+        $profileName = trim((string) ($data['pcanombre'] ?? ''));
+        $description = trim((string) ($data['pcadescripcion'] ?? ''));
+        $type = trim((string) ($data['pcatipo_base'] ?? 'CUANTITATIVO'));
+        $validFrom = trim((string) ($data['pcavigencia_desde'] ?? ''));
+        $validTo = trim((string) ($data['pcavigencia_hasta'] ?? ''));
+        $minimum = trim((string) ($data['pcaminima'] ?? ''));
+        $maximum = trim((string) ($data['pcamaxima'] ?? ''));
+        $approval = trim((string) ($data['pcaaprobacion'] ?? ''));
+        $decimals = (int) ($data['pcadecimales'] ?? 2);
+        $decimalMethod = trim((string) ($data['pcametodo_decimal'] ?? 'REDONDEO'));
+        $averageFinal = !empty($data['pcapromedia_final']);
+        $promotion = !empty($data['pcaaplica_promocion']);
+        $scope = trim((string) ($data['pasalcance'] ?? ''));
+        $targetId = (int) ($data['target_id'] ?? 0);
+
+        if ($periodId <= 0 || $profileName === '' || $validFrom === '') {
+            throw new InvalidArgumentException('Periodo, nombre y vigencia desde son obligatorios.');
+        }
+
+        if (!in_array($type, ['CUANTITATIVO', 'CUALITATIVO', 'AMBITOS_DESTREZAS'], true)) {
+            throw new InvalidArgumentException('El tipo base del perfil no es valido.');
+        }
+
+        if ($type === 'CUANTITATIVO') {
+            if ($minimum === '' || $maximum === '' || $approval === '') {
+                throw new InvalidArgumentException('La escala minima, maxima y aprobacion son obligatorias para perfiles cuantitativos.');
+            }
+
+            if ((float) $minimum >= (float) $maximum) {
+                throw new InvalidArgumentException('La escala minima debe ser menor que la maxima.');
+            }
+
+            if ((float) $approval < (float) $minimum || (float) $approval > (float) $maximum) {
+                throw new InvalidArgumentException('La nota de aprobacion debe estar dentro de la escala.');
+            }
+        } else {
+            $minimum = '';
+            $maximum = '';
+            $approval = '';
+        }
+
+        if ($decimals < 0 || $decimals > 4) {
+            throw new InvalidArgumentException('Los decimales deben estar entre 0 y 4.');
+        }
+
+        if (!in_array($decimalMethod, ['REDONDEO', 'TRUNCAMIENTO'], true)) {
+            throw new InvalidArgumentException('El metodo decimal no es valido.');
+        }
+
+        if ($validTo !== '' && $validTo < $validFrom) {
+            throw new InvalidArgumentException('La vigencia hasta no puede ser menor que la vigencia desde.');
+        }
+
+        if ($scope !== '' && !in_array($scope, ['NIVEL', 'GRADO', 'CURSO', 'MATERIA'], true)) {
+            throw new InvalidArgumentException('El alcance seleccionado no es valido.');
+        }
+
+        if ($scope !== '' && $targetId <= 0) {
+            throw new InvalidArgumentException('Seleccione el destino de la asignacion del perfil.');
+        }
+
+        $period = $this->findPeriod($periodId);
+
+        if ($this->profileNameExists($periodId, $profileName)) {
+            throw new RuntimeException('Ya existe un perfil con ese nombre para el periodo seleccionado.');
+        }
+
+        $this->db->beginTransaction();
+
+        try {
+            $statement = $this->db->prepare(
+                "INSERT INTO perfil_calificacion (
+                    pleid,
+                    pcanombre,
+                    pcadescripcion,
+                    pcaversion,
+                    pcaestado,
+                    pcatipo_base,
+                    pcavigencia_desde,
+                    pcavigencia_hasta,
+                    pcaminima,
+                    pcamaxima,
+                    pcaaprobacion,
+                    pcadecimales,
+                    pcametodo_decimal,
+                    pcapromedia_final,
+                    pcaaplica_promocion,
+                    usuid_creacion
+                 ) VALUES (
+                    :period_id,
+                    :name,
+                    :description,
+                    1,
+                    'BORRADOR',
+                    :type,
+                    :valid_from,
+                    :valid_to,
+                    :minimum,
+                    :maximum,
+                    :approval,
+                    :decimals,
+                    :decimal_method,
+                    :average_final,
+                    :promotion,
+                    :user_id
+                 )
+                 RETURNING pcaid"
+            );
+            $statement->execute([
+                'period_id' => $periodId,
+                'name' => $profileName,
+                'description' => $description !== '' ? $description : null,
+                'type' => $type,
+                'valid_from' => $validFrom,
+                'valid_to' => $validTo !== '' ? $validTo : null,
+                'minimum' => $minimum !== '' ? $minimum : null,
+                'maximum' => $maximum !== '' ? $maximum : null,
+                'approval' => $approval !== '' ? $approval : null,
+                'decimals' => $decimals,
+                'decimal_method' => $decimalMethod,
+                'average_final' => $this->boolSql($averageFinal),
+                'promotion' => $this->boolSql($promotion),
+                'user_id' => $userId,
+            ]);
+            $profileId = (int) $statement->fetchColumn();
+
+            if ($scope !== '') {
+                $this->assertScopeTargetBelongsToPeriod($scope, $targetId, $periodId);
+                $this->insertAssignment($profileId, $periodId, $scope, $targetId, $userId);
+            }
+
+            $this->audit($userId, 'CONFIGURACION_CREADA', 'perfil_calificacion', $profileId, null, json_encode([
+                'origen' => 'DESDE_CERO',
+                'periodo' => $period['pledescripcion'] ?? '',
+                'tipo' => $type,
+                'alcance' => $scope,
+                'target_id' => $targetId,
+            ], JSON_UNESCAPED_UNICODE));
+
+            $this->db->commit();
+
+            return $profileId;
+        } catch (\Throwable $exception) {
+            $this->db->rollBack();
+            throw $exception;
+        }
+    }
+
     public function updateDraftProfileSchedule(int $profileId, array $subperiods, array $components, array $newSubperiods, array $newComponents, int $userId): void
     {
         $profile = $this->findProfile($profileId);
@@ -616,6 +767,93 @@ class GradeConfigurationModel extends Model
         ]);
 
         $this->audit($userId, 'CONFIGURACION_ACTIVADA', 'perfil_calificacion', $profileId, (string) $profile['pcaestado'], 'ACTIVA');
+    }
+
+    public function deleteProfileIfUnused(int $profileId, int $userId): void
+    {
+        $profile = $this->findProfile($profileId);
+        $blockingItems = $this->profileBlockingUsage($profileId);
+
+        if ($blockingItems !== []) {
+            throw new RuntimeException('No se puede eliminar el perfil porque ya tiene registros asociados: ' . implode(', ', $blockingItems) . '.');
+        }
+
+        $this->db->beginTransaction();
+
+        try {
+            $this->audit($userId, 'CONFIGURACION_ELIMINADA', 'perfil_calificacion', $profileId, json_encode([
+                'periodo' => $profile['pledescripcion'] ?? '',
+                'perfil' => $profile['pcanombre'] ?? '',
+                'estado' => $profile['pcaestado'] ?? '',
+            ], JSON_UNESCAPED_UNICODE), null);
+
+            $statements = [
+                "DELETE FROM bloqueo_visualizacion_calificacion b
+                 USING publicacion_calificacion p
+                 INNER JOIN subperiodo_calificacion s ON s.spcid = p.spcid
+                 WHERE b.pbcid = p.pbcid
+                   AND s.pcaid = :profile_id",
+                "DELETE FROM publicacion_calificacion p
+                 USING subperiodo_calificacion s
+                 WHERE p.spcid = s.spcid
+                   AND s.pcaid = :profile_id",
+                "DELETE FROM grupo_materia_calificacion_detalle d
+                 USING grupo_materia_calificacion g
+                 WHERE d.gmcid = g.gmcid
+                   AND g.pcaid = :profile_id",
+                "DELETE FROM grupo_materia_calificacion
+                 WHERE pcaid = :profile_id",
+                "DELETE FROM materia_calificacion_config
+                 WHERE pcaid = :profile_id",
+                "DELETE FROM regla_promocion_tramo t
+                 USING regla_promocion r
+                 WHERE t.rprid = r.rprid
+                   AND r.pcaid = :profile_id",
+                "DELETE FROM regla_promocion
+                 WHERE pcaid = :profile_id",
+                "DELETE FROM instancia_extraordinaria
+                 WHERE pcaid = :profile_id",
+                "DELETE FROM destreza_calificacion d
+                 USING ambito_calificacion a
+                 WHERE d.ambid = a.ambid
+                   AND a.pcaid = :profile_id",
+                "DELETE FROM ambito_calificacion
+                 WHERE pcaid = :profile_id",
+                "DELETE FROM escala_cualitativa
+                 WHERE pcaid = :profile_id",
+                "DELETE FROM componente_calificacion c
+                 USING subperiodo_calificacion s
+                 WHERE c.spcid = s.spcid
+                   AND s.pcaid = :profile_id",
+                "DELETE FROM subperiodo_calificacion
+                 WHERE pcaid = :profile_id",
+                "DELETE FROM perfil_calificacion_asignacion
+                 WHERE pcaid = :profile_id",
+                "DELETE FROM perfil_calificacion
+                 WHERE pcaid = :profile_id",
+            ];
+
+            if ($this->relationExists('habilitacion_registro_calificacion')) {
+                array_splice($statements, 2, 0, [
+                    "DELETE FROM habilitacion_registro_calificacion
+                     WHERE pcaid = :profile_id",
+                    "DELETE FROM habilitacion_registro_calificacion h
+                     USING subperiodo_calificacion s
+                     WHERE h.spcid = s.spcid
+                       AND s.pcaid = :profile_id",
+                ]);
+            }
+
+            foreach ($statements as $sql) {
+                $statement = $this->db->prepare($sql);
+                $statement->execute(['profile_id' => $profileId]);
+            }
+
+            $this->db->commit();
+        } catch (\Throwable $exception) {
+            $this->db->rollBack();
+            throw $exception;
+        }
     }
 
     public function updateDraftProfileAssignments(int $profileId, array $assignments, array $newAssignments, int $userId): void
@@ -1786,6 +2024,70 @@ class GradeConfigurationModel extends Model
         ]);
 
         return $statement->fetchColumn() !== false;
+    }
+
+    private function profileBlockingUsage(int $profileId): array
+    {
+        $checks = [
+            'actividades de calificacion' => "SELECT COUNT(*)
+                FROM actividad_calificacion a
+                INNER JOIN componente_calificacion c ON c.cpcid = a.cpcid
+                INNER JOIN subperiodo_calificacion s ON s.spcid = c.spcid
+                WHERE s.pcaid = :profile_id",
+            'calificaciones registradas' => "SELECT COUNT(*)
+                FROM calificacion_estudiante ce
+                INNER JOIN actividad_calificacion a ON a.aciid = ce.aciid
+                INNER JOIN componente_calificacion c ON c.cpcid = a.cpcid
+                INNER JOIN subperiodo_calificacion s ON s.spcid = c.spcid
+                WHERE s.pcaid = :profile_id",
+            'valoraciones de destrezas' => "SELECT COUNT(*)
+                FROM valoracion_destreza_estudiante v
+                INNER JOIN destreza_calificacion d ON d.desid = v.desid
+                INNER JOIN ambito_calificacion a ON a.ambid = d.ambid
+                WHERE a.pcaid = :profile_id",
+            'resultados por subperiodo' => "SELECT COUNT(*)
+                FROM resultado_materia_subperiodo r
+                INNER JOIN subperiodo_calificacion s ON s.spcid = r.spcid
+                WHERE s.pcaid = :profile_id",
+            'resultados finales' => "SELECT COUNT(*)
+                FROM resultado_estudiante_final
+                WHERE pcaid = :profile_id",
+            'registros extraordinarios' => "SELECT COUNT(*)
+                FROM instancia_extraordinaria_registro r
+                INNER JOIN instancia_extraordinaria i ON i.iexid = r.iexid
+                WHERE i.pcaid = :profile_id",
+            'promociones' => "SELECT COUNT(*)
+                FROM promocion_estudiante
+                WHERE pcaid = :profile_id",
+            'resultados de grupos por subperiodo' => "SELECT COUNT(*)
+                FROM resultado_grupo_materia_subperiodo r
+                INNER JOIN grupo_materia_calificacion g ON g.gmcid = r.gmcid
+                WHERE g.pcaid = :profile_id",
+            'resultados finales de grupos' => "SELECT COUNT(*)
+                FROM resultado_grupo_materia_final r
+                INNER JOIN grupo_materia_calificacion g ON g.gmcid = r.gmcid
+                WHERE g.pcaid = :profile_id",
+        ];
+        $blockingItems = [];
+
+        foreach ($checks as $label => $sql) {
+            $statement = $this->db->prepare($sql);
+            $statement->execute(['profile_id' => $profileId]);
+
+            if ((int) $statement->fetchColumn() > 0) {
+                $blockingItems[] = $label;
+            }
+        }
+
+        return $blockingItems;
+    }
+
+    private function relationExists(string $relationName): bool
+    {
+        $statement = $this->db->prepare("SELECT to_regclass(:relation_name) IS NOT NULL");
+        $statement->execute(['relation_name' => 'public.' . $relationName]);
+
+        return filter_var($statement->fetchColumn(), FILTER_VALIDATE_BOOLEAN);
     }
 
     private function insertProfile(array $template, int $periodId, string $profileName, string $state, string $validFrom, string $validTo, int $userId): int

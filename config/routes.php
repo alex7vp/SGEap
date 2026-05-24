@@ -89,6 +89,7 @@ return static function (Router $router): void {
     $router->post('/configuracion/academica/docentes', [AttendanceController::class, 'assignTeacher']);
     $router->post('/configuracion/academica/docentes/retirar', [AttendanceController::class, 'removeTeacher']);
     $router->post('/configuracion/academica/calificaciones/copiar', [ConfigurationController::class, 'copyGradesConfiguration']);
+    $router->post('/configuracion/academica/calificaciones/perfil/crear', [ConfigurationController::class, 'createBlankGradeProfile']);
     $router->post('/configuracion/academica/calificaciones/perfil', [ConfigurationController::class, 'updateGradeProfile']);
     $router->post('/configuracion/academica/calificaciones/perfil/asignaciones', [ConfigurationController::class, 'updateGradeProfileAssignments']);
     $router->post('/configuracion/academica/calificaciones/perfil/materias', [ConfigurationController::class, 'updateGradeProfileSubjects']);
@@ -96,6 +97,7 @@ return static function (Router $router): void {
     $router->post('/configuracion/academica/calificaciones/perfil/escala', [ConfigurationController::class, 'updateGradeProfileScale']);
     $router->post('/configuracion/academica/calificaciones/perfil/promocion', [ConfigurationController::class, 'updateGradeProfilePromotion']);
     $router->post('/configuracion/academica/calificaciones/perfil/activar', [ConfigurationController::class, 'activateGradeProfile']);
+    $router->post('/configuracion/academica/calificaciones/perfil/eliminar', [ConfigurationController::class, 'deleteGradeProfile']);
 
     $router->get('/seguridad/catalogos', [SecurityController::class, 'catalogs']);
     $router->get('/seguridad/usuarios', [SecurityController::class, 'users']);

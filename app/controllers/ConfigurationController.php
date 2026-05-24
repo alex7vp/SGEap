@@ -150,6 +150,21 @@ class ConfigurationController extends Controller
                 'pcavigencia_hasta' => sessionFlash('old_grade_config_valid_to') ?? '',
                 'pasalcance' => sessionFlash('old_grade_config_scope') ?? '',
                 'target_id' => sessionFlash('old_grade_config_target') ?? '',
+                'scratch_pleid' => sessionFlash('old_blank_grade_profile_period') ?? '',
+                'scratch_pcanombre' => sessionFlash('old_blank_grade_profile_name') ?? '',
+                'scratch_pcadescripcion' => sessionFlash('old_blank_grade_profile_description') ?? '',
+                'scratch_pcatipo_base' => sessionFlash('old_blank_grade_profile_type') ?? 'CUANTITATIVO',
+                'scratch_pcavigencia_desde' => sessionFlash('old_blank_grade_profile_valid_from') ?? '',
+                'scratch_pcavigencia_hasta' => sessionFlash('old_blank_grade_profile_valid_to') ?? '',
+                'scratch_pcaminima' => sessionFlash('old_blank_grade_profile_minimum') ?? '0',
+                'scratch_pcamaxima' => sessionFlash('old_blank_grade_profile_maximum') ?? '10',
+                'scratch_pcaaprobacion' => sessionFlash('old_blank_grade_profile_approval') ?? '7',
+                'scratch_pcadecimales' => sessionFlash('old_blank_grade_profile_decimals') ?? '2',
+                'scratch_pcametodo_decimal' => sessionFlash('old_blank_grade_profile_decimal_method') ?? 'REDONDEO',
+                'scratch_pcapromedia_final' => sessionFlash('old_blank_grade_profile_average_final') ?? '1',
+                'scratch_pcaaplica_promocion' => sessionFlash('old_blank_grade_profile_promotion') ?? '1',
+                'scratch_pasalcance' => sessionFlash('old_blank_grade_profile_scope') ?? '',
+                'scratch_target_id' => sessionFlash('old_blank_grade_profile_target') ?? '',
             ],
         ]);
     }
@@ -237,6 +252,38 @@ class ConfigurationController extends Controller
         }
 
         $this->redirect('/configuracion/academica/calificaciones');
+    }
+
+    public function createBlankGradeProfile(): void
+    {
+        $user = $this->requireAuth();
+        $data = [
+            'pleid' => (int) ($_POST['pleid'] ?? 0),
+            'pcanombre' => trim((string) ($_POST['pcanombre'] ?? '')),
+            'pcadescripcion' => trim((string) ($_POST['pcadescripcion'] ?? '')),
+            'pcatipo_base' => trim((string) ($_POST['pcatipo_base'] ?? 'CUANTITATIVO')),
+            'pcavigencia_desde' => trim((string) ($_POST['pcavigencia_desde'] ?? '')),
+            'pcavigencia_hasta' => trim((string) ($_POST['pcavigencia_hasta'] ?? '')),
+            'pcaminima' => trim((string) ($_POST['pcaminima'] ?? '')),
+            'pcamaxima' => trim((string) ($_POST['pcamaxima'] ?? '')),
+            'pcaaprobacion' => trim((string) ($_POST['pcaaprobacion'] ?? '')),
+            'pcadecimales' => (int) ($_POST['pcadecimales'] ?? 2),
+            'pcametodo_decimal' => trim((string) ($_POST['pcametodo_decimal'] ?? 'REDONDEO')),
+            'pcapromedia_final' => !empty($_POST['pcapromedia_final']),
+            'pcaaplica_promocion' => !empty($_POST['pcaaplica_promocion']),
+            'pasalcance' => trim((string) ($_POST['pasalcance'] ?? '')),
+            'target_id' => (int) ($_POST['target_id'] ?? 0),
+        ];
+
+        try {
+            $profileId = (new GradeConfigurationModel())->createBlankProfile($data, (int) ($user['usuid'] ?? 0));
+            $this->flashGradeProfileFeedback('success', 'Perfil creado desde cero. Ahora configura subperiodos, componentes y reglas.');
+            $this->redirect('/configuracion/academica/calificaciones/perfil?id=' . $profileId);
+        } catch (\Throwable $exception) {
+            $this->flashBlankGradeProfileFormData($data);
+            $this->flashGradesConfigurationFeedback('error', $exception->getMessage());
+            $this->redirect('/configuracion/academica/calificaciones#crear-perfil-desde-cero');
+        }
     }
 
     public function updateGradeProfile(): void
@@ -412,6 +459,26 @@ class ConfigurationController extends Controller
         $this->redirect('/configuracion/academica/calificaciones/perfil?id=' . $profileId);
     }
 
+    public function deleteGradeProfile(): void
+    {
+        $user = $this->requireAuth();
+        $profileId = (int) ($_POST['pcaid'] ?? 0);
+
+        if ($profileId <= 0) {
+            $this->flashGradesConfigurationFeedback('error', 'Seleccione un perfil valido.');
+            $this->redirect('/configuracion/academica/calificaciones#perfiles-creados');
+        }
+
+        try {
+            (new GradeConfigurationModel())->deleteProfileIfUnused($profileId, (int) ($user['usuid'] ?? 0));
+            $this->flashGradesConfigurationFeedback('success', 'Perfil eliminado correctamente.');
+        } catch (\Throwable $exception) {
+            $this->flashGradesConfigurationFeedback('error', $exception->getMessage());
+        }
+
+        $this->redirect('/configuracion/academica/calificaciones#perfiles-creados');
+    }
+
     public function institution(): void
     {
         $user = $this->requireAuth();
@@ -472,7 +539,7 @@ class ConfigurationController extends Controller
 
         if (!$this->isValidInstitutionPhone($data['instelefono'])) {
             $this->flashInstitutionFormData($data);
-            $this->flashInstitutionFieldError('instelefono', 'El telefono institucional debe tener 10 digitos.');
+            $this->flashInstitutionFieldError('instelefono', 'El telefono institucional debe tener 9 digitos si es convencional o 10 si es celular.');
             $this->redirectToInstitutionField('instelefono');
         }
 
@@ -1148,7 +1215,7 @@ class ConfigurationController extends Controller
 
         $digits = preg_replace('/\D+/', '', $phone) ?? '';
 
-        return preg_match('/^\d{10}$/', $digits) === 1;
+        return preg_match('/^\d{9,10}$/', $digits) === 1;
     }
 
     private function isValidInstitutionEmail(string $email): bool
@@ -1249,6 +1316,25 @@ class ConfigurationController extends Controller
         sessionFlash('old_grade_config_valid_to', (string) ($data['pcavigencia_hasta'] ?? ''));
         sessionFlash('old_grade_config_scope', (string) ($data['pasalcance'] ?? ''));
         sessionFlash('old_grade_config_target', (string) ($data['target_id'] ?? ''));
+    }
+
+    private function flashBlankGradeProfileFormData(array $data): void
+    {
+        sessionFlash('old_blank_grade_profile_period', (string) ($data['pleid'] ?? ''));
+        sessionFlash('old_blank_grade_profile_name', (string) ($data['pcanombre'] ?? ''));
+        sessionFlash('old_blank_grade_profile_description', (string) ($data['pcadescripcion'] ?? ''));
+        sessionFlash('old_blank_grade_profile_type', (string) ($data['pcatipo_base'] ?? 'CUANTITATIVO'));
+        sessionFlash('old_blank_grade_profile_valid_from', (string) ($data['pcavigencia_desde'] ?? ''));
+        sessionFlash('old_blank_grade_profile_valid_to', (string) ($data['pcavigencia_hasta'] ?? ''));
+        sessionFlash('old_blank_grade_profile_minimum', (string) ($data['pcaminima'] ?? ''));
+        sessionFlash('old_blank_grade_profile_maximum', (string) ($data['pcamaxima'] ?? ''));
+        sessionFlash('old_blank_grade_profile_approval', (string) ($data['pcaaprobacion'] ?? ''));
+        sessionFlash('old_blank_grade_profile_decimals', (string) ($data['pcadecimales'] ?? '2'));
+        sessionFlash('old_blank_grade_profile_decimal_method', (string) ($data['pcametodo_decimal'] ?? 'REDONDEO'));
+        sessionFlash('old_blank_grade_profile_average_final', !empty($data['pcapromedia_final']) ? '1' : '0');
+        sessionFlash('old_blank_grade_profile_promotion', !empty($data['pcaaplica_promocion']) ? '1' : '0');
+        sessionFlash('old_blank_grade_profile_scope', (string) ($data['pasalcance'] ?? ''));
+        sessionFlash('old_blank_grade_profile_target', (string) ($data['target_id'] ?? ''));
     }
 
     private function flashInstitutionFieldError(string $field, string $message): void

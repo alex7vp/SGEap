@@ -649,6 +649,52 @@ input::placeholder {
     font-weight: 600;
 }
 
+.sidebar-subnav {
+    display: grid;
+    gap: 2px;
+    margin: -4px 0 4px 14px;
+    padding: 4px 0 4px 8px;
+    border-left: 2px solid rgba(15, 76, 129, 0.16);
+}
+
+.sidebar-nav .sidebar-subnav-link {
+    gap: 8px;
+    min-height: 26px;
+    padding: 5px 8px;
+    background: transparent;
+    border-color: transparent;
+    color: #42566b;
+    font-size: 0.8rem;
+    line-height: 1.1;
+}
+
+.sidebar-nav .sidebar-subnav-link .fa {
+    width: 14px;
+    color: #6d7f92;
+    font-size: 0.78rem;
+}
+
+.sidebar-nav .sidebar-subnav-link:hover {
+    background: #eef5fb;
+    border-color: rgba(15, 76, 129, 0.12);
+    color: var(--primary);
+}
+
+.sidebar-nav .sidebar-subnav-link:hover .fa {
+    color: var(--primary);
+}
+
+.sidebar-nav .sidebar-subnav-link.is-active {
+    background: #dfeefa;
+    border-color: rgba(15, 76, 129, 0.22);
+    color: var(--primary);
+    font-weight: 700;
+}
+
+.sidebar-nav .sidebar-subnav-link.is-active .fa {
+    color: var(--primary);
+}
+
 .sidebar-user {
     display: grid;
     gap: 4px;
@@ -1476,6 +1522,135 @@ a.btn-primary.btn-icon-only.btn-icon-small:hover {
     color: #ffffff;
 }
 
+.checkbox-stack {
+    display: flex;
+    flex-direction: column;
+    gap: .45rem;
+    justify-content: center;
+    min-height: 42px;
+}
+
+.checkbox-inline {
+    display: inline-flex;
+    align-items: center;
+    gap: .45rem;
+    color: var(--muted);
+    font-size: .92rem;
+}
+
+.checkbox-inline input[type="checkbox"] {
+    width: auto;
+}
+
+.grade-profile-creation-block {
+    padding-bottom: 1rem;
+}
+
+.grade-profile-mode-selector {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 1rem;
+    padding: 6px;
+    border: 1px solid #c7d6e4;
+    background: #f4f8fb;
+}
+
+.grade-profile-mode-option {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 34px;
+    padding: 6px 12px;
+    border: 1px solid transparent;
+    background: #ffffff;
+    color: var(--text);
+    font-size: .88rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.grade-profile-mode-option:has(input:checked) {
+    border-color: var(--primary);
+    background: #eaf4ff;
+    color: var(--primary);
+}
+
+.grade-profile-mode-option input {
+    width: auto;
+}
+
+.grade-profile-panel-header {
+    margin-bottom: .85rem;
+}
+
+.grade-profile-panel-header h4 {
+    margin: 0 0 .25rem;
+    font-size: 1rem;
+    color: var(--text);
+}
+
+.grade-profile-panel-header p {
+    margin: 0;
+    color: var(--muted);
+    font-size: .9rem;
+}
+
+.grade-profile-accordion-shell {
+    margin-top: 1rem;
+    border: 1px solid #d7e1eb;
+    background: #eef3f7;
+    padding: 1.65rem;
+}
+
+.grade-profile-accordion {
+    background: #ffffff;
+    border-bottom: 1px solid #d7e1eb;
+}
+
+.grade-profile-accordion:first-child {
+    border-top: 1px solid #d7e1eb;
+}
+
+.grade-profile-accordion summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    min-height: 56px;
+    padding: 0 1.4rem;
+    color: var(--text);
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    list-style: none;
+}
+
+.grade-profile-accordion summary::-webkit-details-marker {
+    display: none;
+}
+
+.grade-profile-accordion summary i {
+    color: var(--muted);
+    transition: transform .16s ease;
+}
+
+.grade-profile-accordion[open] summary i {
+    transform: rotate(180deg);
+}
+
+.grade-profile-accordion-body {
+    padding: 1rem 1.4rem 1.35rem;
+    border-top: 1px solid #d7e1eb;
+}
+
+.inline-delete-form {
+    display: inline-flex;
+    margin: 0;
+    padding: 0;
+    vertical-align: middle;
+}
+
 .grade-subject-group-filter {
     display: inline-grid;
     grid-template-columns: auto minmax(180px, 240px);
@@ -2131,6 +2306,18 @@ a.btn-primary.btn-icon-only.btn-icon-small:hover {
     gap: 18px;
 }
 
+.catalog-single-view {
+    grid-template-columns: 1fr;
+}
+
+.catalog-selector-block {
+    margin-bottom: 16px;
+}
+
+.catalog-selector {
+    margin: 0;
+}
+
 .catalog-card {
     border: 1px solid var(--border);
     border-radius: 6px;
@@ -2141,6 +2328,25 @@ a.btn-primary.btn-icon-only.btn-icon-small:hover {
 
 .catalog-feedback {
     padding: 16px 18px 0;
+}
+
+.catalog-create-panel {
+    align-items: stretch;
+    gap: 8px;
+    padding: 0 18px 18px;
+}
+
+.catalog-create-panel .input-group {
+    flex: 1 1 auto;
+}
+
+.catalog-inline-form.catalog-create-panel input[type="text"] {
+    width: 100%;
+    min-width: 0;
+    background: #ffffff;
+    padding-top: 8px;
+    padding-bottom: 8px;
+    font-size: 0.9rem;
 }
 
 .catalog-card-header {
@@ -3742,12 +3948,69 @@ thead .role-user-sticky {
     width: min(460px, calc(100vw - 32px));
 }
 
+.calendar-dialog.grade-config-feedback-dialog {
+    width: min(540px, calc(100vw - 32px));
+}
+
 .gradebook-feedback-dialog .security-assignment-header {
     margin-bottom: 16px;
 }
 
-.gradebook-feedback-dialog .security-assignment-header p {
+.gradebook-feedback-dialog .security-assignment-header p,
+.grade-config-feedback-dialog .security-assignment-header p {
     margin-top: 6px;
+}
+
+.grade-config-feedback-dialog.is-error {
+    border-color: #f2a4a4;
+}
+
+.grade-config-feedback-dialog.is-success {
+    border-color: #9bd4b0;
+}
+
+.grade-config-feedback-dialog .actions-row {
+    justify-content: flex-end;
+}
+
+.calendar-dialog.app-feedback-dialog {
+    width: min(540px, calc(100vw - 32px));
+}
+
+.calendar-dialog.catalog-delete-dialog {
+    width: min(460px, calc(100vw - 32px));
+}
+
+.catalog-delete-dialog .actions-row {
+    justify-content: flex-end;
+    margin-top: 16px;
+}
+
+.app-feedback-dialog.is-error {
+    border-color: #f2a4a4;
+}
+
+.app-feedback-dialog.is-success {
+    border-color: #9bd4b0;
+}
+
+.app-feedback-dialog-body {
+    color: var(--text);
+    line-height: 1.45;
+}
+
+.app-feedback-dialog-body p {
+    margin: 0;
+}
+
+.app-feedback-dialog-body ul {
+    margin: 0;
+    padding-left: 1.2rem;
+}
+
+.app-feedback-dialog .actions-row {
+    justify-content: flex-end;
+    margin-top: 16px;
 }
 
 .final-chart-heading {
@@ -4425,11 +4688,13 @@ thead .role-user-sticky {
     width: min(860px, calc(100vw - 32px));
 }
 
-.calendar-dialog.grade-profile-activation-dialog {
+.calendar-dialog.grade-profile-activation-dialog,
+.calendar-dialog.grade-profile-delete-dialog {
     width: min(460px, calc(100vw - 32px));
 }
 
-.grade-profile-activation-dialog .actions-row {
+.grade-profile-activation-dialog .actions-row,
+.grade-profile-delete-dialog .actions-row {
     justify-content: flex-end;
     margin-top: 16px;
 }

@@ -46,14 +46,17 @@ asort($subjectConfigurationGrades);
 <p class="module-note">Revisa y ajusta la configuracion real del periodo antes de activar el perfil para registro de notas.</p>
 
 <?php if (!empty($feedback)): ?>
-    <div class="catalog-feedback security-feedback-global">
-        <div class="alert <?= ($feedback['type'] ?? '') === 'error' ? 'alert-error' : 'alert-success'; ?> alert-dismissible" data-alert>
-            <span><?= $h($feedback['message'] ?? ''); ?></span>
-            <button class="alert-close" type="button" aria-label="Cerrar notificacion" data-alert-close>
-                <i class="fa fa-times" aria-hidden="true"></i>
-            </button>
+    <dialog class="calendar-dialog grade-config-feedback-dialog <?= ($feedback['type'] ?? '') === 'error' ? 'is-error' : 'is-success'; ?>" data-grade-config-feedback-dialog>
+        <header class="security-assignment-header">
+            <div>
+                <h3><?= ($feedback['type'] ?? '') === 'error' ? 'No se pudo completar' : 'Operacion completada'; ?></h3>
+                <p><?= $h($feedback['message'] ?? ''); ?></p>
+            </div>
+        </header>
+        <div class="actions-row">
+            <button class="btn-primary btn-inline" type="button" data-grade-config-feedback-close>Aceptar</button>
         </div>
-    </div>
+    </dialog>
 <?php endif; ?>
 
 <section class="security-assignment-block">
@@ -62,7 +65,21 @@ asort($subjectConfigurationGrades);
             <h3><?= $h($profile['pcanombre'] ?? 'Perfil'); ?></h3>
             <p>Periodo: <strong><?= $h($profile['pledescripcion'] ?? ''); ?></strong> | Estado: <strong><?= $h($profile['pcaestado'] ?? ''); ?></strong></p>
         </div>
-        <a class="btn-secondary btn-auto" href="<?= $h(baseUrl('configuracion/academica/calificaciones')); ?>">Volver</a>
+        <div class="actions-row">
+            <a class="btn-secondary btn-auto" href="<?= $h(baseUrl('configuracion/academica/calificaciones')); ?>">Volver</a>
+            <form
+                class="inline-delete-form"
+                method="POST"
+                action="<?= $h(baseUrl('configuracion/academica/calificaciones/perfil/eliminar')); ?>"
+                data-grade-profile-delete-form
+            >
+                <input type="hidden" name="pcaid" value="<?= $h($profileId); ?>">
+                <button class="btn-secondary btn-auto" type="submit">
+                    <i class="fa fa-trash" aria-hidden="true"></i>
+                    Eliminar
+                </button>
+            </form>
+        </div>
     </header>
 
     <div class="table-wrap">
@@ -111,6 +128,20 @@ asort($subjectConfigurationGrades);
     <?php endif; ?>
 </section>
 
+<dialog class="calendar-dialog grade-profile-delete-dialog" data-grade-profile-delete-dialog>
+    <header class="security-assignment-header">
+        <div>
+            <h3>Eliminar perfil</h3>
+            <p>Esta accion solo continuara si el perfil no tiene registros de notas asociados.</p>
+        </div>
+    </header>
+    <p class="module-note">Si el perfil ya fue usado en actividades, calificaciones, resultados o promocion, el sistema bloqueara la eliminacion.</p>
+    <div class="actions-row">
+        <button class="btn-secondary btn-auto" type="button" data-grade-profile-delete-cancel>Cancelar</button>
+        <button class="btn-primary btn-inline" type="button" data-grade-profile-delete-confirm>Eliminar perfil</button>
+    </div>
+</dialog>
+
 <form method="POST" action="<?= $h(baseUrl('configuracion/academica/calificaciones/perfil')); ?>" class="grade-profile-edit-form">
     <input type="hidden" name="pcaid" value="<?= $h($profileId); ?>">
 
@@ -130,6 +161,31 @@ asort($subjectConfigurationGrades);
 
         <?php if (empty($subperiods)): ?>
             <div class="empty-state">El perfil no tiene subperiodos configurados.</div>
+            <?php if ($isDraft): ?>
+                <div class="table-wrap" hidden data-grade-profile-edit-control>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Subperiodo</th>
+                                <th>Inicio</th>
+                                <th>Fin</th>
+                                <th>Final</th>
+                                <th>Peso final</th>
+                                <th>Componentes</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody data-grade-subperiods-body></tbody>
+                    </table>
+                </div>
+                <div class="actions-row grade-profile-actions" hidden data-grade-profile-save-actions>
+                    <button class="btn-secondary btn-auto grade-subperiod-add-button" type="button" data-grade-subperiod-add>
+                        <i class="fa fa-plus" aria-hidden="true"></i>
+                        Agregar subperiodo
+                    </button>
+                    <button class="btn-primary btn-inline" type="submit">Guardar ajustes</button>
+                </div>
+            <?php endif; ?>
         <?php else: ?>
             <div class="table-wrap">
                 <table class="data-table">

@@ -7,6 +7,7 @@ require BASE_PATH . '/app/views/partials/header.php';
 $editingDocumentId = (int) ($old['domid'] ?? 0);
 $documentSource = ($old['domsource'] ?? 'upload') === 'url' ? 'url' : 'upload';
 $currentDocumentUrl = trim((string) ($old['domurl'] ?? ''));
+$selectedDocumentMode = $editingDocumentId > 0 || empty($documents) ? 'form' : 'list';
 $resolveDocumentUrl = static function (string $origin, string $url): string {
     $normalizedOrigin = mb_strtoupper(trim($origin));
     $normalizedUrl = trim($url);
@@ -41,7 +42,20 @@ $resolveDocumentUrl = static function (string $origin, string $url): string {
 
 <p class="module-note">Administra los documentos que se presentan en la pestaña Documentos durante la matricula. Si eliges archivo, el sistema genera y guarda la ruta. Si eliges URL, se usa el enlace que registres.</p>
 
-<section class="security-assignment-block">
+<section class="security-assignment-block grade-profile-creation-block" data-matriculation-document-view-mode>
+    <div class="grade-profile-mode-selector" role="radiogroup" aria-label="Vista de documentos de matricula">
+        <label class="grade-profile-mode-option">
+            <input type="radio" name="matriculation_document_view_mode" value="form" <?= $selectedDocumentMode === 'form' ? 'checked' : ''; ?> data-matriculation-document-view-radio>
+            <span><?= $editingDocumentId > 0 ? 'Editar documento' : 'Nuevo documento'; ?></span>
+        </label>
+        <label class="grade-profile-mode-option">
+            <input type="radio" name="matriculation_document_view_mode" value="list" <?= $selectedDocumentMode === 'list' ? 'checked' : ''; ?> data-matriculation-document-view-radio>
+            <span>Documentos registrados</span>
+        </label>
+    </div>
+</section>
+
+<section class="security-assignment-block" data-matriculation-document-view-panel="form" <?= $selectedDocumentMode === 'form' ? '' : 'hidden'; ?>>
     <header class="security-assignment-header">
         <div>
             <h3><?= $editingDocumentId > 0 ? 'Editar documento de matricula' : 'Nuevo documento de matricula'; ?></h3>
@@ -137,7 +151,7 @@ $resolveDocumentUrl = static function (string $origin, string $url): string {
     </form>
 </section>
 
-<section class="security-assignment-block" id="documentos-matricula-registrados">
+<section class="security-assignment-block" id="documentos-matricula-registrados" data-matriculation-document-view-panel="list" <?= $selectedDocumentMode === 'list' ? '' : 'hidden'; ?>>
     <header class="security-assignment-header">
         <div>
             <h3>Documentos registrados</h3>

@@ -173,6 +173,44 @@ $sidebarModules = [
                         'label' => 'Configuracion academica',
                         'url' => baseUrl('configuracion/academica'),
                         'icon' => 'fa-sitemap',
+                        'children' => [
+                            [
+                                'key' => 'periodos',
+                                'label' => 'Periodos lectivos',
+                                'url' => baseUrl('configuracion/periodos'),
+                                'icon' => 'fa-calendar',
+                            ],
+                            [
+                                'key' => 'configuracion_matricula',
+                                'label' => 'Matricula',
+                                'url' => baseUrl('configuracion/matricula'),
+                                'icon' => 'fa-wpforms',
+                            ],
+                            [
+                                'key' => 'configuracion_matricula_documentos',
+                                'label' => 'Documentos',
+                                'url' => baseUrl('configuracion/matricula/documentos'),
+                                'icon' => 'fa-file-text-o',
+                            ],
+                            [
+                                'key' => 'academica_configuracion',
+                                'label' => 'Academica',
+                                'url' => baseUrl('configuracion/academica'),
+                                'icon' => 'fa-book',
+                            ],
+                            [
+                                'key' => 'calificaciones',
+                                'label' => 'Calificaciones',
+                                'url' => baseUrl('configuracion/academica/calificaciones'),
+                                'icon' => 'fa-check-square',
+                            ],
+                            [
+                                'key' => 'asistencia_configuracion',
+                                'label' => 'Asistencia',
+                                'url' => baseUrl('asistencia/configuracion'),
+                                'icon' => 'fa-calendar-check-o',
+                            ],
+                        ],
                     ],
                 ],
             ],
@@ -315,6 +353,7 @@ $permissionMap = [
     'asistencia_registro' => 'asistencia.registrar',
     'configuracion_home' => ['configuracion.gestionar', 'catalogos.gestionar', 'cursos.gestionar', 'matriculas.documentos', 'asistencia.calendario.gestionar', 'calificaciones.configurar', 'calificaciones.plantillas.gestionar'],
     'configuracion_academica' => ['configuracion.gestionar', 'catalogos.gestionar', 'cursos.gestionar', 'matriculas.documentos', 'asistencia.calendario.gestionar', 'calificaciones.configurar', 'calificaciones.plantillas.gestionar'],
+    'academica_configuracion' => ['catalogos.gestionar', 'cursos.gestionar', 'asistencia.calendario.gestionar'],
     'catalogos' => 'catalogos.gestionar',
     'institucion' => 'configuracion.gestionar',
     'periodos' => 'configuracion.gestionar',
@@ -406,7 +445,20 @@ foreach ($sidebarModules as $moduleKey => $module) {
 
     if (isset($module['groups'])) {
         foreach ($module['groups'] as $groupIndex => $group) {
-            $items = array_values(array_filter($group['items'] ?? [], static fn (array $item): bool => $canAccess((string) ($item['key'] ?? ''))));
+            $items = [];
+
+            foreach (($group['items'] ?? []) as $item) {
+                if (isset($item['children']) && is_array($item['children'])) {
+                    $item['children'] = array_values(array_filter(
+                        $item['children'],
+                        static fn (array $child): bool => $canAccess((string) ($child['key'] ?? ''))
+                    ));
+                }
+
+                if ($canAccess((string) ($item['key'] ?? '')) || !empty($item['children'])) {
+                    $items[] = $item;
+                }
+            }
 
             if ($items === []) {
                 unset($sidebarModules[$moduleKey]['groups'][$groupIndex]);
@@ -418,7 +470,22 @@ foreach ($sidebarModules as $moduleKey => $module) {
 
         $sidebarModules[$moduleKey]['groups'] = array_values($sidebarModules[$moduleKey]['groups']);
     } elseif (isset($module['items'])) {
-        $sidebarModules[$moduleKey]['items'] = array_values(array_filter($module['items'], static fn (array $item): bool => $canAccess((string) ($item['key'] ?? ''))));
+        $items = [];
+
+        foreach ($module['items'] as $item) {
+            if (isset($item['children']) && is_array($item['children'])) {
+                $item['children'] = array_values(array_filter(
+                    $item['children'],
+                    static fn (array $child): bool => $canAccess((string) ($child['key'] ?? ''))
+                ));
+            }
+
+            if ($canAccess((string) ($item['key'] ?? '')) || !empty($item['children'])) {
+                $items[] = $item;
+            }
+        }
+
+        $sidebarModules[$moduleKey]['items'] = $items;
     }
 }
 
@@ -567,16 +634,36 @@ foreach ($logoPatterns as $logoPattern) {
                                         'materias_curso',
                                         'docentes_materias',
                                         'asistencia_configuracion',
+                                        'calificaciones',
                                     ], true)
                                 );
+                            $sidebarChildren = isset($item['children']) && is_array($item['children']) ? $item['children'] : [];
                             ?>
                             <a
                                 class="<?= $isActiveSidebarItem ? 'is-active' : ''; ?>"
                                 href="<?= htmlspecialchars($item['url'], ENT_QUOTES, 'UTF-8'); ?>"
                             >
                                 <i class="fa <?= htmlspecialchars((string) ($item['icon'] ?? 'fa-circle'), ENT_QUOTES, 'UTF-8'); ?>" aria-hidden="true"></i>
-                                <?= htmlspecialchars($item['label'], ENT_QUOTES, 'UTF-8'); ?>
+                                <span><?= htmlspecialchars($item['label'], ENT_QUOTES, 'UTF-8'); ?></span>
                             </a>
+                            <?php if ($sidebarChildren !== [] && $isActiveSidebarItem): ?>
+                                <div class="sidebar-subnav" aria-label="Submenu de <?= htmlspecialchars((string) ($item['label'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>">
+                                    <?php foreach ($sidebarChildren as $child): ?>
+                                        <?php
+                                        $childKey = (string) ($child['key'] ?? '');
+                                        $isActiveSidebarChild = ($currentSection ?? '') === $childKey
+                                            || ($childKey === 'academica_configuracion' && ($currentSection ?? '') === 'configuracion_academica');
+                                        ?>
+                                        <a
+                                            class="sidebar-subnav-link <?= $isActiveSidebarChild ? 'is-active' : ''; ?>"
+                                            href="<?= htmlspecialchars($child['url'], ENT_QUOTES, 'UTF-8'); ?>"
+                                        >
+                                            <i class="fa <?= htmlspecialchars((string) ($child['icon'] ?? 'fa-circle'), ENT_QUOTES, 'UTF-8'); ?>" aria-hidden="true"></i>
+                                            <span><?= htmlspecialchars((string) ($child['label'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></span>
+                                        </a>
+                                    <?php endforeach; ?>
+                                </div>
+                            <?php endif; ?>
                         <?php endforeach; ?>
                     </div>
                 <?php endforeach; ?>

@@ -1,4 +1,10 @@
 document.addEventListener('DOMContentLoaded', () => {
+    const escapeHtml = (value) => String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
     const firstField = document.querySelector('input[name="username"]');
     const sidebarToggle = document.querySelector('[data-sidebar-toggle]');
     const shell = document.querySelector('.shell');
@@ -28,6 +34,342 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    const modalFeedbackAlerts = Array.from(document.querySelectorAll(
+        '.content-body > .alert.alert-dismissible[data-alert], ' +
+        '.security-feedback-global .alert.alert-dismissible[data-alert], ' +
+        '.catalog-feedback > .alert.alert-dismissible[data-alert]'
+    )).filter((alert) => {
+        if (!(alert instanceof HTMLElement)) {
+            return false;
+        }
+
+        if (alert.closest('[data-feedback-inline]') !== null || alert.classList.contains('form-field-alert')) {
+            return false;
+        }
+
+        return !alert.hidden;
+    });
+
+    if (modalFeedbackAlerts.length > 0) {
+        const dialog = document.createElement('dialog');
+        const hasError = modalFeedbackAlerts.some((alert) => alert.classList.contains('alert-error'));
+        dialog.className = 'calendar-dialog app-feedback-dialog ' + (hasError ? 'is-error' : 'is-success');
+        dialog.setAttribute('aria-labelledby', 'app-feedback-dialog-title');
+
+        const messages = modalFeedbackAlerts.map((alert) => {
+            const span = alert.querySelector('span');
+            return (span?.textContent || alert.textContent || '').trim();
+        }).filter((message) => message !== '');
+
+        const title = hasError ? 'No se pudo completar' : 'Operacion completada';
+        const listMarkup = messages.length > 1
+            ? '<ul>' + messages.map((message) => '<li>' + escapeHtml(message) + '</li>').join('') + '</ul>'
+            : '<p>' + escapeHtml(messages[0] || '') + '</p>';
+
+        dialog.innerHTML = [
+            '<header class="security-assignment-header">',
+            '<div>',
+            '<h3 id="app-feedback-dialog-title">' + title + '</h3>',
+            '</div>',
+            '</header>',
+            '<div class="app-feedback-dialog-body">' + listMarkup + '</div>',
+            '<div class="actions-row">',
+            '<button class="btn-primary btn-inline" type="button" data-app-feedback-close>Aceptar</button>',
+            '</div>',
+        ].join('');
+
+        document.body.appendChild(dialog);
+
+        modalFeedbackAlerts.forEach((alert) => {
+            const wrapper = alert.closest('.catalog-feedback.security-feedback-global, .catalog-feedback');
+
+            if (wrapper instanceof HTMLElement) {
+                wrapper.remove();
+                return;
+            }
+
+            alert.remove();
+        });
+
+        const closeButton = dialog.querySelector('[data-app-feedback-close]');
+
+        if (typeof dialog.showModal === 'function') {
+            dialog.showModal();
+        } else {
+            dialog.setAttribute('open', 'open');
+        }
+
+        if (closeButton instanceof HTMLButtonElement) {
+            closeButton.addEventListener('click', () => {
+                if (typeof dialog.close === 'function') {
+                    dialog.close('confirm');
+                } else {
+                    dialog.removeAttribute('open');
+                }
+
+                dialog.remove();
+            });
+        }
+    }
+
+    const catalogDeleteDialog = document.querySelector('[data-catalog-delete-dialog]');
+    const catalogDeleteForms = document.querySelectorAll('[data-catalog-delete-form]');
+
+    if (catalogDeleteDialog instanceof HTMLElement && catalogDeleteForms.length > 0) {
+        const cancelButton = catalogDeleteDialog.querySelector('[data-catalog-delete-cancel]');
+        const confirmButton = catalogDeleteDialog.querySelector('[data-catalog-delete-confirm]');
+        let pendingCatalogDeleteForm = null;
+
+        catalogDeleteForms.forEach((form) => {
+            if (!(form instanceof HTMLFormElement)) {
+                return;
+            }
+
+            form.addEventListener('submit', (event) => {
+                event.preventDefault();
+                pendingCatalogDeleteForm = form;
+
+                if (typeof catalogDeleteDialog.showModal === 'function') {
+                    catalogDeleteDialog.showModal();
+                    return;
+                }
+
+                catalogDeleteDialog.setAttribute('open', 'open');
+            });
+        });
+
+        if (cancelButton instanceof HTMLButtonElement) {
+            cancelButton.addEventListener('click', () => {
+                pendingCatalogDeleteForm = null;
+
+                if (typeof catalogDeleteDialog.close === 'function') {
+                    catalogDeleteDialog.close('cancel');
+                    return;
+                }
+
+                catalogDeleteDialog.removeAttribute('open');
+            });
+        }
+
+        if (confirmButton instanceof HTMLButtonElement) {
+            confirmButton.addEventListener('click', () => {
+                const form = pendingCatalogDeleteForm;
+                pendingCatalogDeleteForm = null;
+
+                if (typeof catalogDeleteDialog.close === 'function') {
+                    catalogDeleteDialog.close('confirm');
+                } else {
+                    catalogDeleteDialog.removeAttribute('open');
+                }
+
+                if (form instanceof HTMLFormElement) {
+                    form.submit();
+                }
+            });
+        }
+    }
+
+    const gradeProfileBaseType = document.querySelector('[data-grade-profile-base-type]');
+    const gradeProfileNumericFields = document.querySelectorAll('[data-grade-profile-numeric-scale]');
+
+    if (gradeProfileBaseType instanceof HTMLSelectElement && gradeProfileNumericFields.length > 0) {
+        const syncGradeProfileBaseType = () => {
+            const isQuantitative = gradeProfileBaseType.value === 'CUANTITATIVO';
+
+            gradeProfileNumericFields.forEach((field) => {
+                if (!(field instanceof HTMLElement)) {
+                    return;
+                }
+
+                field.hidden = !isQuantitative;
+                field.querySelectorAll('input').forEach((input) => {
+                    if (input instanceof HTMLInputElement) {
+                        input.disabled = !isQuantitative;
+                    }
+                });
+            });
+        };
+
+        gradeProfileBaseType.addEventListener('change', syncGradeProfileBaseType);
+        syncGradeProfileBaseType();
+    }
+
+    const gradeProfileCreateMode = document.querySelector('[data-grade-profile-create-mode]');
+
+    if (gradeProfileCreateMode instanceof HTMLElement) {
+        const radios = Array.from(gradeProfileCreateMode.querySelectorAll('[data-grade-profile-create-radio]'));
+        const panels = Array.from(gradeProfileCreateMode.querySelectorAll('[data-grade-profile-create-panel]'));
+
+        const syncGradeProfileCreateMode = () => {
+            const checked = radios.find((radio) => radio instanceof HTMLInputElement && radio.checked);
+            const selectedMode = checked instanceof HTMLInputElement ? checked.value : 'template';
+
+            panels.forEach((panel) => {
+                if (!(panel instanceof HTMLElement)) {
+                    return;
+                }
+
+                panel.hidden = panel.dataset.gradeProfileCreatePanel !== selectedMode;
+            });
+        };
+
+        radios.forEach((radio) => {
+            if (radio instanceof HTMLInputElement) {
+                radio.addEventListener('change', syncGradeProfileCreateMode);
+            }
+        });
+
+        syncGradeProfileCreateMode();
+    }
+
+    const periodViewMode = document.querySelector('[data-period-view-mode]');
+
+    if (periodViewMode instanceof HTMLElement) {
+        const radios = Array.from(periodViewMode.querySelectorAll('[data-period-view-radio]'));
+        const panels = Array.from(periodViewMode.querySelectorAll('[data-period-view-panel]'));
+
+        const syncPeriodViewMode = () => {
+            const checked = radios.find((radio) => radio instanceof HTMLInputElement && radio.checked);
+            const selectedMode = checked instanceof HTMLInputElement ? checked.value : 'form';
+
+            panels.forEach((panel) => {
+                if (!(panel instanceof HTMLElement)) {
+                    return;
+                }
+
+                panel.hidden = panel.dataset.periodViewPanel !== selectedMode;
+            });
+        };
+
+        radios.forEach((radio) => {
+            if (radio instanceof HTMLInputElement) {
+                radio.addEventListener('change', syncPeriodViewMode);
+            }
+        });
+
+        syncPeriodViewMode();
+    }
+
+    const baseCatalogSelector = document.querySelector('[data-base-catalog-selector]');
+
+    if (baseCatalogSelector instanceof HTMLElement) {
+        const radios = Array.from(baseCatalogSelector.querySelectorAll('[data-base-catalog-radio]'));
+        const panels = Array.from(document.querySelectorAll('[data-base-catalog-panel]'));
+
+        const syncBaseCatalogSelector = () => {
+            const checked = radios.find((radio) => radio instanceof HTMLInputElement && radio.checked);
+            const selectedCatalog = checked instanceof HTMLInputElement ? checked.value : '';
+
+            panels.forEach((panel) => {
+                if (!(panel instanceof HTMLElement)) {
+                    return;
+                }
+
+                panel.hidden = panel.dataset.baseCatalogPanel !== selectedCatalog;
+            });
+        };
+
+        radios.forEach((radio) => {
+            if (radio instanceof HTMLInputElement) {
+                radio.addEventListener('change', syncBaseCatalogSelector);
+            }
+        });
+
+        syncBaseCatalogSelector();
+    }
+
+    const matriculationConfigViewMode = document.querySelector('[data-matriculation-config-view-mode]');
+
+    if (matriculationConfigViewMode instanceof HTMLElement) {
+        const radios = Array.from(matriculationConfigViewMode.querySelectorAll('[data-matriculation-config-view-radio]'));
+        const panels = Array.from(document.querySelectorAll('[data-matriculation-config-view-panel]'));
+
+        const syncMatriculationConfigViewMode = () => {
+            const checked = radios.find((radio) => radio instanceof HTMLInputElement && radio.checked);
+            const selectedMode = checked instanceof HTMLInputElement ? checked.value : 'form';
+
+            panels.forEach((panel) => {
+                if (!(panel instanceof HTMLElement)) {
+                    return;
+                }
+
+                panel.hidden = panel.dataset.matriculationConfigViewPanel !== selectedMode;
+            });
+        };
+
+        radios.forEach((radio) => {
+            if (radio instanceof HTMLInputElement) {
+                radio.addEventListener('change', syncMatriculationConfigViewMode);
+            }
+        });
+
+        syncMatriculationConfigViewMode();
+    }
+
+    const matriculationDocumentViewMode = document.querySelector('[data-matriculation-document-view-mode]');
+
+    if (matriculationDocumentViewMode instanceof HTMLElement) {
+        const radios = Array.from(matriculationDocumentViewMode.querySelectorAll('[data-matriculation-document-view-radio]'));
+        const panels = Array.from(document.querySelectorAll('[data-matriculation-document-view-panel]'));
+
+        const syncMatriculationDocumentViewMode = () => {
+            const checked = radios.find((radio) => radio instanceof HTMLInputElement && radio.checked);
+            const selectedMode = checked instanceof HTMLInputElement ? checked.value : 'form';
+
+            panels.forEach((panel) => {
+                if (!(panel instanceof HTMLElement)) {
+                    return;
+                }
+
+                panel.hidden = panel.dataset.matriculationDocumentViewPanel !== selectedMode;
+            });
+        };
+
+        radios.forEach((radio) => {
+            if (radio instanceof HTMLInputElement) {
+                radio.addEventListener('change', syncMatriculationDocumentViewMode);
+            }
+        });
+
+        syncMatriculationDocumentViewMode();
+    }
+
+    const academicConfigViewMode = document.querySelector('[data-academic-config-view-mode]');
+
+    if (academicConfigViewMode instanceof HTMLElement) {
+        const radios = Array.from(academicConfigViewMode.querySelectorAll('[data-academic-config-view-radio]'));
+        const panels = Array.from(document.querySelectorAll('[data-academic-config-view-panel]'));
+
+        const syncAcademicConfigViewMode = () => {
+            const checked = radios.find((radio) => radio instanceof HTMLInputElement && radio.checked);
+            const selectedMode = checked instanceof HTMLInputElement ? checked.value : '';
+
+            panels.forEach((panel) => {
+                if (!(panel instanceof HTMLElement)) {
+                    return;
+                }
+
+                panel.hidden = panel.dataset.academicConfigViewPanel !== selectedMode;
+            });
+        };
+
+        radios.forEach((radio) => {
+            if (radio instanceof HTMLInputElement) {
+                radio.addEventListener('change', () => {
+                    syncAcademicConfigViewMode();
+
+                    if (radio.checked && window.history && typeof window.history.replaceState === 'function') {
+                        const url = new URL(window.location.href);
+                        url.searchParams.set('view', radio.value);
+                        window.history.replaceState({}, '', url.toString());
+                    }
+                });
+            }
+        });
+
+        syncAcademicConfigViewMode();
+    }
+
     const gradebookFeedbackDialog = document.querySelector('[data-gradebook-feedback-dialog]');
 
     if (gradebookFeedbackDialog instanceof HTMLDialogElement) {
@@ -53,6 +395,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 gradebookFeedbackDialog.removeAttribute('open');
                 dispatchGradebookFeedbackClosed();
+            });
+        }
+    }
+
+    const gradeConfigFeedbackDialog = document.querySelector('[data-grade-config-feedback-dialog]');
+
+    if (gradeConfigFeedbackDialog instanceof HTMLDialogElement) {
+        const closeButton = gradeConfigFeedbackDialog.querySelector('[data-grade-config-feedback-close]');
+
+        if (typeof gradeConfigFeedbackDialog.showModal === 'function') {
+            gradeConfigFeedbackDialog.showModal();
+        } else {
+            gradeConfigFeedbackDialog.setAttribute('open', 'open');
+        }
+
+        if (closeButton instanceof HTMLButtonElement) {
+            closeButton.addEventListener('click', () => {
+                if (typeof gradeConfigFeedbackDialog.close === 'function') {
+                    gradeConfigFeedbackDialog.close('confirm');
+                    return;
+                }
+
+                gradeConfigFeedbackDialog.removeAttribute('open');
             });
         }
     }
@@ -378,6 +743,63 @@ document.addEventListener('DOMContentLoaded', () => {
                     gradeProfileActivationDialog.removeAttribute('open');
                 }
                 gradeProfileActivationForm.submit();
+            });
+        }
+    }
+
+    const gradeProfileDeleteDialog = document.querySelector('[data-grade-profile-delete-dialog]');
+    const gradeProfileDeleteForms = document.querySelectorAll('[data-grade-profile-delete-form]');
+
+    if (gradeProfileDeleteDialog instanceof HTMLElement && gradeProfileDeleteForms.length > 0) {
+        const cancelButton = gradeProfileDeleteDialog.querySelector('[data-grade-profile-delete-cancel]');
+        const confirmButton = gradeProfileDeleteDialog.querySelector('[data-grade-profile-delete-confirm]');
+        let pendingDeleteForm = null;
+
+        gradeProfileDeleteForms.forEach((form) => {
+            if (!(form instanceof HTMLFormElement)) {
+                return;
+            }
+
+            form.addEventListener('submit', (event) => {
+                event.preventDefault();
+                pendingDeleteForm = form;
+
+                if (typeof gradeProfileDeleteDialog.showModal === 'function') {
+                    gradeProfileDeleteDialog.showModal();
+                    return;
+                }
+
+                gradeProfileDeleteDialog.setAttribute('open', 'open');
+            });
+        });
+
+        if (cancelButton instanceof HTMLButtonElement) {
+            cancelButton.addEventListener('click', () => {
+                pendingDeleteForm = null;
+
+                if (typeof gradeProfileDeleteDialog.close === 'function') {
+                    gradeProfileDeleteDialog.close('cancel');
+                    return;
+                }
+
+                gradeProfileDeleteDialog.removeAttribute('open');
+            });
+        }
+
+        if (confirmButton instanceof HTMLButtonElement) {
+            confirmButton.addEventListener('click', () => {
+                const form = pendingDeleteForm;
+                pendingDeleteForm = null;
+
+                if (typeof gradeProfileDeleteDialog.close === 'function') {
+                    gradeProfileDeleteDialog.close('confirm');
+                } else {
+                    gradeProfileDeleteDialog.removeAttribute('open');
+                }
+
+                if (form instanceof HTMLFormElement) {
+                    form.submit();
+                }
             });
         }
     }
