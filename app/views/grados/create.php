@@ -27,6 +27,7 @@ require BASE_PATH . '/app/views/partials/header.php';
     <?php endif; ?>
 
     <form class="data-form" method="POST" action="<?= htmlspecialchars((string) ($formAction ?? baseUrl('grados')), ENT_QUOTES, 'UTF-8'); ?>">
+        <?= csrfField(); ?>
         <?php if (!empty($old['graid'])): ?>
             <input type="hidden" name="graid" value="<?= htmlspecialchars((string) $old['graid'], ENT_QUOTES, 'UTF-8'); ?>">
         <?php endif; ?>

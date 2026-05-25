@@ -44,6 +44,7 @@ if ($defaultCourseId === 0 && !empty($courses)) {
             <div class="empty-state">No existen asignaturas activas disponibles.</div>
         <?php else: ?>
             <form class="data-form" method="POST" action="<?= $h(baseUrl('configuracion/academica/materias-curso')); ?>" data-course-subject-bulk-form>
+                <?= csrfField(); ?>
                 <div class="form-grid">
                     <div>
                         <div class="input-group">
@@ -141,6 +142,7 @@ if ($defaultCourseId === 0 && !empty($courses)) {
                                 <td><?= $h($subject['mtcorden'] ?? ''); ?></td>
                                 <td>
                                     <form method="POST" action="<?= $h(baseUrl('configuracion/academica/materias-curso/estado')); ?>" class="status-switch-form">
+                                        <?= csrfField(); ?>
                                         <input type="hidden" name="mtcid" value="<?= $h($subject['mtcid']); ?>">
                                         <input type="hidden" name="mtcestado" value="<?= !empty($subject['mtcestado']) ? '0' : '1'; ?>">
                                         <button class="status-switch <?= !empty($subject['mtcestado']) ? 'is-active' : ''; ?>" type="submit" title="<?= !empty($subject['mtcestado']) ? 'Inactivar materia' : 'Activar materia'; ?>" aria-label="<?= !empty($subject['mtcestado']) ? 'Inactivar materia' : 'Activar materia'; ?>">

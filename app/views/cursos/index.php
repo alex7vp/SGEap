@@ -21,6 +21,7 @@ require BASE_PATH . '/app/views/partials/header.php';
             <div class="empty-state">Para registrar cursos necesitas tener grados y paralelos disponibles en la base de datos.</div>
         <?php else: ?>
             <form class="data-form" method="POST" action="<?= htmlspecialchars(baseUrl('cursos'), ENT_QUOTES, 'UTF-8'); ?>">
+                <?= csrfField(); ?>
                 <div class="form-grid">
                     <div>
                         <div class="input-group">
@@ -116,6 +117,7 @@ require BASE_PATH . '/app/views/partials/header.php';
                                 <td><?= htmlspecialchars((string) $course['prlnombre'], ENT_QUOTES, 'UTF-8'); ?></td>
                                 <td>
                                     <form method="POST" action="<?= htmlspecialchars(baseUrl('cursos/estado'), ENT_QUOTES, 'UTF-8'); ?>" class="status-switch-form">
+                                        <?= csrfField(); ?>
                                         <input type="hidden" name="curid" value="<?= htmlspecialchars((string) $course['curid'], ENT_QUOTES, 'UTF-8'); ?>">
                                         <input type="hidden" name="curestado" value="<?= !empty($course['curestado']) ? '0' : '1'; ?>">
                                         <button

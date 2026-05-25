@@ -163,6 +163,7 @@ $statusLabels = [
                     action="<?= htmlspecialchars(baseUrl('asistencia/sesiones/anular'), ENT_QUOTES, 'UTF-8'); ?>"
                     onsubmit="return confirm('Confirma que desea anular esta sesion? La sesion dejara de contar en resumenes y reportes.');"
                 >
+                    <?= csrfField(); ?>
                     <input type="hidden" name="sclid" value="<?= htmlspecialchars((string) $session['sclid'], ENT_QUOTES, 'UTF-8'); ?>">
                     <input type="hidden" name="fecha" value="<?= htmlspecialchars((string) $session['cafecha'], ENT_QUOTES, 'UTF-8'); ?>">
                     <div class="form-grid">

@@ -64,6 +64,7 @@ $resolveDocumentUrl = static function (string $origin, string $url): string {
     </header>
 
     <form class="data-form" method="POST" action="<?= htmlspecialchars(baseUrl($editingDocumentId > 0 ? 'configuracion/matricula/documentos/actualizar' : 'configuracion/matricula/documentos'), ENT_QUOTES, 'UTF-8'); ?>" enctype="multipart/form-data">
+        <?= csrfField(); ?>
         <?php if ($editingDocumentId > 0): ?>
             <input type="hidden" name="domid" value="<?= htmlspecialchars((string) $editingDocumentId, ENT_QUOTES, 'UTF-8'); ?>">
         <?php endif; ?>
@@ -206,6 +207,7 @@ $resolveDocumentUrl = static function (string $origin, string $url): string {
                                         <i class="fa fa-pencil" aria-hidden="true"></i>
                                     </a>
                                     <form method="POST" action="<?= htmlspecialchars(baseUrl('configuracion/matricula/documentos/eliminar'), ENT_QUOTES, 'UTF-8'); ?>" onsubmit="return confirm('Confirma que desea eliminar este documento de matricula?');">
+                                        <?= csrfField(); ?>
                                         <input type="hidden" name="domid" value="<?= htmlspecialchars((string) $document['domid'], ENT_QUOTES, 'UTF-8'); ?>">
                                         <button class="icon-button icon-button-delete" type="submit" title="Eliminar documento" aria-label="Eliminar documento">
                                             <i class="fa fa-trash" aria-hidden="true"></i>

@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Core\Controller;
+use App\Models\AccountingConfigurationModel;
 use App\Models\CatalogModel;
 use App\Models\CourseModel;
 use App\Models\GradeConfigurationModel;
+use App\Models\GradeModel;
 use App\Models\InstitutionModel;
 use App\Models\MatriculationConfigurationModel;
 use App\Models\MatriculationDocumentModel;
@@ -166,6 +168,35 @@ class ConfigurationController extends Controller
                 'scratch_pasalcance' => sessionFlash('old_blank_grade_profile_scope') ?? '',
                 'scratch_target_id' => sessionFlash('old_blank_grade_profile_target') ?? '',
             ],
+        ]);
+    }
+
+    public function accountingConfiguration(): void
+    {
+        $user = $this->requireAuth();
+        $model = new AccountingConfigurationModel();
+        $periodModel = new PeriodModel();
+        $gradeModel = new GradeModel();
+        $courseModel = new CourseModel();
+        $editId = (int) ($_GET['edit'] ?? 0);
+        $editConfiguration = $editId > 0 ? $model->findConfiguration($editId) : false;
+        $currentPeriod = currentAcademicPeriod();
+        $periodId = $currentPeriod !== null ? (int) ($currentPeriod['pleid'] ?? 0) : 0;
+
+        $this->view('configuracion.contabilidad', [
+            'appName' => config('app')['name'] ?? 'SGEap',
+            'pageTitle' => 'Configuracion contable',
+            'currentModule' => 'configuracion',
+            'currentSection' => 'configuracion_contable',
+            'user' => $user,
+            'currentPeriod' => $currentPeriod,
+            'periods' => $periodModel->allOrdered(),
+            'levels' => $gradeModel->allLevels(),
+            'grades' => $gradeModel->allOrdered(),
+            'courses' => $periodId > 0 ? $courseModel->allByPeriod($periodId) : [],
+            'settings' => $model->allConfigurations(),
+            'feedback' => $this->accountingConfigurationFeedback(),
+            'old' => $this->accountingConfigurationOld($editConfiguration),
         ]);
     }
 
@@ -738,6 +769,62 @@ class ConfigurationController extends Controller
         $configurationModel->create($data);
         $this->flashMatriculationConfigFeedback('success', 'Configuracion de matricula registrada correctamente.');
         $this->redirect('/configuracion/matricula');
+    }
+
+    public function storeAccountingConfiguration(): void
+    {
+        $user = $this->requireAuth();
+        $data = $this->accountingConfigurationFormData($user);
+        $model = new AccountingConfigurationModel();
+
+        try {
+            $this->validateAccountingConfigurationData($data, $model);
+            $data['ccoid'] = $model->obligationConceptId((string) $data['cfotipo']);
+
+            if ($model->existsActiveCombination($data)) {
+                throw new \RuntimeException('Ya existe una configuracion activa para ese periodo, alcance y tipo.');
+            }
+
+            $model->createConfiguration($data);
+            $this->flashAccountingConfigurationFeedback('success', 'Configuracion contable registrada correctamente.');
+            $this->redirect('/configuracion/contable?panel=list#configuraciones-contables');
+        } catch (\Throwable $exception) {
+            $this->flashAccountingConfigurationFormData($data);
+            $this->flashAccountingConfigurationFeedback('error', $exception->getMessage());
+            $this->redirect('/configuracion/contable');
+        }
+    }
+
+    public function updateAccountingConfiguration(): void
+    {
+        $user = $this->requireAuth();
+        $configurationId = (int) ($_POST['cfoid'] ?? 0);
+        $model = new AccountingConfigurationModel();
+        $current = $configurationId > 0 ? $model->findConfiguration($configurationId) : false;
+
+        if ($current === false) {
+            $this->flashAccountingConfigurationFeedback('error', 'La configuracion contable seleccionada no existe.');
+            $this->redirect('/configuracion/contable?panel=list#configuraciones-contables');
+        }
+
+        $data = $this->accountingConfigurationFormData($user);
+
+        try {
+            $this->validateAccountingConfigurationData($data, $model);
+            $data['ccoid'] = $model->obligationConceptId((string) $data['cfotipo']);
+
+            if ($model->existsActiveCombination($data, $configurationId)) {
+                throw new \RuntimeException('Ya existe otra configuracion activa para ese periodo, alcance y tipo.');
+            }
+
+            $model->updateConfiguration($configurationId, $data);
+            $this->flashAccountingConfigurationFeedback('success', 'Configuracion contable actualizada correctamente.');
+            $this->redirect('/configuracion/contable?panel=list#configuraciones-contables');
+        } catch (\Throwable $exception) {
+            $this->flashAccountingConfigurationFormData($data + ['cfoid' => (string) $configurationId]);
+            $this->flashAccountingConfigurationFeedback('error', $exception->getMessage());
+            $this->redirect('/configuracion/contable?edit=' . $configurationId);
+        }
     }
 
     public function updateMatriculationSetting(): void
@@ -1337,6 +1424,131 @@ class ConfigurationController extends Controller
         sessionFlash('old_blank_grade_profile_target', (string) ($data['target_id'] ?? ''));
     }
 
+    private function accountingConfigurationFormData(array $user): array
+    {
+        $type = mb_strtoupper(trim((string) ($_POST['cfotipo'] ?? 'PENSION')));
+        $scope = mb_strtoupper(trim((string) ($_POST['cfoalcance'] ?? 'NIVEL')));
+        $generatesLateFee = (string) ($_POST['cfogenera_mora'] ?? '0') === '1';
+
+        return [
+            'pleid' => (int) ($_POST['pleid'] ?? 0),
+            'cfoalcance' => in_array($scope, ['INSTITUCION', 'NIVEL', 'GRADO', 'CURSO'], true) ? $scope : 'NIVEL',
+            'nedid' => $scope === 'NIVEL' ? (int) ($_POST['nedid'] ?? 0) : null,
+            'graid' => $scope === 'GRADO' ? (int) ($_POST['graid'] ?? 0) : null,
+            'curid' => $scope === 'CURSO' ? (int) ($_POST['curid'] ?? 0) : null,
+            'ccoid' => 0,
+            'cfotipo' => in_array($type, ['MATRICULA', 'PENSION'], true) ? $type : 'PENSION',
+            'cfovalor_oficial' => number_format(max(0, (float) ($_POST['cfovalor_oficial'] ?? 0)), 2, '.', ''),
+            'cfocantidad_pensiones' => $type === 'PENSION' ? (int) ($_POST['cfocantidad_pensiones'] ?? 10) : null,
+            'cfomes_inicio' => $type === 'PENSION' ? (int) ($_POST['cfomes_inicio'] ?? 9) : null,
+            'cfoanio_inicio' => $type === 'PENSION' ? (int) ($_POST['cfoanio_inicio'] ?? date('Y')) : null,
+            'cfodia_vencimiento' => (int) ($_POST['cfodia_vencimiento'] ?? 5),
+            'cfogenera_mora' => $generatesLateFee,
+            'cfomora_tipo' => $generatesLateFee ? mb_strtoupper(trim((string) ($_POST['cfomora_tipo'] ?? 'VALOR_FIJO'))) : null,
+            'cfomora_valor' => $generatesLateFee ? number_format(max(0, (float) ($_POST['cfomora_valor'] ?? 0)), 2, '.', '') : null,
+            'cfoestado' => (string) ($_POST['cfoestado'] ?? '1') === '1',
+            'cfoobservacion' => trim((string) ($_POST['cfoobservacion'] ?? '')),
+            'usuid_registro' => (int) ($user['usuid'] ?? 0),
+        ];
+    }
+
+    private function validateAccountingConfigurationData(array $data, AccountingConfigurationModel $model): void
+    {
+        if ((int) $data['pleid'] <= 0 || (new PeriodModel())->find((int) $data['pleid']) === false) {
+            throw new \RuntimeException('Debe seleccionar un periodo lectivo valido.');
+        }
+
+        if (!in_array((string) $data['cfotipo'], ['MATRICULA', 'PENSION'], true)) {
+            throw new \RuntimeException('El tipo de obligacion seleccionado no es valido.');
+        }
+
+        if ((float) $data['cfovalor_oficial'] < 0) {
+            throw new \RuntimeException('El valor oficial no puede ser negativo.');
+        }
+
+        if ((int) $data['cfodia_vencimiento'] < 1 || (int) $data['cfodia_vencimiento'] > 28) {
+            throw new \RuntimeException('El dia de vencimiento debe estar entre 1 y 28.');
+        }
+
+        if ($data['cfoalcance'] === 'NIVEL' && (int) ($data['nedid'] ?? 0) <= 0) {
+            throw new \RuntimeException('Debe seleccionar un nivel educativo.');
+        }
+
+        if ($data['cfoalcance'] === 'GRADO' && (int) ($data['graid'] ?? 0) <= 0) {
+            throw new \RuntimeException('Debe seleccionar un grado.');
+        }
+
+        if ($data['cfoalcance'] === 'CURSO' && (int) ($data['curid'] ?? 0) <= 0) {
+            throw new \RuntimeException('Debe seleccionar un curso.');
+        }
+
+        if ($data['cfotipo'] === 'PENSION') {
+            if ((int) ($data['cfocantidad_pensiones'] ?? 0) <= 0) {
+                throw new \RuntimeException('La cantidad de pensiones debe ser mayor a cero.');
+            }
+
+            if ((int) ($data['cfomes_inicio'] ?? 0) < 1 || (int) ($data['cfomes_inicio'] ?? 0) > 12) {
+                throw new \RuntimeException('El mes inicial debe estar entre 1 y 12.');
+            }
+
+            if ((int) ($data['cfoanio_inicio'] ?? 0) < 2000) {
+                throw new \RuntimeException('El anio inicial de pensiones no es valido.');
+            }
+        }
+
+        if (!empty($data['cfogenera_mora']) && !in_array((string) ($data['cfomora_tipo'] ?? ''), ['VALOR_FIJO', 'PORCENTAJE'], true)) {
+            throw new \RuntimeException('El tipo de mora seleccionado no es valido.');
+        }
+
+        $model->obligationConceptId((string) $data['cfotipo']);
+    }
+
+    private function accountingConfigurationOld(array|false $editConfiguration): array
+    {
+        $currentPeriod = currentAcademicPeriod();
+
+        return [
+            'cfoid' => sessionFlash('old_accounting_config_id') ?? ($editConfiguration !== false ? (string) $editConfiguration['cfoid'] : ''),
+            'pleid' => sessionFlash('old_accounting_config_period') ?? ($editConfiguration !== false ? (string) $editConfiguration['pleid'] : (string) ($currentPeriod['pleid'] ?? '')),
+            'cfoalcance' => sessionFlash('old_accounting_config_scope') ?? ($editConfiguration !== false ? (string) $editConfiguration['cfoalcance'] : 'NIVEL'),
+            'nedid' => sessionFlash('old_accounting_config_level') ?? ($editConfiguration !== false ? (string) ($editConfiguration['nedid'] ?? '') : ''),
+            'graid' => sessionFlash('old_accounting_config_grade') ?? ($editConfiguration !== false ? (string) ($editConfiguration['graid'] ?? '') : ''),
+            'curid' => sessionFlash('old_accounting_config_course') ?? ($editConfiguration !== false ? (string) ($editConfiguration['curid'] ?? '') : ''),
+            'cfotipo' => sessionFlash('old_accounting_config_type') ?? ($editConfiguration !== false ? (string) $editConfiguration['cfotipo'] : 'PENSION'),
+            'cfovalor_oficial' => sessionFlash('old_accounting_config_value') ?? ($editConfiguration !== false ? (string) $editConfiguration['cfovalor_oficial'] : ''),
+            'cfocantidad_pensiones' => sessionFlash('old_accounting_config_months_count') ?? ($editConfiguration !== false ? (string) ($editConfiguration['cfocantidad_pensiones'] ?? '') : '10'),
+            'cfomes_inicio' => sessionFlash('old_accounting_config_start_month') ?? ($editConfiguration !== false ? (string) ($editConfiguration['cfomes_inicio'] ?? '') : '9'),
+            'cfoanio_inicio' => sessionFlash('old_accounting_config_start_year') ?? ($editConfiguration !== false ? (string) ($editConfiguration['cfoanio_inicio'] ?? '') : date('Y')),
+            'cfodia_vencimiento' => sessionFlash('old_accounting_config_due_day') ?? ($editConfiguration !== false ? (string) $editConfiguration['cfodia_vencimiento'] : '5'),
+            'cfogenera_mora' => sessionFlash('old_accounting_config_late_fee') ?? ($editConfiguration !== false && !empty($editConfiguration['cfogenera_mora']) ? '1' : '0'),
+            'cfomora_tipo' => sessionFlash('old_accounting_config_late_fee_type') ?? ($editConfiguration !== false ? (string) ($editConfiguration['cfomora_tipo'] ?? 'VALOR_FIJO') : 'VALOR_FIJO'),
+            'cfomora_valor' => sessionFlash('old_accounting_config_late_fee_value') ?? ($editConfiguration !== false ? (string) ($editConfiguration['cfomora_valor'] ?? '') : ''),
+            'cfoestado' => sessionFlash('old_accounting_config_status') ?? ($editConfiguration !== false && empty($editConfiguration['cfoestado']) ? '0' : '1'),
+            'cfoobservacion' => sessionFlash('old_accounting_config_note') ?? ($editConfiguration !== false ? (string) ($editConfiguration['cfoobservacion'] ?? '') : ''),
+        ];
+    }
+
+    private function flashAccountingConfigurationFormData(array $data): void
+    {
+        sessionFlash('old_accounting_config_id', (string) ($data['cfoid'] ?? ''));
+        sessionFlash('old_accounting_config_period', (string) ($data['pleid'] ?? ''));
+        sessionFlash('old_accounting_config_scope', (string) ($data['cfoalcance'] ?? 'NIVEL'));
+        sessionFlash('old_accounting_config_level', (string) ($data['nedid'] ?? ''));
+        sessionFlash('old_accounting_config_grade', (string) ($data['graid'] ?? ''));
+        sessionFlash('old_accounting_config_course', (string) ($data['curid'] ?? ''));
+        sessionFlash('old_accounting_config_type', (string) ($data['cfotipo'] ?? 'PENSION'));
+        sessionFlash('old_accounting_config_value', (string) ($data['cfovalor_oficial'] ?? ''));
+        sessionFlash('old_accounting_config_months_count', (string) ($data['cfocantidad_pensiones'] ?? ''));
+        sessionFlash('old_accounting_config_start_month', (string) ($data['cfomes_inicio'] ?? ''));
+        sessionFlash('old_accounting_config_start_year', (string) ($data['cfoanio_inicio'] ?? ''));
+        sessionFlash('old_accounting_config_due_day', (string) ($data['cfodia_vencimiento'] ?? '5'));
+        sessionFlash('old_accounting_config_late_fee', !empty($data['cfogenera_mora']) ? '1' : '0');
+        sessionFlash('old_accounting_config_late_fee_type', (string) ($data['cfomora_tipo'] ?? 'VALOR_FIJO'));
+        sessionFlash('old_accounting_config_late_fee_value', (string) ($data['cfomora_valor'] ?? ''));
+        sessionFlash('old_accounting_config_status', !empty($data['cfoestado']) ? '1' : '0');
+        sessionFlash('old_accounting_config_note', (string) ($data['cfoobservacion'] ?? ''));
+    }
+
     private function flashInstitutionFieldError(string $field, string $message): void
     {
         sessionFlash('institution_error_' . $field, $message);
@@ -1381,6 +1593,12 @@ class ConfigurationController extends Controller
         sessionFlash('matriculation_config_feedback_message', $message);
     }
 
+    private function flashAccountingConfigurationFeedback(string $type, string $message): void
+    {
+        sessionFlash('accounting_config_feedback_type', $type);
+        sessionFlash('accounting_config_feedback_message', $message);
+    }
+
     private function flashGradesConfigurationFeedback(string $type, string $message): void
     {
         sessionFlash('grades_config_feedback_type', $type);
@@ -1412,6 +1630,21 @@ class ConfigurationController extends Controller
     {
         $type = sessionFlash('matriculation_config_feedback_type');
         $message = sessionFlash('matriculation_config_feedback_message');
+
+        if ($type === null || $message === null) {
+            return null;
+        }
+
+        return [
+            'type' => $type,
+            'message' => $message,
+        ];
+    }
+
+    private function accountingConfigurationFeedback(): ?array
+    {
+        $type = sessionFlash('accounting_config_feedback_type');
+        $message = sessionFlash('accounting_config_feedback_message');
 
         if ($type === null || $message === null) {
             return null;

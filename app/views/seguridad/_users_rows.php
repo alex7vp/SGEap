@@ -16,6 +16,7 @@
         <td>
             <div class="actions-group">
                 <form method="POST" action="<?= htmlspecialchars(baseUrl('seguridad/usuarios/clave'), ENT_QUOTES, 'UTF-8'); ?>" class="security-password-reset-form">
+                    <?= csrfField(); ?>
                     <input type="hidden" name="usuid" value="<?= htmlspecialchars((string) $account['usuid'], ENT_QUOTES, 'UTF-8'); ?>">
                     <input
                         class="security-password-reset-input"
@@ -36,6 +37,7 @@
                     </button>
                 </form>
                 <form method="POST" action="<?= htmlspecialchars(baseUrl('seguridad/usuarios/estado'), ENT_QUOTES, 'UTF-8'); ?>" class="status-switch-form">
+                    <?= csrfField(); ?>
                     <input type="hidden" name="usuid" value="<?= htmlspecialchars((string) $account['usuid'], ENT_QUOTES, 'UTF-8'); ?>">
                     <input type="hidden" name="usuestado" value="<?= !empty($account['usuestado']) ? '0' : '1'; ?>">
                     <button

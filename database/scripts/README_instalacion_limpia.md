@@ -16,6 +16,7 @@ Luego ejecutar las semillas, en este orden:
 6. `database/seeds/06_calificaciones_plantillas_base.sql`
 7. `database/seeds/07_novedades_base.sql`
 8. `database/seeds/08_permisos_funcionales_base.sql`
+9. `database/seeds/09_gestion_contable_base.sql`
 
 `sgeap.sql` es el esquema consolidado. No contiene semillas de catalogos, permisos ni datos iniciales; esos inserts viven en `database/seeds`.
 
@@ -36,6 +37,7 @@ Si se prefiere revisar o ejecutar la estructura por bloques, usar este orden:
 11. `database/scripts/20_calificaciones_soporte.sql`
 12. `database/scripts/21_calificaciones_grupos_materia.sql`
 13. `database/scripts/23_calificaciones_habilitacion_registro.sql`
+14. `database/scripts/24_gestion_contable.sql`
 
 Despues de la estructura modular, ejecutar las mismas semillas listadas en la opcion recomendada.
 

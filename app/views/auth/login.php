@@ -31,6 +31,7 @@ declare(strict_types=1);
             <?php endif; ?>
 
             <form method="POST" action="<?= htmlspecialchars(baseUrl('login'), ENT_QUOTES, 'UTF-8'); ?>">
+                <?= csrfField(); ?>
                 <div class="form-group">
                     <label for="username">Usuario</label>
                     <input

@@ -161,6 +161,7 @@ $contextLabels = [
             <div class="empty-state">No hay estudiantes disponibles para registrar novedades.</div>
         <?php else: ?>
             <form class="data-form" method="POST" action="<?= htmlspecialchars(baseUrl('novedades/registro'), ENT_QUOTES, 'UTF-8'); ?>">
+                <?= csrfField(); ?>
                 <input type="hidden" name="noefecha" value="<?= htmlspecialchars($selectedDate, ENT_QUOTES, 'UTF-8'); ?>">
                 <div class="form-grid">
                     <div>

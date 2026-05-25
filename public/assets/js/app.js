@@ -370,6 +370,38 @@ document.addEventListener('DOMContentLoaded', () => {
         syncAcademicConfigViewMode();
     }
 
+    document.querySelectorAll('[data-option-view-mode]').forEach((optionViewMode) => {
+        if (!(optionViewMode instanceof HTMLElement) || !(optionViewMode.parentElement instanceof HTMLElement)) {
+            return;
+        }
+
+        const radios = Array.from(optionViewMode.querySelectorAll('[data-option-view-radio]'));
+        const panels = Array.from(optionViewMode.parentElement.children).filter((panel) => (
+            panel instanceof HTMLElement && panel.hasAttribute('data-option-view-panel')
+        ));
+
+        const syncOptionViewMode = () => {
+            const checked = radios.find((radio) => radio instanceof HTMLInputElement && radio.checked);
+            const selectedMode = checked instanceof HTMLInputElement ? checked.value : 'list';
+
+            panels.forEach((panel) => {
+                if (!(panel instanceof HTMLElement)) {
+                    return;
+                }
+
+                panel.hidden = panel.dataset.optionViewPanel !== selectedMode;
+            });
+        };
+
+        radios.forEach((radio) => {
+            if (radio instanceof HTMLInputElement) {
+                radio.addEventListener('change', syncOptionViewMode);
+            }
+        });
+
+        syncOptionViewMode();
+    });
+
     const gradebookFeedbackDialog = document.querySelector('[data-gradebook-feedback-dialog]');
 
     if (gradebookFeedbackDialog instanceof HTMLDialogElement) {
@@ -423,18 +455,27 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const rolePermissionFilter = document.querySelector('[data-role-permission-filter]');
-    const rolePermissionSelect = document.querySelector('[data-role-permission-select]');
+    const rolePermissionRadios = Array.from(document.querySelectorAll('[data-role-permission-radio]'));
     const rolePermissionPanel = document.querySelector('[data-role-permission-panel]');
-    const rolePermissionStatus = document.querySelector('[data-role-permission-status]');
 
     if (
         rolePermissionFilter instanceof HTMLFormElement
-        && rolePermissionSelect instanceof HTMLSelectElement
+        && rolePermissionRadios.length > 0
         && rolePermissionPanel instanceof HTMLElement
     ) {
+        const selectedRolePermissionRadio = () => rolePermissionRadios.find((radio) => (
+            radio instanceof HTMLInputElement && radio.checked
+        ));
+
         const syncRolePermissionUrl = () => {
+            const selectedRadio = selectedRolePermissionRadio();
+
+            if (!(selectedRadio instanceof HTMLInputElement)) {
+                return;
+            }
+
             const url = new URL(rolePermissionFilter.action, window.location.origin);
-            url.searchParams.set(rolePermissionSelect.name || 'rolid', rolePermissionSelect.value);
+            url.searchParams.set(selectedRadio.name || 'rolid', selectedRadio.value);
             window.history.replaceState({}, '', url.toString());
         };
 
@@ -455,21 +496,22 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         const loadRolePermissions = async () => {
-            const baseUrl = rolePermissionSelect.dataset.rolePermissionUrl || '';
+            const selectedRadio = selectedRolePermissionRadio();
+
+            if (!(selectedRadio instanceof HTMLInputElement)) {
+                rolePermissionFilter.submit();
+                return;
+            }
+
+            const baseUrl = selectedRadio.dataset.rolePermissionUrl || '';
 
             if (baseUrl === '') {
                 rolePermissionFilter.submit();
                 return;
             }
 
-            const selectedOption = rolePermissionSelect.selectedOptions[0];
-
-            if (rolePermissionStatus instanceof HTMLElement) {
-                rolePermissionStatus.textContent = 'Cargando permisos...';
-            }
-
             const url = new URL(baseUrl, window.location.origin);
-            url.searchParams.set('rolid', rolePermissionSelect.value);
+            url.searchParams.set('rolid', selectedRadio.value);
 
             try {
                 const response = await fetch(url.toString(), {
@@ -486,22 +528,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 rolePermissionPanel.innerHTML = payload.html || '<div class="empty-state">No se pudo cargar el rol seleccionado.</div>';
                 wireLoadedAlerts();
                 syncRolePermissionUrl();
-
-                if (rolePermissionStatus instanceof HTMLElement) {
-                    rolePermissionStatus.textContent = selectedOption
-                        ? 'Mostrando permisos de ' + selectedOption.textContent.trim()
-                        : 'Seleccione un rol';
-                }
             } catch (error) {
                 rolePermissionPanel.innerHTML = '<div class="empty-state">No se pudo cargar el rol seleccionado.</div>';
-
-                if (rolePermissionStatus instanceof HTMLElement) {
-                    rolePermissionStatus.textContent = 'Error al cargar permisos';
-                }
             }
         };
 
-        rolePermissionSelect.addEventListener('change', loadRolePermissions);
+        rolePermissionRadios.forEach((radio) => {
+            if (radio instanceof HTMLInputElement) {
+                radio.addEventListener('change', loadRolePermissions);
+            }
+        });
     }
 
     const gradebookTables = document.querySelectorAll('[data-gradebook-table]');
@@ -3855,6 +3891,73 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    const courseSubjectFilter = document.querySelector('[data-course-subject-filter]');
+
+    if (courseSubjectFilter instanceof HTMLElement) {
+        const courseSelect = courseSubjectFilter.querySelector('[data-course-subject-filter-course]');
+        const areaSelect = courseSubjectFilter.querySelector('[data-course-subject-filter-area]');
+        const subjectSelect = courseSubjectFilter.querySelector('[data-course-subject-filter-subject]');
+        const statusLabel = document.querySelector('[data-course-subject-filter-status]');
+        const tableWrapper = document.querySelector('[data-course-subject-filter-table]');
+        const tableBody = document.querySelector('[data-course-subject-filter-body]');
+        const emptyWrapper = document.querySelector('[data-course-subject-filter-empty]');
+
+        const filterCourseSubjects = async () => {
+            const baseUrl = courseSubjectFilter.dataset.courseSubjectFilterUrl || '';
+
+            if (
+                baseUrl === ''
+                || !(courseSelect instanceof HTMLSelectElement)
+                || !(areaSelect instanceof HTMLSelectElement)
+                || !(subjectSelect instanceof HTMLSelectElement)
+                || !(statusLabel instanceof HTMLElement)
+                || !(tableWrapper instanceof HTMLElement)
+                || !(tableBody instanceof HTMLTableSectionElement)
+                || !(emptyWrapper instanceof HTMLElement)
+            ) {
+                return;
+            }
+
+            const url = new URL(baseUrl, window.location.origin);
+            url.searchParams.set('curid', courseSelect.value);
+            url.searchParams.set('areaid', areaSelect.value);
+            url.searchParams.set('asgid', subjectSelect.value);
+
+            statusLabel.textContent = 'Filtrando...';
+
+            try {
+                const response = await fetch(url.toString(), {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                });
+
+                if (!response.ok) {
+                    throw new Error('Course subject filter failed');
+                }
+
+                const payload = await response.json();
+                tableBody.innerHTML = payload.html || '';
+                tableWrapper.hidden = !!payload.isEmpty;
+                emptyWrapper.hidden = !payload.isEmpty;
+
+                if (payload.isEmpty) {
+                    emptyWrapper.innerHTML = payload.emptyHtml || '<div class="empty-state">No se encontraron materias con esos filtros.</div>';
+                }
+
+                statusLabel.textContent = String(payload.count || 0) + ' registro(s)';
+            } catch (error) {
+                statusLabel.textContent = 'Error al filtrar';
+            }
+        };
+
+        [courseSelect, areaSelect, subjectSelect].forEach((select) => {
+            if (select instanceof HTMLSelectElement) {
+                select.addEventListener('change', filterCourseSubjects);
+            }
+        });
+    }
+
     const teacherSubjectBulkForm = document.querySelector('[data-teacher-subject-bulk-form]');
 
     if (teacherSubjectBulkForm instanceof HTMLFormElement) {
@@ -3917,6 +4020,54 @@ document.addEventListener('DOMContentLoaded', () => {
                 window.alert('Seleccione al menos una materia nueva para el docente.');
             }
         });
+    }
+
+    const teacherAssignmentFilter = document.querySelector('[data-teacher-assignment-filter]');
+
+    if (teacherAssignmentFilter instanceof HTMLElement) {
+        const teacherFilter = teacherAssignmentFilter.querySelector('[data-teacher-assignment-filter-teacher]');
+        const courseFilter = teacherAssignmentFilter.querySelector('[data-teacher-assignment-filter-course]');
+        const rows = Array.from(document.querySelectorAll('[data-teacher-assignment-row]'));
+        const statusLabel = document.querySelector('[data-teacher-assignment-filter-status]');
+        const emptyState = document.querySelector('[data-teacher-assignment-filter-empty]');
+
+        const applyTeacherAssignmentFilter = () => {
+            const teacherId = teacherFilter instanceof HTMLSelectElement ? teacherFilter.value : '';
+            const courseId = courseFilter instanceof HTMLSelectElement ? courseFilter.value : '';
+            let visibleCount = 0;
+
+            rows.forEach((row) => {
+                if (!(row instanceof HTMLElement)) {
+                    return;
+                }
+
+                const matchesTeacher = teacherId === '' || row.dataset.teacherId === teacherId;
+                const matchesCourse = courseId === '' || row.dataset.courseId === courseId;
+                const isVisible = matchesTeacher && matchesCourse;
+
+                row.hidden = !isVisible;
+
+                if (isVisible) {
+                    visibleCount += 1;
+                }
+            });
+
+            if (statusLabel instanceof HTMLElement) {
+                statusLabel.textContent = String(visibleCount) + ' registro(s)';
+            }
+
+            if (emptyState instanceof HTMLElement) {
+                emptyState.hidden = visibleCount > 0;
+            }
+        };
+
+        [teacherFilter, courseFilter].forEach((select) => {
+            if (select instanceof HTMLSelectElement) {
+                select.addEventListener('change', applyTeacherAssignmentFilter);
+            }
+        });
+
+        applyTeacherAssignmentFilter();
     }
 
     const searchInput = document.querySelector('[data-person-search]');

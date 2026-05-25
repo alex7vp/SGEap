@@ -12,6 +12,7 @@ require BASE_PATH . '/app/views/partials/header.php';
 <p class="module-note">Este formato queda como base visual para formularios de registro en los siguientes modulos.</p>
 
 <form class="data-form" method="POST" action="<?= htmlspecialchars((string) ($formAction ?? baseUrl('personas')), ENT_QUOTES, 'UTF-8'); ?>">
+    <?= csrfField(); ?>
     <?php if (!empty($old['perid'])): ?>
         <input type="hidden" name="perid" value="<?= htmlspecialchars((string) $old['perid'], ENT_QUOTES, 'UTF-8'); ?>">
     <?php endif; ?>

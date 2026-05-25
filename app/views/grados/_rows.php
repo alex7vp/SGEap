@@ -14,6 +14,7 @@
                 </a>
 
                 <form method="POST" action="<?= htmlspecialchars(baseUrl('grados/eliminar'), ENT_QUOTES, 'UTF-8'); ?>" onsubmit="return confirm('Confirma que desea eliminar este grado?');">
+                    <?= csrfField(); ?>
                     <input type="hidden" name="graid" value="<?= htmlspecialchars((string) $grade['graid'], ENT_QUOTES, 'UTF-8'); ?>">
                     <button
                         class="icon-button icon-button-delete"

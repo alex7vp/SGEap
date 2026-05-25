@@ -30,6 +30,18 @@ $subjectGroupCalculationModes = ['PROMEDIO_SIMPLE', 'PROMEDIO_PONDERADO', 'SUMA'
 $subjectGroupDisplayModes = ['GRUPO', 'REPRESENTANTE'];
 $subjectConfigurationAreas = [];
 $subjectConfigurationGrades = [];
+$profileDetailViews = [
+    'subperiodos' => 'Subperiodos',
+    'asignaciones' => 'Asignaciones',
+    'materias' => 'Materias',
+    'grupos' => 'Grupos de materias',
+    'escala' => 'Escala',
+    'promocion' => 'Promocion',
+];
+$selectedProfileDetailView = (string) ($_GET['tab'] ?? 'subperiodos');
+if (!array_key_exists($selectedProfileDetailView, $profileDetailViews)) {
+    $selectedProfileDetailView = 'subperiodos';
+}
 foreach ($subjectConfigurations as $subjectConfiguration) {
     $areaId = (int) ($subjectConfiguration['areaid'] ?? 0);
     if ($areaId > 0) {
@@ -73,6 +85,7 @@ asort($subjectConfigurationGrades);
                 action="<?= $h(baseUrl('configuracion/academica/calificaciones/perfil/eliminar')); ?>"
                 data-grade-profile-delete-form
             >
+                <?= csrfField(); ?>
                 <input type="hidden" name="pcaid" value="<?= $h($profileId); ?>">
                 <button class="btn-secondary btn-auto" type="submit">
                     <i class="fa fa-trash" aria-hidden="true"></i>
@@ -109,6 +122,7 @@ asort($subjectConfigurationGrades);
 
     <?php if (in_array((string) ($profile['pcaestado'] ?? ''), ['BORRADOR', 'EN_REVISION'], true)): ?>
         <form method="POST" action="<?= $h(baseUrl('configuracion/academica/calificaciones/perfil/activar')); ?>" class="actions-row" data-grade-profile-activate-form>
+            <?= csrfField(); ?>
             <input type="hidden" name="pcaid" value="<?= $h($profileId); ?>">
             <button class="btn-primary btn-inline" type="submit">Activar perfil</button>
         </form>
@@ -142,7 +156,25 @@ asort($subjectConfigurationGrades);
     </div>
 </dialog>
 
-<form method="POST" action="<?= $h(baseUrl('configuracion/academica/calificaciones/perfil')); ?>" class="grade-profile-edit-form">
+<section class="security-assignment-block grade-profile-creation-block grade-profile-detail-selector" data-option-view-mode>
+    <div class="grade-profile-mode-selector" role="radiogroup" aria-label="Seccion del perfil de calificaciones">
+        <?php foreach ($profileDetailViews as $viewKey => $viewLabel): ?>
+            <label class="grade-profile-mode-option">
+                <input
+                    type="radio"
+                    name="grade_profile_detail_view"
+                    value="<?= $h($viewKey); ?>"
+                    <?= $selectedProfileDetailView === $viewKey ? 'checked' : ''; ?>
+                    data-option-view-radio
+                >
+                <span><?= $h($viewLabel); ?></span>
+            </label>
+        <?php endforeach; ?>
+    </div>
+</section>
+
+<form method="POST" action="<?= $h(baseUrl('configuracion/academica/calificaciones/perfil')); ?>" class="grade-profile-edit-form" data-option-view-panel="subperiodos" <?= $selectedProfileDetailView === 'subperiodos' ? '' : 'hidden'; ?>>
+    <?= csrfField(); ?>
     <input type="hidden" name="pcaid" value="<?= $h($profileId); ?>">
 
     <section class="security-assignment-block">
@@ -276,7 +308,8 @@ asort($subjectConfigurationGrades);
     </section>
 </form>
 
-<form method="POST" action="<?= $h(baseUrl('configuracion/academica/calificaciones/perfil/asignaciones')); ?>" id="asignaciones" class="grade-profile-edit-form">
+<form method="POST" action="<?= $h(baseUrl('configuracion/academica/calificaciones/perfil/asignaciones')); ?>" id="asignaciones" class="grade-profile-edit-form" data-option-view-panel="asignaciones" <?= $selectedProfileDetailView === 'asignaciones' ? '' : 'hidden'; ?>>
+    <?= csrfField(); ?>
     <input type="hidden" name="pcaid" value="<?= $h($profileId); ?>">
     <section class="security-assignment-block">
     <header class="security-assignment-header">
@@ -370,7 +403,8 @@ asort($subjectConfigurationGrades);
     </section>
 </form>
 
-<form method="POST" action="<?= $h(baseUrl('configuracion/academica/calificaciones/perfil/materias')); ?>" id="materias" class="grade-profile-edit-form">
+<form method="POST" action="<?= $h(baseUrl('configuracion/academica/calificaciones/perfil/materias')); ?>" id="materias" class="grade-profile-edit-form" data-option-view-panel="materias" <?= $selectedProfileDetailView === 'materias' ? '' : 'hidden'; ?>>
+    <?= csrfField(); ?>
     <input type="hidden" name="pcaid" value="<?= $h($profileId); ?>">
     <section class="security-assignment-block">
         <header class="security-assignment-header">
@@ -469,7 +503,8 @@ asort($subjectConfigurationGrades);
     </section>
 </form>
 
-<form method="POST" action="<?= $h(baseUrl('configuracion/academica/calificaciones/perfil/grupos-materias')); ?>" id="grupos-materias" class="grade-profile-edit-form">
+<form method="POST" action="<?= $h(baseUrl('configuracion/academica/calificaciones/perfil/grupos-materias')); ?>" id="grupos-materias" class="grade-profile-edit-form" data-option-view-panel="grupos" <?= $selectedProfileDetailView === 'grupos' ? '' : 'hidden'; ?>>
+    <?= csrfField(); ?>
     <input type="hidden" name="pcaid" value="<?= $h($profileId); ?>">
     <section class="security-assignment-block">
         <header class="security-assignment-header">
@@ -669,7 +704,8 @@ asort($subjectConfigurationGrades);
     </section>
 </form>
 
-<form method="POST" action="<?= $h(baseUrl('configuracion/academica/calificaciones/perfil/escala')); ?>" id="escala" class="grade-profile-edit-form">
+<form method="POST" action="<?= $h(baseUrl('configuracion/academica/calificaciones/perfil/escala')); ?>" id="escala" class="grade-profile-edit-form" data-option-view-panel="escala" <?= $selectedProfileDetailView === 'escala' ? '' : 'hidden'; ?>>
+    <?= csrfField(); ?>
     <input type="hidden" name="pcaid" value="<?= $h($profileId); ?>">
     <section class="security-assignment-block">
     <header class="security-assignment-header">
@@ -735,7 +771,7 @@ asort($subjectConfigurationGrades);
     </section>
 </form>
 
-<section class="security-assignment-block" id="promocion">
+<section class="security-assignment-block" id="promocion" data-option-view-panel="promocion" <?= $selectedProfileDetailView === 'promocion' ? '' : 'hidden'; ?>>
     <header class="security-assignment-header">
         <div>
             <h3>Promocion</h3>
@@ -744,6 +780,7 @@ asort($subjectConfigurationGrades);
     </header>
 
     <form method="POST" action="<?= $h(baseUrl('configuracion/academica/calificaciones/perfil/promocion')); ?>" class="grade-profile-edit-form">
+        <?= csrfField(); ?>
         <input type="hidden" name="pcaid" value="<?= $h($profileId); ?>">
         <div class="security-assignment-header">
             <div>
@@ -817,6 +854,7 @@ asort($subjectConfigurationGrades);
     </form>
 
     <form method="POST" action="<?= $h(baseUrl('configuracion/academica/calificaciones/perfil/promocion')); ?>" class="grade-profile-edit-form">
+        <?= csrfField(); ?>
         <input type="hidden" name="pcaid" value="<?= $h($profileId); ?>">
         <div class="security-assignment-header">
             <div>

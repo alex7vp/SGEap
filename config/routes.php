@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Controllers\AuthController;
+use App\Controllers\AccountingController;
 use App\Controllers\AttendanceController;
 use App\Controllers\ConfigurationController;
 use App\Controllers\CourseController;
@@ -48,6 +49,7 @@ return static function (Router $router): void {
     $router->get('/reportes/asistencia', [AttendanceController::class, 'reports']);
     $router->get('/reportes/libreta', [GradebookController::class, 'reportCard']);
     $router->get('/reportes/cuadro-final', [GradebookController::class, 'finalChart']);
+    $router->get('/contabilidad', [AccountingController::class, 'index']);
     $router->get('/seguridad', [ModuleController::class, 'security']);
     $router->post('/logout', [AuthController::class, 'logout']);
 
@@ -56,9 +58,11 @@ return static function (Router $router): void {
     $router->get('/configuracion/periodos', [ConfigurationController::class, 'periods']);
     $router->get('/configuracion/matricula', [ConfigurationController::class, 'matriculationSettings']);
     $router->get('/configuracion/matricula/documentos', [ConfigurationController::class, 'matriculationDocuments']);
+    $router->get('/configuracion/contable', [ConfigurationController::class, 'accountingConfiguration']);
     $router->get('/configuracion/academica/areas', [AttendanceController::class, 'academicAreas']);
     $router->get('/configuracion/academica/asignaturas', [AttendanceController::class, 'academicSubjects']);
     $router->get('/configuracion/academica/materias-curso', [AttendanceController::class, 'academicCourseSubjects']);
+    $router->get('/configuracion/academica/materias-curso/buscar', [AttendanceController::class, 'searchCourseSubjects']);
     $router->get('/configuracion/academica/docentes', [AttendanceController::class, 'academicTeachers']);
     $router->get('/configuracion/academica/calificaciones', [ConfigurationController::class, 'gradesConfiguration']);
     $router->get('/configuracion/academica/calificaciones/plantilla', [ConfigurationController::class, 'gradeTemplateDetail']);
@@ -78,6 +82,8 @@ return static function (Router $router): void {
     $router->post('/configuracion/matricula/documentos', [ConfigurationController::class, 'storeMatriculationDocument']);
     $router->post('/configuracion/matricula/documentos/actualizar', [ConfigurationController::class, 'updateMatriculationDocument']);
     $router->post('/configuracion/matricula/documentos/eliminar', [ConfigurationController::class, 'deleteMatriculationDocument']);
+    $router->post('/configuracion/contable', [ConfigurationController::class, 'storeAccountingConfiguration']);
+    $router->post('/configuracion/contable/actualizar', [ConfigurationController::class, 'updateAccountingConfiguration']);
     $router->post('/configuracion/academica/areas', [AttendanceController::class, 'storeArea']);
     $router->post('/configuracion/academica/areas/actualizar', [AttendanceController::class, 'updateArea']);
     $router->post('/configuracion/academica/areas/estado', [AttendanceController::class, 'toggleArea']);

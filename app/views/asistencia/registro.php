@@ -147,6 +147,7 @@ $contextLabels = [
         <?php else: ?>
             <dialog class="calendar-dialog teacher-session-dialog" id="teacher-session-dialog">
                 <form class="data-form" method="POST" action="<?= htmlspecialchars(baseUrl('asistencia/sesiones'), ENT_QUOTES, 'UTF-8'); ?>">
+                    <?= csrfField(); ?>
                     <input type="hidden" name="next_action" value="attendance">
                     <header class="security-assignment-header">
                         <div>
@@ -264,6 +265,7 @@ $contextLabels = [
         <?php if ($selectedDayEnabled && $canRegisterNovelties): ?>
             <dialog class="calendar-dialog teacher-novelty-dialog" id="novedad-dialog">
                 <form class="data-form" method="POST" action="<?= htmlspecialchars(baseUrl('novedades/registro'), ENT_QUOTES, 'UTF-8'); ?>">
+                    <?= csrfField(); ?>
                     <input type="hidden" name="noefecha" value="<?= htmlspecialchars((string) $selectedDate, ENT_QUOTES, 'UTF-8'); ?>">
                     <input type="hidden" name="redirect_to" value="<?= htmlspecialchars($noveltyRedirect, ENT_QUOTES, 'UTF-8'); ?>">
                     <?php if ($openNoveltyForSession): ?>
@@ -458,6 +460,7 @@ $contextLabels = [
                 <div class="empty-state">No hay estudiantes activos para registrar en esta sesion. Revise matriculas activas del curso en la fecha de la clase.</div>
             <?php else: ?>
                 <form id="attendance-save-form" method="POST" action="<?= htmlspecialchars(baseUrl('asistencia/registros'), ENT_QUOTES, 'UTF-8'); ?>">
+                    <?= csrfField(); ?>
                     <input type="hidden" name="sclid" value="<?= htmlspecialchars((string) $session['sclid'], ENT_QUOTES, 'UTF-8'); ?>">
                     <div class="table-wrap">
                         <table class="data-table">
@@ -527,6 +530,7 @@ $contextLabels = [
                         class="data-form"
                         onsubmit="return confirm('Confirma que desea cerrar esta sesion? Luego el docente ya no podra modificarla.');"
                     >
+                        <?= csrfField(); ?>
                         <input type="hidden" name="sclid" value="<?= htmlspecialchars((string) $session['sclid'], ENT_QUOTES, 'UTF-8'); ?>">
                         <div class="actions-row">
                             <button class="btn-secondary btn-inline" type="submit">Cerrar sesion</button>

@@ -7,8 +7,6 @@ require BASE_PATH . '/app/views/partials/header.php';
 $selectedCatalogTable = (string) ($catalogFeedback['table'] ?? ($catalogs[0]['table'] ?? ''));
 ?>
 
-<p class="module-note">Este modulo centraliza los catalogos operativos. Por ahora queda en modo visualizacion para validar estructura y datos cargados.</p>
-
 <?php if (!empty($catalogs)): ?>
     <section class="security-assignment-block catalog-selector-block" data-base-catalog-selector>
         <div class="grade-profile-mode-selector catalog-selector" role="radiogroup" aria-label="Seleccion de catalogo base">
@@ -51,18 +49,8 @@ $selectedCatalogTable = (string) ($catalogFeedback['table'] ?? ($catalogs[0]['ta
                 <span class="catalog-count"><?= count($catalog['rows']); ?> item(s)</span>
             </header>
 
-            <?php if ($isFeedbackCatalog): ?>
-                <div class="catalog-feedback">
-                    <div class="alert <?= ($catalogFeedback['type'] ?? '') === 'error' ? 'alert-error' : 'alert-success'; ?> alert-dismissible" data-alert>
-                        <span><?= htmlspecialchars((string) ($catalogFeedback['message'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></span>
-                        <button class="alert-close" type="button" aria-label="Cerrar notificacion" data-alert-close>
-                            <i class="fa fa-times" aria-hidden="true"></i>
-                        </button>
-                    </div>
-                </div>
-            <?php endif; ?>
-
             <form class="catalog-inline-form catalog-inline-create catalog-create-panel" method="POST" action="<?= htmlspecialchars(baseUrl('configuracion/catalogos'), ENT_QUOTES, 'UTF-8'); ?>">
+                <?= csrfField(); ?>
                 <input type="hidden" name="catalog_table" value="<?= htmlspecialchars((string) $catalog['table'], ENT_QUOTES, 'UTF-8'); ?>">
                 <input type="hidden" name="redirect_anchor" value="<?= htmlspecialchars($catalogAnchor, ENT_QUOTES, 'UTF-8'); ?>">
                 <div class="input-group">
@@ -92,6 +80,7 @@ $selectedCatalogTable = (string) ($catalogFeedback['table'] ?? ($catalogs[0]['ta
                                 <td><?= htmlspecialchars((string) $row['id'], ENT_QUOTES, 'UTF-8'); ?></td>
                                 <td>
                                     <form class="catalog-inline-form" method="POST" action="<?= htmlspecialchars(baseUrl('configuracion/catalogos/actualizar'), ENT_QUOTES, 'UTF-8'); ?>" data-catalog-edit-form>
+                                        <?= csrfField(); ?>
                                         <input type="hidden" name="catalog_table" value="<?= htmlspecialchars((string) $catalog['table'], ENT_QUOTES, 'UTF-8'); ?>">
                                         <input type="hidden" name="catalog_id" value="<?= htmlspecialchars((string) $row['id'], ENT_QUOTES, 'UTF-8'); ?>">
                                         <input type="hidden" name="redirect_anchor" value="<?= htmlspecialchars($catalogAnchor, ENT_QUOTES, 'UTF-8'); ?>">
@@ -113,6 +102,7 @@ $selectedCatalogTable = (string) ($catalogFeedback['table'] ?? ($catalogs[0]['ta
                                         </button>
 
                                         <form method="POST" action="<?= htmlspecialchars(baseUrl('configuracion/catalogos/eliminar'), ENT_QUOTES, 'UTF-8'); ?>" data-catalog-delete-form>
+                                            <?= csrfField(); ?>
                                             <input type="hidden" name="catalog_table" value="<?= htmlspecialchars((string) $catalog['table'], ENT_QUOTES, 'UTF-8'); ?>">
                                             <input type="hidden" name="catalog_id" value="<?= htmlspecialchars((string) $row['id'], ENT_QUOTES, 'UTF-8'); ?>">
                                             <input type="hidden" name="redirect_anchor" value="<?= htmlspecialchars($catalogAnchor, ENT_QUOTES, 'UTF-8'); ?>">
@@ -128,9 +118,22 @@ $selectedCatalogTable = (string) ($catalogFeedback['table'] ?? ($catalogs[0]['ta
                 </table>
                 </div>
             <?php endif; ?>
+
+            <?php if ($isFeedbackCatalog): ?>
+                <footer class="catalog-feedback catalog-feedback-footer">
+                    <div class="alert <?= ($catalogFeedback['type'] ?? '') === 'error' ? 'alert-error' : 'alert-success'; ?> alert-dismissible" data-alert>
+                        <span><?= htmlspecialchars((string) ($catalogFeedback['message'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></span>
+                        <button class="alert-close" type="button" aria-label="Cerrar notificacion" data-alert-close>
+                            <i class="fa fa-times" aria-hidden="true"></i>
+                        </button>
+                    </div>
+                </footer>
+            <?php endif; ?>
         </article>
     <?php endforeach; ?>
 </section>
+
+<p class="module-note catalog-module-footer">Este modulo centraliza los catalogos operativos. Por ahora queda en modo visualizacion para validar estructura y datos cargados.</p>
 
 <dialog class="calendar-dialog catalog-delete-dialog" data-catalog-delete-dialog>
     <header class="security-assignment-header">

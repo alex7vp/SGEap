@@ -12,6 +12,7 @@ require BASE_PATH . '/app/views/partials/header.php';
 <p class="module-note">Periodo visualizado: <?= htmlspecialchars((string) ($currentPeriod['pledescripcion'] ?? 'Sin periodo activo'), ENT_QUOTES, 'UTF-8'); ?>.</p>
 
 <form class="data-form matricula-form" method="POST" action="<?= htmlspecialchars(baseUrl('estudiantes/actualizar'), ENT_QUOTES, 'UTF-8'); ?>">
+    <?= csrfField(); ?>
     <input type="hidden" name="estid" value="<?= htmlspecialchars((string) $student['estid'], ENT_QUOTES, 'UTF-8'); ?>">
 
     <section class="wizard-panel">

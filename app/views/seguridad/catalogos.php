@@ -78,6 +78,7 @@ require BASE_PATH . '/app/views/partials/header.php';
                                 <?php endforeach; ?>
                                 <td>
                                     <form id="<?= htmlspecialchars($formId, ENT_QUOTES, 'UTF-8'); ?>" method="POST" action="<?= htmlspecialchars(baseUrl('seguridad/catalogos/actualizar'), ENT_QUOTES, 'UTF-8'); ?>" class="security-hidden-form" data-security-edit-form>
+                                        <?= csrfField(); ?>
                                         <input type="hidden" name="catalog_table" value="<?= htmlspecialchars((string) $catalog['table'], ENT_QUOTES, 'UTF-8'); ?>">
                                         <input type="hidden" name="catalog_id" value="<?= htmlspecialchars((string) $row['id'], ENT_QUOTES, 'UTF-8'); ?>">
                                         <input type="hidden" name="redirect_anchor" value="<?= htmlspecialchars($catalogAnchor, ENT_QUOTES, 'UTF-8'); ?>">
@@ -89,6 +90,7 @@ require BASE_PATH . '/app/views/partials/header.php';
                                         </button>
 
                                         <form method="POST" action="<?= htmlspecialchars(baseUrl('seguridad/catalogos/eliminar'), ENT_QUOTES, 'UTF-8'); ?>" onsubmit="return confirm('Confirma que desea eliminar este registro de seguridad?');">
+                                            <?= csrfField(); ?>
                                             <input type="hidden" name="catalog_table" value="<?= htmlspecialchars((string) $catalog['table'], ENT_QUOTES, 'UTF-8'); ?>">
                                             <input type="hidden" name="catalog_id" value="<?= htmlspecialchars((string) $row['id'], ENT_QUOTES, 'UTF-8'); ?>">
                                             <input type="hidden" name="redirect_anchor" value="<?= htmlspecialchars($catalogAnchor, ENT_QUOTES, 'UTF-8'); ?>">
@@ -131,6 +133,7 @@ require BASE_PATH . '/app/views/partials/header.php';
                             <?php endforeach; ?>
                             <td>
                                 <form id="create-<?= htmlspecialchars((string) $catalog['table'], ENT_QUOTES, 'UTF-8'); ?>" method="POST" action="<?= htmlspecialchars(baseUrl('seguridad/catalogos'), ENT_QUOTES, 'UTF-8'); ?>" class="security-hidden-form">
+                                    <?= csrfField(); ?>
                                     <input type="hidden" name="catalog_table" value="<?= htmlspecialchars((string) $catalog['table'], ENT_QUOTES, 'UTF-8'); ?>">
                                     <input type="hidden" name="redirect_anchor" value="<?= htmlspecialchars($catalogAnchor, ENT_QUOTES, 'UTF-8'); ?>">
                                 </form>

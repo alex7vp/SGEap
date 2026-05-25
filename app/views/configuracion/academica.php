@@ -38,14 +38,19 @@ foreach (($activeCourses ?? []) as $course) {
 if ($defaultCourseId === 0 && !empty($activeCourses)) {
     $defaultCourseId = (int) $activeCourses[0]['curid'];
 }
-?>
-<p class="module-note">Centraliza grados, cursos, areas academicas, asignaturas y materias por curso en una sola pantalla de configuracion.</p>
 
+$selectedGradeMode = !empty($gradeFormFeedback) || empty($grades) ? 'form' : 'list';
+$selectedCourseMode = !empty($old['graid']) || !empty($old['prlid']) || empty($courses) ? 'form' : 'list';
+$selectedAreaMode = empty($areas) ? 'form' : 'list';
+$selectedSubjectMode = empty($subjects) ? 'form' : 'list';
+$selectedCourseSubjectMode = empty($courseSubjects) ? 'form' : 'list';
+$selectedTeacherAssignmentMode = empty($visibleAssignments) ? 'form' : 'list';
+?>
 <?php if ($academicViews === []): ?>
     <div class="empty-state">No tiene opciones de configuracion academica disponibles.</div>
 <?php else: ?>
     <section class="security-assignment-block catalog-selector-block" data-academic-config-view-mode>
-        <div class="grade-profile-mode-selector catalog-selector" role="radiogroup" aria-label="Vista de configuracion academica">
+        <div class="grade-profile-mode-selector catalog-selector academic-config-selector" role="radiogroup" aria-label="Vista de configuracion academica">
             <?php foreach ($academicViews as $view): ?>
                 <?php $viewKey = (string) ($view['key'] ?? ''); ?>
                 <label class="grade-profile-mode-option">
@@ -63,12 +68,55 @@ if ($defaultCourseId === 0 && !empty($activeCourses)) {
     </section>
 
     <section data-academic-config-view-panel="grados" <?= $selectedAcademicView === 'grados' ? '' : 'hidden'; ?>>
-        <div class="toolbar">
-            <p>Estructura base de grados por nivel educativo para la gestion academica.</p>
-            <a class="btn-primary btn-auto btn-icon-only btn-icon-small" href="<?= $h(baseUrl('grados/crear')); ?>" title="Nuevo grado" aria-label="Nuevo grado">
-                <i class="fa fa-plus" aria-hidden="true"></i>
-            </a>
-        </div>
+        <section class="security-assignment-block grade-profile-creation-block" data-option-view-mode>
+            <div class="grade-profile-mode-selector" role="radiogroup" aria-label="Vista de grados">
+                <label class="grade-profile-mode-option">
+                    <input type="radio" name="grade_view_mode" value="form" <?= $selectedGradeMode === 'form' ? 'checked' : ''; ?> data-option-view-radio>
+                    <span>Nuevo grado</span>
+                </label>
+                <label class="grade-profile-mode-option">
+                    <input type="radio" name="grade_view_mode" value="list" <?= $selectedGradeMode === 'list' ? 'checked' : ''; ?> data-option-view-radio>
+                    <span>Grados registrados</span>
+                </label>
+            </div>
+        </section>
+
+        <section class="security-assignment-block" id="grado-form" data-option-view-panel="form" <?= $selectedGradeMode === 'form' ? '' : 'hidden'; ?>>
+            <?php if (empty($levels)): ?>
+                <div class="empty-state">No existen niveles educativos disponibles. Registra primero los niveles en Configuracion &gt; Catalogos.</div>
+            <?php else: ?>
+                <form class="data-form" method="POST" action="<?= $h(baseUrl('grados')); ?>">
+                    <?= csrfField(); ?>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <div class="input-group">
+                                <span class="input-addon">Nivel</span>
+                                <select name="nedid" required>
+                                    <option value="">Seleccione una opcion</option>
+                                    <?php foreach ($levels as $level): ?>
+                                        <?php $levelId = (string) $level['nedid']; ?>
+                                        <option value="<?= $h($levelId); ?>" <?= ($gradeOld['nedid'] ?? '') === $levelId ? 'selected' : ''; ?>>
+                                            <?= $h($level['nednombre']); ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <div class="input-group">
+                                <span class="input-addon">Grado</span>
+                                <input name="granombre" placeholder="Ingrese el nombre del grado" required value="<?= $h($gradeOld['granombre'] ?? ''); ?>">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="actions-row">
+                        <button class="btn-primary btn-inline" type="submit">Guardar grado</button>
+                    </div>
+                </form>
+            <?php endif; ?>
+        </section>
+
+        <section data-option-view-panel="list" <?= $selectedGradeMode === 'list' ? '' : 'hidden'; ?>>
 
         <div class="toolbar toolbar-filter">
             <div class="filter-box">
@@ -90,17 +138,6 @@ if ($defaultCourseId === 0 && !empty($activeCourses)) {
         </div>
 
         <section id="grados-registrados">
-            <?php if (!empty($gradeListFeedback)): ?>
-                <div class="catalog-feedback security-feedback-global">
-                    <div class="alert <?= ($gradeListFeedback['type'] ?? '') === 'error' ? 'alert-error' : 'alert-success'; ?> alert-dismissible" data-alert>
-                        <span><?= $h($gradeListFeedback['message'] ?? ''); ?></span>
-                        <button class="alert-close" type="button" aria-label="Cerrar notificacion" data-alert-close>
-                            <i class="fa fa-times" aria-hidden="true"></i>
-                        </button>
-                    </div>
-                </div>
-            <?php endif; ?>
-
             <div class="table-wrap" data-grade-table-wrapper <?= empty($grades) ? 'hidden' : ''; ?>>
                 <table class="data-table">
                     <thead>
@@ -116,33 +153,33 @@ if ($defaultCourseId === 0 && !empty($activeCourses)) {
                 </table>
             </div>
         </section>
+        </section>
     </section>
 
     <section data-academic-config-view-panel="cursos" <?= $selectedAcademicView === 'cursos' ? '' : 'hidden'; ?>>
-        <p class="module-note">Este modulo administra los cursos del periodo lectivo seleccionado en la sesion actual.</p>
-
         <?php if ($currentPeriod === null): ?>
             <div class="empty-state">No hay un periodo lectivo seleccionado. Elige uno desde el chip de periodo en el navbar para continuar.</div>
         <?php else: ?>
-            <section class="security-assignment-block">
-                <header class="security-assignment-header">
-                    <div>
-                        <h3>Nuevo curso</h3>
-                        <p>El curso se registra directamente en el periodo actual: <strong><?= $h($currentPeriod['pledescripcion']); ?></strong>.</p>
-                    </div>
-                </header>
+            <section class="security-assignment-block grade-profile-creation-block" data-option-view-mode>
+                <div class="grade-profile-mode-selector" role="radiogroup" aria-label="Vista de cursos">
+                    <label class="grade-profile-mode-option">
+                        <input type="radio" name="course_view_mode" value="form" <?= $selectedCourseMode === 'form' ? 'checked' : ''; ?> data-option-view-radio>
+                        <span>Nuevo curso</span>
+                    </label>
+                    <label class="grade-profile-mode-option">
+                        <input type="radio" name="course_view_mode" value="list" <?= $selectedCourseMode === 'list' ? 'checked' : ''; ?> data-option-view-radio>
+                        <span>Cursos registrados</span>
+                    </label>
+                </div>
+            </section>
 
+            <section class="security-assignment-block" data-option-view-panel="form" <?= $selectedCourseMode === 'form' ? '' : 'hidden'; ?>>
                 <?php if (empty($grades) || empty($parallels)): ?>
                     <div class="empty-state">Para registrar cursos necesitas tener grados y paralelos disponibles en la base de datos.</div>
                 <?php else: ?>
                     <form class="data-form" method="POST" action="<?= $h(baseUrl('cursos')); ?>">
+                        <?= csrfField(); ?>
                         <div class="form-grid">
-                            <div>
-                                <div class="input-group">
-                                    <span class="input-addon">Periodo</span>
-                                    <input type="text" value="<?= $h($currentPeriod['pledescripcion']); ?>" readonly>
-                                </div>
-                            </div>
                             <div>
                                 <div class="input-group">
                                     <span class="input-addon">Estado</span>
@@ -188,25 +225,7 @@ if ($defaultCourseId === 0 && !empty($activeCourses)) {
                 <?php endif; ?>
             </section>
 
-            <section class="security-assignment-block" id="cursos-registrados">
-                <header class="security-assignment-header">
-                    <div>
-                        <h3>Cursos registrados</h3>
-                        <p>Listado de cursos correspondientes al periodo actual en la sesion.</p>
-                    </div>
-                </header>
-
-                <?php if (!empty($courseListFeedback)): ?>
-                    <div class="catalog-feedback security-feedback-global">
-                        <div class="alert <?= ($courseListFeedback['type'] ?? '') === 'error' ? 'alert-error' : 'alert-success'; ?> alert-dismissible" data-alert>
-                            <span><?= $h($courseListFeedback['message'] ?? ''); ?></span>
-                            <button class="alert-close" type="button" aria-label="Cerrar notificacion" data-alert-close>
-                                <i class="fa fa-times" aria-hidden="true"></i>
-                            </button>
-                        </div>
-                    </div>
-                <?php endif; ?>
-
+            <section class="security-assignment-block" id="cursos-registrados" data-option-view-panel="list" <?= $selectedCourseMode === 'list' ? '' : 'hidden'; ?>>
                 <?php if (empty($courses)): ?>
                     <div class="empty-state">Todavia no hay cursos registrados para este periodo.</div>
                 <?php else: ?>
@@ -228,6 +247,7 @@ if ($defaultCourseId === 0 && !empty($activeCourses)) {
                                         <td><?= $h($course['prlnombre']); ?></td>
                                         <td>
                                             <form method="POST" action="<?= $h(baseUrl('cursos/estado')); ?>" class="status-switch-form">
+                                                <?= csrfField(); ?>
                                                 <input type="hidden" name="curid" value="<?= $h($course['curid']); ?>">
                                                 <input type="hidden" name="curestado" value="<?= !empty($course['curestado']) ? '0' : '1'; ?>">
                                                 <button class="status-switch <?= !empty($course['curestado']) ? 'is-active' : ''; ?>" type="submit" title="<?= !empty($course['curestado']) ? 'Inactivar curso' : 'Activar curso'; ?>" aria-label="<?= !empty($course['curestado']) ? 'Inactivar curso' : 'Activar curso'; ?>">
@@ -246,15 +266,22 @@ if ($defaultCourseId === 0 && !empty($activeCourses)) {
     </section>
 
     <section data-academic-config-view-panel="areas" <?= $selectedAcademicView === 'areas' ? '' : 'hidden'; ?>>
-        <p class="module-note">Catalogo de areas academicas usadas para agrupar asignaturas institucionales.</p>
-        <section class="security-assignment-block">
-            <header class="security-assignment-header">
-                <div>
-                    <h3>Nueva area academica</h3>
-                    <p>Registra el nombre del area curricular.</p>
-                </div>
-            </header>
+        <section class="security-assignment-block grade-profile-creation-block" data-option-view-mode>
+            <div class="grade-profile-mode-selector" role="radiogroup" aria-label="Vista de areas academicas">
+                <label class="grade-profile-mode-option">
+                    <input type="radio" name="area_view_mode" value="form" <?= $selectedAreaMode === 'form' ? 'checked' : ''; ?> data-option-view-radio>
+                    <span>Nueva area</span>
+                </label>
+                <label class="grade-profile-mode-option">
+                    <input type="radio" name="area_view_mode" value="list" <?= $selectedAreaMode === 'list' ? 'checked' : ''; ?> data-option-view-radio>
+                    <span>Areas registradas</span>
+                </label>
+            </div>
+        </section>
+
+        <section class="security-assignment-block" data-option-view-panel="form" <?= $selectedAreaMode === 'form' ? '' : 'hidden'; ?>>
             <form class="data-form" method="POST" action="<?= $h(baseUrl('configuracion/academica/areas')); ?>">
+                <?= csrfField(); ?>
                 <div class="form-grid">
                     <div class="form-group-full">
                         <div class="input-group">
@@ -268,13 +295,7 @@ if ($defaultCourseId === 0 && !empty($activeCourses)) {
                 </div>
             </form>
         </section>
-        <section class="security-assignment-block">
-            <header class="security-assignment-header">
-                <div>
-                    <h3>Areas registradas</h3>
-                    <p>Actualiza nombres y controla si el area esta disponible para nuevas asignaturas.</p>
-                </div>
-            </header>
+        <section class="security-assignment-block" data-option-view-panel="list" <?= $selectedAreaMode === 'list' ? '' : 'hidden'; ?>>
             <?php if (empty($areas)): ?>
                 <div class="empty-state">Todavia no hay areas academicas registradas.</div>
             <?php else: ?>
@@ -292,12 +313,14 @@ if ($defaultCourseId === 0 && !empty($activeCourses)) {
                                 <tr data-security-row>
                                     <td>
                                         <form id="area-form-<?= $h($area['areaid']); ?>" method="POST" action="<?= $h(baseUrl('configuracion/academica/areas/actualizar')); ?>" data-security-edit-form>
+                                            <?= csrfField(); ?>
                                             <input type="hidden" name="areaid" value="<?= $h($area['areaid']); ?>">
                                             <input class="security-inline-input" type="text" name="areanombre" maxlength="100" value="<?= $h($area['areanombre']); ?>" readonly required data-security-input>
                                         </form>
                                     </td>
                                     <td>
                                         <form method="POST" action="<?= $h(baseUrl('configuracion/academica/areas/estado')); ?>" class="status-switch-form">
+                                            <?= csrfField(); ?>
                                             <input type="hidden" name="areaid" value="<?= $h($area['areaid']); ?>">
                                             <input type="hidden" name="areaestado" value="<?= !empty($area['areaestado']) ? '0' : '1'; ?>">
                                             <button class="status-switch <?= !empty($area['areaestado']) ? 'is-active' : ''; ?>" type="submit" title="<?= !empty($area['areaestado']) ? 'Inactivar area' : 'Activar area'; ?>" aria-label="<?= !empty($area['areaestado']) ? 'Inactivar area' : 'Activar area'; ?>">
@@ -330,18 +353,25 @@ if ($defaultCourseId === 0 && !empty($activeCourses)) {
     </section>
 
     <section data-academic-config-view-panel="asignaturas" <?= $selectedAcademicView === 'asignaturas' ? '' : 'hidden'; ?>>
-        <p class="module-note">Administra las asignaturas base y su area academica.</p>
-        <section class="security-assignment-block">
-            <header class="security-assignment-header">
-                <div>
-                    <h3>Nueva asignatura</h3>
-                    <p>La asignatura debe pertenecer a un area academica activa.</p>
-                </div>
-            </header>
+        <section class="security-assignment-block grade-profile-creation-block" data-option-view-mode>
+            <div class="grade-profile-mode-selector" role="radiogroup" aria-label="Vista de asignaturas">
+                <label class="grade-profile-mode-option">
+                    <input type="radio" name="subject_view_mode" value="form" <?= $selectedSubjectMode === 'form' ? 'checked' : ''; ?> data-option-view-radio>
+                    <span>Nueva asignatura</span>
+                </label>
+                <label class="grade-profile-mode-option">
+                    <input type="radio" name="subject_view_mode" value="list" <?= $selectedSubjectMode === 'list' ? 'checked' : ''; ?> data-option-view-radio>
+                    <span>Asignaturas registradas</span>
+                </label>
+            </div>
+        </section>
+
+        <section class="security-assignment-block" data-option-view-panel="form" <?= $selectedSubjectMode === 'form' ? '' : 'hidden'; ?>>
             <?php if (empty($activeAreas)): ?>
                 <div class="empty-state">No existen areas activas. Registra o activa un area academica primero.</div>
             <?php else: ?>
                 <form class="data-form" method="POST" action="<?= $h(baseUrl('configuracion/academica/asignaturas')); ?>">
+                    <?= csrfField(); ?>
                     <div class="form-grid">
                         <div>
                             <div class="input-group">
@@ -367,13 +397,7 @@ if ($defaultCourseId === 0 && !empty($activeCourses)) {
                 </form>
             <?php endif; ?>
         </section>
-        <section class="security-assignment-block">
-            <header class="security-assignment-header">
-                <div>
-                    <h3>Asignaturas registradas</h3>
-                    <p>Edita el nombre, cambia el area o activa e inactiva la asignatura.</p>
-                </div>
-            </header>
+        <section class="security-assignment-block" data-option-view-panel="list" <?= $selectedSubjectMode === 'list' ? '' : 'hidden'; ?>>
             <?php if (empty($subjects)): ?>
                 <div class="empty-state">Todavia no hay asignaturas registradas.</div>
             <?php else: ?>
@@ -392,6 +416,7 @@ if ($defaultCourseId === 0 && !empty($activeCourses)) {
                                 <tr data-security-row>
                                     <td>
                                         <form id="subject-form-<?= $h($subject['asgid']); ?>" method="POST" action="<?= $h(baseUrl('configuracion/academica/asignaturas/actualizar')); ?>" data-security-edit-form>
+                                            <?= csrfField(); ?>
                                             <input type="hidden" name="asgid" value="<?= $h($subject['asgid']); ?>">
                                             <select class="security-inline-select" name="areaid" required disabled data-security-input>
                                                 <?php foreach ($areas as $area): ?>
@@ -407,6 +432,7 @@ if ($defaultCourseId === 0 && !empty($activeCourses)) {
                                     </td>
                                     <td>
                                         <form method="POST" action="<?= $h(baseUrl('configuracion/academica/asignaturas/estado')); ?>" class="status-switch-form">
+                                            <?= csrfField(); ?>
                                             <input type="hidden" name="asgid" value="<?= $h($subject['asgid']); ?>">
                                             <input type="hidden" name="asgestado" value="<?= !empty($subject['asgestado']) ? '0' : '1'; ?>">
                                             <button class="status-switch <?= !empty($subject['asgestado']) ? 'is-active' : ''; ?>" type="submit" title="<?= !empty($subject['asgestado']) ? 'Inactivar asignatura' : 'Activar asignatura'; ?>" aria-label="<?= !empty($subject['asgestado']) ? 'Inactivar asignatura' : 'Activar asignatura'; ?>">
@@ -439,23 +465,30 @@ if ($defaultCourseId === 0 && !empty($activeCourses)) {
     </section>
 
     <section data-academic-config-view-panel="materias" <?= $selectedAcademicView === 'materias' ? '' : 'hidden'; ?>>
-        <p class="module-note">Relaciona asignaturas con los cursos activos del periodo visualizado.</p>
         <?php if ($currentPeriod === null): ?>
             <div class="empty-state">No hay un periodo lectivo seleccionado. Elige uno desde el chip de periodo en el navbar para continuar.</div>
         <?php else: ?>
-            <section class="security-assignment-block">
-                <header class="security-assignment-header">
-                    <div>
-                        <h3>Nueva materia por curso</h3>
-                        <p>Periodo: <strong><?= $h($currentPeriod['pledescripcion']); ?></strong>.</p>
-                    </div>
-                </header>
+            <section class="security-assignment-block grade-profile-creation-block" data-option-view-mode>
+                <div class="grade-profile-mode-selector" role="radiogroup" aria-label="Vista de materias por curso">
+                    <label class="grade-profile-mode-option">
+                        <input type="radio" name="course_subject_view_mode" value="form" <?= $selectedCourseSubjectMode === 'form' ? 'checked' : ''; ?> data-option-view-radio>
+                        <span>Nueva materia por curso</span>
+                    </label>
+                    <label class="grade-profile-mode-option">
+                        <input type="radio" name="course_subject_view_mode" value="list" <?= $selectedCourseSubjectMode === 'list' ? 'checked' : ''; ?> data-option-view-radio>
+                        <span>Materias registradas</span>
+                    </label>
+                </div>
+            </section>
+
+            <section class="security-assignment-block" data-option-view-panel="form" <?= $selectedCourseSubjectMode === 'form' ? '' : 'hidden'; ?>>
                 <?php if (empty($activeCourses)): ?>
                     <div class="empty-state">No existen cursos activos para el periodo actual.</div>
                 <?php elseif (empty($activeSubjects)): ?>
                     <div class="empty-state">No existen asignaturas activas disponibles.</div>
                 <?php else: ?>
                     <form class="data-form" method="POST" action="<?= $h(baseUrl('configuracion/academica/materias-curso')); ?>" data-course-subject-bulk-form>
+                        <?= csrfField(); ?>
                         <div class="form-grid">
                             <div>
                                 <div class="input-group">
@@ -518,17 +551,71 @@ if ($defaultCourseId === 0 && !empty($activeCourses)) {
                 <?php endif; ?>
             </section>
 
-            <section class="security-assignment-block">
-                <header class="security-assignment-header">
-                    <div>
-                        <h3>Materias registradas</h3>
-                        <p>Materias configuradas para los cursos del periodo actual.</p>
-                    </div>
-                </header>
+            <section class="security-assignment-block" data-option-view-panel="list" <?= $selectedCourseSubjectMode === 'list' ? '' : 'hidden'; ?>>
                 <?php if (empty($courseSubjects)): ?>
                     <div class="empty-state">Todavia no existen materias asignadas a cursos en este periodo.</div>
                 <?php else: ?>
-                    <div class="table-wrap">
+                    <div class="form-grid" data-course-subject-filter data-course-subject-filter-url="<?= $h(baseUrl('configuracion/academica/materias-curso/buscar')); ?>">
+                        <div>
+                            <div class="input-group">
+                                <span class="input-addon">Curso</span>
+                                <select data-course-subject-filter-course>
+                                    <option value="">Todos</option>
+                                    <?php
+                                    $seenCourseFilter = [];
+                                    foreach ($courseSubjects as $subject):
+                                        $courseId = (int) $subject['curid'];
+                                        if (isset($seenCourseFilter[$courseId])) {
+                                            continue;
+                                        }
+                                        $seenCourseFilter[$courseId] = true;
+                                    ?>
+                                        <option value="<?= $h($courseId); ?>"><?= $h($subject['granombre'] . ' ' . $subject['prlnombre']); ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="input-group">
+                                <span class="input-addon">Area</span>
+                                <select data-course-subject-filter-area>
+                                    <option value="">Todas</option>
+                                    <?php
+                                    $seenAreaFilter = [];
+                                    foreach ($courseSubjects as $subject):
+                                        $areaId = (int) $subject['areaid'];
+                                        if (isset($seenAreaFilter[$areaId])) {
+                                            continue;
+                                        }
+                                        $seenAreaFilter[$areaId] = true;
+                                    ?>
+                                        <option value="<?= $h($areaId); ?>"><?= $h($subject['areanombre']); ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="input-group">
+                                <span class="input-addon">Asignatura</span>
+                                <select data-course-subject-filter-subject>
+                                    <option value="">Todas</option>
+                                    <?php
+                                    $seenSubjectFilter = [];
+                                    foreach ($courseSubjects as $subject):
+                                        $subjectId = (int) $subject['asgid'];
+                                        if (isset($seenSubjectFilter[$subjectId])) {
+                                            continue;
+                                        }
+                                        $seenSubjectFilter[$subjectId] = true;
+                                    ?>
+                                        <option value="<?= $h($subjectId); ?>"><?= $h($subject['asgnombre']); ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <p class="cell-subtitle" data-course-subject-filter-status><?= $h(count($courseSubjects)); ?> registro(s)</p>
+                    <div class="table-wrap" data-course-subject-filter-table>
                         <table class="data-table">
                             <thead>
                                 <tr>
@@ -540,52 +627,42 @@ if ($defaultCourseId === 0 && !empty($activeCourses)) {
                                     <th>Estado</th>
                                 </tr>
                             </thead>
-                            <tbody>
-                                <?php foreach ($courseSubjects as $subject): ?>
-                                    <tr>
-                                        <td><?= $h($subject['granombre'] . ' ' . $subject['prlnombre']); ?></td>
-                                        <td><?= $h($subject['areanombre']); ?></td>
-                                        <td><?= $h($subject['asgnombre']); ?></td>
-                                        <td><?= $h($subject['mtcfecha_inicio']); ?></td>
-                                        <td><?= $h($subject['mtcorden'] ?? ''); ?></td>
-                                        <td>
-                                            <form method="POST" action="<?= $h(baseUrl('configuracion/academica/materias-curso/estado')); ?>" class="status-switch-form">
-                                                <input type="hidden" name="mtcid" value="<?= $h($subject['mtcid']); ?>">
-                                                <input type="hidden" name="mtcestado" value="<?= !empty($subject['mtcestado']) ? '0' : '1'; ?>">
-                                                <button class="status-switch <?= !empty($subject['mtcestado']) ? 'is-active' : ''; ?>" type="submit" title="<?= !empty($subject['mtcestado']) ? 'Inactivar materia' : 'Activar materia'; ?>" aria-label="<?= !empty($subject['mtcestado']) ? 'Inactivar materia' : 'Activar materia'; ?>">
-                                                    <span class="status-switch-track"><span class="status-switch-thumb"></span></span>
-                                                </button>
-                                            </form>
-                                        </td>
-                                    </tr>
-                                <?php endforeach; ?>
+                            <tbody data-course-subject-filter-body>
+                                <?php require BASE_PATH . '/app/views/configuracion/_materias_curso_rows.php'; ?>
                             </tbody>
                         </table>
                     </div>
+                    <div data-course-subject-filter-empty hidden></div>
                 <?php endif; ?>
             </section>
         <?php endif; ?>
     </section>
 
     <section data-academic-config-view-panel="docentes" <?= $selectedAcademicView === 'docentes' ? '' : 'hidden'; ?>>
-        <p class="module-note">Vincula docentes activos con las materias asignadas a cada curso.</p>
         <?php if ($currentPeriod === null): ?>
             <div class="empty-state">No hay un periodo lectivo seleccionado. Elige uno desde el chip de periodo en el navbar para continuar.</div>
         <?php else: ?>
-            <section class="security-assignment-block">
-                <header class="security-assignment-header">
-                    <div>
-                        <h3>Nueva designacion</h3>
-                        <p>Periodo: <strong><?= $h($currentPeriod['pledescripcion']); ?></strong>.</p>
-                    </div>
-                </header>
+            <section class="security-assignment-block grade-profile-creation-block" data-option-view-mode>
+                <div class="grade-profile-mode-selector" role="radiogroup" aria-label="Vista de asignacion de docentes">
+                    <label class="grade-profile-mode-option">
+                        <input type="radio" name="teacher_assignment_view_mode" value="form" <?= $selectedTeacherAssignmentMode === 'form' ? 'checked' : ''; ?> data-option-view-radio>
+                        <span>Nueva asignacion</span>
+                    </label>
+                    <label class="grade-profile-mode-option">
+                        <input type="radio" name="teacher_assignment_view_mode" value="list" <?= $selectedTeacherAssignmentMode === 'list' ? 'checked' : ''; ?> data-option-view-radio>
+                        <span>Asignaciones registradas</span>
+                    </label>
+                </div>
+            </section>
 
+            <section class="security-assignment-block" data-option-view-panel="form" <?= $selectedTeacherAssignmentMode === 'form' ? '' : 'hidden'; ?>>
                 <?php if (empty($activeCourseSubjects)): ?>
                     <div class="empty-state">No existen materias activas por curso. Configuralas primero en Materias por curso.</div>
                 <?php elseif (empty($teachers)): ?>
                     <div class="empty-state">No existen docentes activos. Registra personal con tipo Docente antes de continuar.</div>
                 <?php else: ?>
                     <form class="data-form" method="POST" action="<?= $h(baseUrl('configuracion/academica/docentes')); ?>" data-teacher-subject-bulk-form>
+                        <?= csrfField(); ?>
                         <div class="form-grid">
                             <div>
                                 <div class="input-group">
@@ -657,17 +734,53 @@ if ($defaultCourseId === 0 && !empty($activeCourses)) {
                 <?php endif; ?>
             </section>
 
-            <section class="security-assignment-block">
-                <header class="security-assignment-header">
-                    <div>
-                        <h3>Designaciones activas</h3>
-                        <p>Docentes vinculados actualmente a cada materia.</p>
-                    </div>
-                </header>
-
+            <section class="security-assignment-block" data-option-view-panel="list" <?= $selectedTeacherAssignmentMode === 'list' ? '' : 'hidden'; ?>>
                 <?php if (empty($visibleAssignments)): ?>
                     <div class="empty-state">Todavia no hay docentes designados en este periodo.</div>
                 <?php else: ?>
+                    <div class="form-grid" data-teacher-assignment-filter>
+                        <div>
+                            <div class="input-group">
+                                <span class="input-addon">Docente</span>
+                                <select data-teacher-assignment-filter-teacher>
+                                    <option value="">Todos</option>
+                                    <?php
+                                    $seenAssignmentTeachers = [];
+                                    foreach ($visibleAssignments as $row):
+                                        $assignment = $row['assignment'];
+                                        $teacherId = (int) $assignment['perid'];
+                                        if (isset($seenAssignmentTeachers[$teacherId])) {
+                                            continue;
+                                        }
+                                        $seenAssignmentTeachers[$teacherId] = true;
+                                    ?>
+                                        <option value="<?= $h($teacherId); ?>"><?= $h($assignment['perapellidos'] . ' ' . $assignment['pernombres']); ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="input-group">
+                                <span class="input-addon">Curso</span>
+                                <select data-teacher-assignment-filter-course>
+                                    <option value="">Todos</option>
+                                    <?php
+                                    $seenAssignmentCourses = [];
+                                    foreach ($visibleAssignments as $row):
+                                        $subject = $row['subject'];
+                                        $courseId = (int) $subject['curid'];
+                                        if (isset($seenAssignmentCourses[$courseId])) {
+                                            continue;
+                                        }
+                                        $seenAssignmentCourses[$courseId] = true;
+                                    ?>
+                                        <option value="<?= $h($courseId); ?>"><?= $h($subject['granombre'] . ' ' . $subject['prlnombre']); ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <p class="cell-subtitle" data-teacher-assignment-filter-status><?= $h(count($visibleAssignments)); ?> registro(s)</p>
                     <div class="table-wrap">
                         <table class="data-table">
                             <thead>
@@ -682,13 +795,14 @@ if ($defaultCourseId === 0 && !empty($activeCourses)) {
                             <tbody>
                                 <?php foreach ($visibleAssignments as $row): ?>
                                     <?php $subject = $row['subject']; $assignment = $row['assignment']; ?>
-                                    <tr>
+                                    <tr data-teacher-assignment-row data-teacher-id="<?= $h($assignment['perid']); ?>" data-course-id="<?= $h($subject['curid']); ?>">
                                         <td><?= $h($subject['granombre'] . ' ' . $subject['prlnombre']); ?></td>
                                         <td><?= $h($subject['asgnombre']); ?></td>
                                         <td><?= $h($assignment['perapellidos'] . ' ' . $assignment['pernombres']); ?></td>
                                         <td><?= $h($assignment['mcdfecha_inicio']); ?></td>
                                         <td>
                                             <form method="POST" action="<?= $h(baseUrl('configuracion/academica/docentes/retirar')); ?>">
+                                                <?= csrfField(); ?>
                                                 <input type="hidden" name="mcdid" value="<?= $h($assignment['mcdid']); ?>">
                                                 <button class="btn-secondary btn-inline" type="submit">Retirar</button>
                                             </form>
@@ -698,6 +812,7 @@ if ($defaultCourseId === 0 && !empty($activeCourses)) {
                             </tbody>
                         </table>
                     </div>
+                    <div class="empty-state" data-teacher-assignment-filter-empty hidden>No se encontraron asignaciones con esos filtros.</div>
                 <?php endif; ?>
             </section>
         <?php endif; ?>

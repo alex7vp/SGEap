@@ -35,6 +35,7 @@
         <?php endforeach; ?>
         <td>
             <form id="user-role-form-<?= htmlspecialchars((string) $userId, ENT_QUOTES, 'UTF-8'); ?>" method="POST" action="<?= htmlspecialchars(baseUrl('seguridad/usuarios-roles'), ENT_QUOTES, 'UTF-8'); ?>">
+                <?= csrfField(); ?>
                 <input type="hidden" name="user_id" value="<?= htmlspecialchars((string) $userId, ENT_QUOTES, 'UTF-8'); ?>">
             </form>
             <button class="btn-primary btn-auto btn-icon-only btn-icon-small" type="submit" form="user-role-form-<?= htmlspecialchars((string) $userId, ENT_QUOTES, 'UTF-8'); ?>" title="Guardar roles" aria-label="Guardar roles">

@@ -38,6 +38,7 @@ foreach (($courseSubjects ?? []) as $subject) {
             <div class="empty-state">No existen docentes activos. Registra personal con tipo Docente antes de continuar.</div>
         <?php else: ?>
             <form class="data-form" method="POST" action="<?= $h(baseUrl('configuracion/academica/docentes')); ?>" data-teacher-subject-bulk-form>
+                <?= csrfField(); ?>
                 <div class="form-grid">
                     <div>
                         <div class="input-group">
@@ -143,6 +144,7 @@ foreach (($courseSubjects ?? []) as $subject) {
                                 <td><?= $h($assignment['mcdfecha_inicio']); ?></td>
                                 <td>
                                     <form method="POST" action="<?= $h(baseUrl('configuracion/academica/docentes/retirar')); ?>">
+                                        <?= csrfField(); ?>
                                         <input type="hidden" name="mcdid" value="<?= $h($assignment['mcdid']); ?>">
                                         <button class="btn-secondary btn-inline" type="submit">Retirar</button>
                                     </form>

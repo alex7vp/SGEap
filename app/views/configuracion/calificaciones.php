@@ -13,6 +13,11 @@ $selectedCreationMode = (
     (string) ($old['scratch_pcanombre'] ?? '') !== ''
     || (string) ($old['scratch_pleid'] ?? '') !== ''
 ) ? 'scratch' : 'template';
+$selectedGradeConfigView = (
+    !empty($old)
+    || !empty($feedback)
+    || empty($profiles)
+) ? 'create' : 'profiles';
 ?>
 <p class="module-note">Crea perfiles de calificacion para un periodo lectivo desde una plantilla base o desde cero. Cada perfil conserva su propia version historica.</p>
 
@@ -30,13 +35,25 @@ $selectedCreationMode = (
     </dialog>
 <?php endif; ?>
 
-<section class="security-assignment-block grade-profile-creation-block" data-grade-profile-create-mode>
-    <header class="security-assignment-header">
-        <div>
-            <h3>Crear perfil</h3>
-            <p>Seleccione si desea partir de una plantilla o construir la configuracion manualmente.</p>
+<section class="grade-config-view-stack">
+    <section class="security-assignment-block grade-profile-creation-block" data-option-view-mode>
+        <div class="grade-profile-mode-selector" role="radiogroup" aria-label="Vista de configuracion de calificaciones">
+            <label class="grade-profile-mode-option">
+                <input type="radio" name="grade_config_view_mode" value="create" <?= $selectedGradeConfigView === 'create' ? 'checked' : ''; ?> data-option-view-radio>
+                <span>Crear perfil</span>
+            </label>
+            <label class="grade-profile-mode-option">
+                <input type="radio" name="grade_config_view_mode" value="templates" <?= $selectedGradeConfigView === 'templates' ? 'checked' : ''; ?> data-option-view-radio>
+                <span>Plantillas disponibles</span>
+            </label>
+            <label class="grade-profile-mode-option">
+                <input type="radio" name="grade_config_view_mode" value="profiles" <?= $selectedGradeConfigView === 'profiles' ? 'checked' : ''; ?> data-option-view-radio>
+                <span>Gestionar perfiles</span>
+            </label>
         </div>
-    </header>
+    </section>
+
+<section class="security-assignment-block grade-profile-creation-block" data-option-view-panel="create" <?= $selectedGradeConfigView === 'create' ? '' : 'hidden'; ?> data-grade-profile-create-mode>
 
     <div class="grade-profile-mode-selector" role="radiogroup" aria-label="Tipo de creacion de perfil">
         <label class="grade-profile-mode-option">
@@ -61,6 +78,7 @@ $selectedCreationMode = (
         <div class="empty-state">No existen periodos lectivos registrados.</div>
     <?php else: ?>
         <form class="data-form" method="POST" action="<?= $h(baseUrl('configuracion/academica/calificaciones/copiar')); ?>">
+            <?= csrfField(); ?>
             <div class="form-grid">
                 <div>
                     <div class="input-group">
@@ -181,6 +199,7 @@ $selectedCreationMode = (
         <div class="empty-state">No existen periodos lectivos registrados.</div>
     <?php else: ?>
         <form class="data-form" method="POST" action="<?= $h(baseUrl('configuracion/academica/calificaciones/perfil/crear')); ?>">
+            <?= csrfField(); ?>
             <div class="form-grid">
                 <div>
                     <div class="input-group">
@@ -329,13 +348,7 @@ $selectedCreationMode = (
     </div>
 </section>
 
-<section class="grade-profile-accordion-shell">
-    <details class="grade-profile-accordion" id="perfiles-creados">
-        <summary>
-            <span>Plantillas disponibles</span>
-            <i class="fa fa-chevron-down" aria-hidden="true"></i>
-        </summary>
-        <div class="grade-profile-accordion-body">
+<section class="security-assignment-block" data-option-view-panel="templates" <?= $selectedGradeConfigView === 'templates' ? '' : 'hidden'; ?>>
 
     <?php if (empty($templates)): ?>
         <div class="empty-state">No existen plantillas registradas.</div>
@@ -376,15 +389,9 @@ $selectedCreationMode = (
             </table>
         </div>
     <?php endif; ?>
-        </div>
-    </details>
+</section>
 
-    <details class="grade-profile-accordion">
-        <summary>
-            <span>Perfiles creados</span>
-            <i class="fa fa-chevron-down" aria-hidden="true"></i>
-        </summary>
-        <div class="grade-profile-accordion-body">
+<section class="security-assignment-block" data-option-view-panel="profiles" <?= $selectedGradeConfigView === 'profiles' ? '' : 'hidden'; ?>>
 
     <?php if (empty($profiles)): ?>
         <div class="empty-state">Todavia no existen perfiles de calificacion creados.</div>
@@ -428,6 +435,7 @@ $selectedCreationMode = (
                                     action="<?= $h(baseUrl('configuracion/academica/calificaciones/perfil/eliminar')); ?>"
                                     data-grade-profile-delete-form
                                 >
+                                    <?= csrfField(); ?>
                                     <input type="hidden" name="pcaid" value="<?= $h($profile['pcaid']); ?>">
                                     <button class="icon-button icon-button-delete" type="submit" title="Eliminar perfil" aria-label="Eliminar perfil">
                                         <i class="fa fa-trash" aria-hidden="true"></i>
@@ -440,8 +448,7 @@ $selectedCreationMode = (
             </table>
         </div>
     <?php endif; ?>
-        </div>
-    </details>
+</section>
 </section>
 
 <dialog class="calendar-dialog grade-profile-delete-dialog" data-grade-profile-delete-dialog>

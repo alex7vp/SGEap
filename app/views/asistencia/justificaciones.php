@@ -73,6 +73,7 @@ $justifications = is_array($justifications ?? null) ? $justifications : [];
             <div class="empty-state">No hay faltas injustificadas para los filtros seleccionados.</div>
         <?php else: ?>
             <form class="data-form" method="POST" action="<?= htmlspecialchars(baseUrl('asistencia/justificaciones'), ENT_QUOTES, 'UTF-8'); ?>" enctype="multipart/form-data" data-registered-justification-form>
+                <?= csrfField(); ?>
                 <input type="hidden" name="modo_justificacion" value="posterior">
                 <input type="hidden" name="curid" value="<?= htmlspecialchars((string) $selectedCourseId, ENT_QUOTES, 'UTF-8'); ?>">
                 <div class="table-wrap">
@@ -154,6 +155,7 @@ $justifications = is_array($justifications ?? null) ? $justifications : [];
             <div class="empty-state">No hay estudiantes matriculados en el periodo actual.</div>
         <?php else: ?>
             <form class="data-form" method="POST" action="<?= htmlspecialchars(baseUrl('asistencia/justificaciones'), ENT_QUOTES, 'UTF-8'); ?>" enctype="multipart/form-data">
+                <?= csrfField(); ?>
                 <input type="hidden" name="modo_justificacion" value="anticipada">
                 <input type="hidden" name="curid" value="<?= htmlspecialchars((string) $selectedCourseId, ENT_QUOTES, 'UTF-8'); ?>">
                 <div class="form-grid">
@@ -270,12 +272,14 @@ $justifications = is_array($justifications ?? null) ? $justifications : [];
                                                     class="justification-annul-form"
                                                     data-justification-annul-form
                                                 >
+                                                    <?= csrfField(); ?>
                                                     <input type="hidden" name="jaid" value="<?= htmlspecialchars((string) $justification['jaid'], ENT_QUOTES, 'UTF-8'); ?>">
                                                     <input type="text" name="jamotivo_anulacion" maxlength="250" placeholder="Motivo" required>
                                                     <button class="btn-secondary btn-auto" type="submit">Anular</button>
                                                 </form>
                                             </div>
                                             <form method="POST" action="<?= htmlspecialchars(baseUrl('asistencia/justificaciones/confirmar'), ENT_QUOTES, 'UTF-8'); ?>" data-justification-confirm-form>
+                                                <?= csrfField(); ?>
                                                 <input type="hidden" name="jaid" value="<?= htmlspecialchars((string) $justification['jaid'], ENT_QUOTES, 'UTF-8'); ?>">
                                                 <button class="btn-primary btn-auto" type="submit">Confirmar</button>
                                             </form>

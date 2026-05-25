@@ -202,6 +202,7 @@ FROM (
         ('Rector', 'Acceso institucional para rectorado'),
         ('Vicerrector', 'Acceso institucional para vicerrectorado'),
         ('Coordinador', 'Acceso institucional para coordinacion'),
+        ('Contabilidad', 'Acceso para gestion contable interna'),
         ('DECE', 'Acceso institucional para consejeria estudiantil'),
         ('Inspector', 'Acceso institucional para inspeccion'),
         ('Representante', 'Acceso para representantes legales de estudiantes')

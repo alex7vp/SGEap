@@ -15,6 +15,7 @@ $selectedTypeIds = array_map('intval', (array) ($old['type_ids'] ?? []));
 <p class="module-note">Si la cedula ya existe como persona en el sistema, se reutiliza ese registro. Los tipos con rol operativo crean el usuario automaticamente.</p>
 
 <form class="data-form" method="POST" action="<?= htmlspecialchars(baseUrl('personal/registro'), ENT_QUOTES, 'UTF-8'); ?>">
+    <?= csrfField(); ?>
     <div class="form-grid">
         <div class="form-group">
             <div class="input-group">

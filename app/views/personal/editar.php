@@ -17,6 +17,7 @@ require BASE_PATH . '/app/views/partials/header.php';
 </p>
 
 <form class="data-form" method="POST" action="<?= htmlspecialchars(baseUrl('personal/actualizar'), ENT_QUOTES, 'UTF-8'); ?>">
+    <?= csrfField(); ?>
     <input type="hidden" name="psnid" value="<?= htmlspecialchars((string) ($old['psnid'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>">
     <input type="hidden" name="perid" value="<?= htmlspecialchars((string) ($old['perid'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>">
 

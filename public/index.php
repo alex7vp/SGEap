@@ -47,6 +47,8 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
+verifyCsrfRequest();
+
 $router = new Router();
 $routes = require BASE_PATH . '/config/routes.php';
 $routes($router);

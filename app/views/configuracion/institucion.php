@@ -57,6 +57,7 @@ $showInstitutionForm = $institution === false || !empty($error) || !empty($field
     </div>
 
     <form class="data-form institution-form-card" method="POST" action="<?= htmlspecialchars(baseUrl('configuracion/institucion'), ENT_QUOTES, 'UTF-8'); ?>" data-institution-form <?= $showInstitutionForm ? '' : 'hidden'; ?>>
+        <?= csrfField(); ?>
         <div class="form-grid">
             <div class="form-group-full" id="institution-field-insnombre">
                 <?php if (!empty($fieldErrors['insnombre'])): ?>

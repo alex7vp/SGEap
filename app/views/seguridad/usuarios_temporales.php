@@ -49,6 +49,7 @@ if (!empty($old['perid'])) {
         <div class="empty-state">Todas las personas registradas ya tienen una cuenta asignada.</div>
     <?php else: ?>
         <form class="data-form" method="POST" action="<?= htmlspecialchars(baseUrl('seguridad/usuarios-temporales'), ENT_QUOTES, 'UTF-8'); ?>">
+            <?= csrfField(); ?>
             <div class="toolbar toolbar-filter security-picker-toolbar">
                 <div class="filter-box">
                     <label class="sr-only" for="temporary-person-search">Buscar personas disponibles</label>

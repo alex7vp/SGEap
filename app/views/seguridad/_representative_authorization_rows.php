@@ -25,6 +25,7 @@
         <td>
             <?php if ($authorizationActive): ?>
                 <form method="POST" action="<?= htmlspecialchars(baseUrl('seguridad/representantes/matricula-nueva/anular'), ENT_QUOTES, 'UTF-8'); ?>" class="security-password-reset-form">
+                    <?= csrfField(); ?>
                     <input type="hidden" name="rhmid" value="<?= htmlspecialchars((string) $representative['rhmid'], ENT_QUOTES, 'UTF-8'); ?>">
                     <input type="hidden" name="perid" value="<?= htmlspecialchars((string) $representative['perid'], ENT_QUOTES, 'UTF-8'); ?>">
                     <input
@@ -40,6 +41,7 @@
                 </form>
             <?php else: ?>
                 <form method="POST" action="<?= htmlspecialchars(baseUrl('seguridad/representantes/matricula-nueva'), ENT_QUOTES, 'UTF-8'); ?>" class="security-password-reset-form">
+                    <?= csrfField(); ?>
                     <input type="hidden" name="usuid" value="<?= htmlspecialchars((string) $representative['usuid'], ENT_QUOTES, 'UTF-8'); ?>">
                     <input
                         class="temporary-user-expiration-input"

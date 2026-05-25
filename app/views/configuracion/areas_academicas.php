@@ -17,6 +17,7 @@ $h = static fn (mixed $value): string => htmlspecialchars((string) $value, ENT_Q
     </header>
 
     <form class="data-form" method="POST" action="<?= $h(baseUrl('configuracion/academica/areas')); ?>">
+        <?= csrfField(); ?>
         <div class="form-grid">
             <div class="form-group-full">
                 <div class="input-group">
@@ -56,12 +57,14 @@ $h = static fn (mixed $value): string => htmlspecialchars((string) $value, ENT_Q
                         <tr data-security-row>
                             <td>
                                 <form id="area-form-<?= $h($area['areaid']); ?>" method="POST" action="<?= $h(baseUrl('configuracion/academica/areas/actualizar')); ?>" data-security-edit-form>
+                                    <?= csrfField(); ?>
                                     <input type="hidden" name="areaid" value="<?= $h($area['areaid']); ?>">
                                     <input class="security-inline-input" type="text" name="areanombre" maxlength="100" value="<?= $h($area['areanombre']); ?>" readonly required data-security-input>
                                 </form>
                             </td>
                             <td>
                                 <form method="POST" action="<?= $h(baseUrl('configuracion/academica/areas/estado')); ?>" class="status-switch-form">
+                                    <?= csrfField(); ?>
                                     <input type="hidden" name="areaid" value="<?= $h($area['areaid']); ?>">
                                     <input type="hidden" name="areaestado" value="<?= !empty($area['areaestado']) ? '0' : '1'; ?>">
                                     <button class="status-switch <?= !empty($area['areaestado']) ? 'is-active' : ''; ?>" type="submit" title="<?= !empty($area['areaestado']) ? 'Inactivar area' : 'Activar area'; ?>" aria-label="<?= !empty($area['areaestado']) ? 'Inactivar area' : 'Activar area'; ?>">

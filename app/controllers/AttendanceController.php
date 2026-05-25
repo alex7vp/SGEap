@@ -55,6 +55,49 @@ class AttendanceController extends Controller
         $this->redirect('/configuracion/academica?view=materias');
     }
 
+    public function searchCourseSubjects(): void
+    {
+        $this->requireAuth();
+
+        $period = currentAcademicPeriod();
+        $periodId = $period !== null ? (int) $period['pleid'] : 0;
+        $courseId = max(0, (int) ($_GET['curid'] ?? 0));
+        $areaId = max(0, (int) ($_GET['areaid'] ?? 0));
+        $subjectId = max(0, (int) ($_GET['asgid'] ?? 0));
+        $courseSubjects = $periodId > 0
+            ? (new AttendanceModel())->courseSubjectsByPeriod($periodId)
+            : [];
+
+        if ($courseId > 0 || $areaId > 0 || $subjectId > 0) {
+            $courseSubjects = array_values(array_filter(
+                $courseSubjects,
+                static function (array $subject) use ($courseId, $areaId, $subjectId): bool {
+                    if ($courseId > 0 && (int) $subject['curid'] !== $courseId) {
+                        return false;
+                    }
+
+                    if ($areaId > 0 && (int) $subject['areaid'] !== $areaId) {
+                        return false;
+                    }
+
+                    if ($subjectId > 0 && (int) $subject['asgid'] !== $subjectId) {
+                        return false;
+                    }
+
+                    return true;
+                }
+            ));
+        }
+
+        header('Content-Type: application/json; charset=UTF-8');
+        echo json_encode([
+            'html' => $this->renderCourseSubjectRows($courseSubjects),
+            'isEmpty' => empty($courseSubjects),
+            'emptyHtml' => '<div class="empty-state">No se encontraron materias con esos filtros.</div>',
+            'count' => count($courseSubjects),
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    }
+
     public function academicTeachers(): void
     {
         $this->requireAuth();
@@ -219,10 +262,12 @@ class AttendanceController extends Controller
             $date = $this->firstSelectableDateForMonth($monthStart, $monthEnd, $classDateRange);
         }
 
+        $calendarMonthDays = $periodId > 0 ? $attendanceModel->calendarDaysByRange($periodId, $monthStart, $monthEnd) : [];
         $calendarDay = $periodId > 0 ? $attendanceModel->calendarDayByDate($periodId, $date) : false;
         $calendarDetails = $calendarDay !== false
             ? $attendanceModel->calendarDetailsByDay((int) $calendarDay['caid'])
             : [];
+        $selectedDateHasAttendance = !empty($calendarMonthDays[$date]['asistencia_registrada']);
 
         $this->view('asistencia.calendario', [
             'appName' => config('app')['name'] ?? 'SGEap',
@@ -238,7 +283,8 @@ class AttendanceController extends Controller
             'availableMonths' => $availableMonths,
             'calendarDay' => $calendarDay,
             'calendarDetails' => $calendarDetails,
-            'calendarMonthDays' => $periodId > 0 ? $attendanceModel->calendarDaysByRange($periodId, $monthStart, $monthEnd) : [],
+            'calendarMonthDays' => $calendarMonthDays,
+            'selectedDateHasAttendance' => $selectedDateHasAttendance,
             'calendarDays' => $periodId > 0 ? $attendanceModel->calendarDaysByPeriod($periodId) : [],
             'courses' => $periodId > 0 ? array_values(array_filter(
                 $courseModel->allByPeriod($periodId),
@@ -461,6 +507,7 @@ class AttendanceController extends Controller
         $this->view('asistencia.reportes', [
             'appName' => config('app')['name'] ?? 'SGEap',
             'pageTitle' => 'Reporte de asistencia',
+            'currentModule' => 'academico',
             'currentSection' => 'reporte_asistencia',
             'user' => $user,
             'currentPeriod' => $period,
@@ -684,6 +731,17 @@ class AttendanceController extends Controller
         }
 
         $date = $this->validDateOrToday((string) ($_POST['cafecha'] ?? ''));
+        $dates = is_array($_POST['fechas'] ?? null)
+            ? array_values(array_unique(array_map(
+                fn ($value): string => $this->validDateOrToday((string) $value),
+                $_POST['fechas']
+            )))
+            : [];
+
+        if ($dates === []) {
+            $dates = [$date];
+        }
+
         $month = substr($date, 0, 7);
         $type = (string) ($_POST['catipo_jornada'] ?? 'NORMAL');
         $hourLimitInput = trim((string) ($_POST['cahora_limite'] ?? ''));
@@ -694,23 +752,38 @@ class AttendanceController extends Controller
         try {
             $attendanceModel = new AttendanceModel();
 
-            if (!$attendanceModel->dateIsInsideClassRange((int) $period['pleid'], $date)) {
-                sessionFlash('error', 'La fecha seleccionada esta fuera del rango de clases configurado.');
+            foreach ($dates as $selectedDate) {
+                if (!$attendanceModel->dateIsInsideClassRange((int) $period['pleid'], $selectedDate)) {
+                    sessionFlash('error', 'Una de las fechas seleccionadas esta fuera del rango de clases configurado.');
+                    $this->redirect('/asistencia/calendario?mes=' . $month . '#calendario-mes');
+                }
+
+                if ($attendanceModel->calendarDateHasAttendance((int) $period['pleid'], $selectedDate)) {
+                    sessionFlash('error', 'No se puede editar una fecha que ya tiene asistencia registrada.');
+                    $this->redirect('/asistencia/calendario?mes=' . $month . '#calendario-mes');
+                }
+            }
+
+            foreach ($dates as $selectedDate) {
+                $attendanceModel->saveCalendarDay(
+                    (int) $period['pleid'],
+                    $selectedDate,
+                    $type,
+                    $hourLimit,
+                    $note,
+                    (int) ($user['usuid'] ?? 0),
+                    $details
+                );
+            }
+
+            if (count($dates) > 1) {
+                sessionFlash('success', 'Calendario de asistencia actualizado para las fechas seleccionadas.');
                 $this->redirect('/asistencia/calendario?mes=' . $month . '#calendario-mes');
             }
 
-            $attendanceModel->saveCalendarDay(
-                (int) $period['pleid'],
-                $date,
-                $type,
-                $hourLimit,
-                $note,
-                (int) ($user['usuid'] ?? 0),
-                $details
-            );
             sessionFlash('success', 'Calendario de asistencia actualizado correctamente.');
-        } catch (Throwable) {
-            sessionFlash('error', 'No se pudo guardar el calendario de asistencia.');
+        } catch (Throwable $exception) {
+            sessionFlash('error', 'No se pudo guardar el calendario de asistencia: ' . $exception->getMessage());
         }
 
         $this->redirect('/asistencia/calendario?mes=' . $month . '&fecha=' . $date . '#calendario-mes');
@@ -1347,6 +1420,16 @@ class AttendanceController extends Controller
         $rangeEnd = (string) ($classDateRange['end'] ?? '');
 
         return $rangeStart === '' || $rangeEnd === '' || ($date >= $rangeStart && $date <= $rangeEnd);
+    }
+
+    private function renderCourseSubjectRows(array $courseSubjects): string
+    {
+        $h = static fn (mixed $value): string => htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
+
+        ob_start();
+        require BASE_PATH . '/app/views/configuracion/_materias_curso_rows.php';
+
+        return (string) ob_get_clean();
     }
 
     private function studentAttendanceView(

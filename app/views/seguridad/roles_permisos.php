@@ -33,28 +33,26 @@ foreach ($roles as $roleOption) {
     <?php elseif (empty($permissions)): ?>
         <div class="empty-state">No existen permisos creados todavia. Primero registra permisos en el catalogo de seguridad.</div>
     <?php else: ?>
-        <form class="filters-bar role-permission-filter-bar" method="GET" action="<?= $h(baseUrl('seguridad/roles-permisos')); ?>" data-role-permission-filter>
-            <div class="input-group role-permission-filter-group">
-                <span class="input-addon">Rol</span>
-                <select
-                    name="rolid"
-                    data-role-permission-select
-                    data-role-permission-url="<?= $h(baseUrl('seguridad/roles-permisos/buscar')); ?>"
-                >
-                    <?php foreach ($roles as $role): ?>
-                        <option value="<?= $h($role['rolid']); ?>" <?= (int) $role['rolid'] === $selectedRoleId ? 'selected' : ''; ?>>
-                            <?= $h($role['rolnombre']); ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-                <button class="btn-secondary btn-auto role-permission-filter-button" type="submit">
-                    <i class="fa fa-filter" aria-hidden="true"></i>
-                    Filtrar
-                </button>
+        <form class="role-permission-filter-bar" method="GET" action="<?= $h(baseUrl('seguridad/roles-permisos')); ?>" data-role-permission-filter>
+            <div class="grade-profile-mode-selector role-permission-role-selector" role="radiogroup" aria-label="Seleccion de rol">
+                <?php foreach ($roles as $role): ?>
+                    <?php
+                    $roleId = (int) ($role['rolid'] ?? 0);
+                    $isSelectedRole = $roleId === $selectedRoleId;
+                    ?>
+                    <label class="grade-profile-mode-option">
+                        <input
+                            type="radio"
+                            name="rolid"
+                            value="<?= $h($roleId); ?>"
+                            <?= $isSelectedRole ? 'checked' : ''; ?>
+                            data-role-permission-radio
+                            data-role-permission-url="<?= $h(baseUrl('seguridad/roles-permisos/buscar')); ?>"
+                        >
+                        <span><?= $h($role['rolnombre'] ?? 'Rol'); ?></span>
+                    </label>
+                <?php endforeach; ?>
             </div>
-            <span class="cell-subtitle" data-role-permission-status>
-                <?= $selectedRole !== null ? 'Mostrando permisos de ' . $h($selectedRole['rolnombre']) : 'Seleccione un rol'; ?>
-            </span>
         </form>
 
         <section class="permission-grid permission-grid-single" data-role-permission-panel>

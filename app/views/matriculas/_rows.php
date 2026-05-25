@@ -22,6 +22,7 @@
             <span class="cell-title"><?= htmlspecialchars(trim((string) (($matricula['rep_apellidos'] ?? '') . ' ' . ($matricula['rep_nombres'] ?? '')) . (($matricula['rep_parentesco'] ?? '') !== '' ? ' (' . $matricula['rep_parentesco'] . ')' : '')), ENT_QUOTES, 'UTF-8'); ?></span>
             <?php if ($representativeUserId > 0): ?>
                 <form method="POST" action="<?= htmlspecialchars(baseUrl('matriculas/representante/rematricula'), ENT_QUOTES, 'UTF-8'); ?>" class="status-switch-form representative-matriculation-switch-form">
+                    <?= csrfField(); ?>
                     <input type="hidden" name="rep_usuid" value="<?= htmlspecialchars((string) $representativeUserId, ENT_QUOTES, 'UTF-8'); ?>">
                     <input type="hidden" name="rep_perid" value="<?= htmlspecialchars((string) $representativePersonId, ENT_QUOTES, 'UTF-8'); ?>">
                     <input type="hidden" name="redirect_to" value="/matriculas?panel=gestion#matriculas-registradas">
@@ -68,6 +69,7 @@
                     </a>
                 <?php endif; ?>
                 <form method="POST" action="<?= htmlspecialchars(baseUrl('matriculas/estado'), ENT_QUOTES, 'UTF-8'); ?>">
+                    <?= csrfField(); ?>
                     <input type="hidden" name="matid" value="<?= htmlspecialchars((string) $matricula['matid'], ENT_QUOTES, 'UTF-8'); ?>">
                     <input type="hidden" name="redirect_to" value="/matriculas?panel=gestion#matriculas-registradas">
                     <button
@@ -85,6 +87,7 @@
                         action="<?= htmlspecialchars(baseUrl('matriculas/sincronizar-accesos/matricula'), ENT_QUOTES, 'UTF-8'); ?>"
                         onsubmit="return confirm('Se creara o reactivara el usuario de esta matricula. Desea continuar?');"
                     >
+                        <?= csrfField(); ?>
                         <input type="hidden" name="matid" value="<?= htmlspecialchars((string) $matricula['matid'], ENT_QUOTES, 'UTF-8'); ?>">
                         <button
                             class="icon-button icon-button-view"

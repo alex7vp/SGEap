@@ -22,10 +22,10 @@ $topModules = [
         'url' => baseUrl('configuracion'),
         'icon' => 'fa-cogs',
     ],
-    'reportes' => [
-        'label' => 'Reportes',
-        'url' => baseUrl('reportes'),
-        'icon' => 'fa-bar-chart',
+    'contabilidad' => [
+        'label' => 'Gestion Contable',
+        'url' => baseUrl('contabilidad'),
+        'icon' => 'fa-usd',
     ],
     'seguridad' => [
         'label' => 'Seguridad',
@@ -48,8 +48,8 @@ $sectionModuleMap = [
     'personal_assignment' => 'academico',
     'personal_listing' => 'academico',
     'asistencia_home' => 'academico',
-    'asistencia_configuracion' => 'academico',
-    'asistencia_calendario' => 'academico',
+    'asistencia_configuracion' => 'configuracion',
+    'asistencia_calendario' => 'configuracion',
     'asistencia_justificaciones' => 'academico',
     'asistencia_supervision' => 'academico',
     'asistencia_registro' => 'academico',
@@ -68,16 +68,23 @@ $sectionModuleMap = [
     'periodos' => 'configuracion',
     'configuracion_matricula' => 'configuracion',
     'configuracion_matricula_documentos' => 'configuracion',
+    'configuracion_contable' => 'configuracion',
     'cursos' => 'configuracion',
     'areas_academicas' => 'configuracion',
     'asignaturas' => 'configuracion',
     'materias_curso' => 'configuracion',
     'docentes_materias' => 'configuracion',
     'calificaciones' => 'configuracion',
-    'reportes_home' => 'reportes',
-    'reporte_asistencia' => 'reportes',
-    'reporte_libreta' => 'reportes',
-    'reporte_cuadro_final' => 'reportes',
+    'reportes_home' => 'academico',
+    'reporte_asistencia' => 'academico',
+    'reporte_libreta' => 'academico',
+    'reporte_cuadro_final' => 'academico',
+    'contabilidad_dashboard' => 'contabilidad',
+    'contabilidad_obligaciones' => 'contabilidad',
+    'contabilidad_comprobantes' => 'contabilidad',
+    'contabilidad_rubros' => 'contabilidad',
+    'contabilidad_reportes' => 'contabilidad',
+    'contabilidad_auditoria' => 'contabilidad',
     'seguridad_home' => 'seguridad',
     'seguridad_catalogos' => 'seguridad',
     'seguridad_usuarios' => 'seguridad',
@@ -146,6 +153,12 @@ $sidebarModules = [
                         'url' => baseUrl('calificaciones/registro'),
                         'icon' => 'fa-check-square',
                     ],
+                    [
+                        'key' => 'reportes_home',
+                        'label' => 'Reportes',
+                        'url' => baseUrl('reportes'),
+                        'icon' => 'fa-bar-chart',
+                    ],
                 ],
             ],
         ],
@@ -193,10 +206,40 @@ $sidebarModules = [
                                 'icon' => 'fa-file-text-o',
                             ],
                             [
-                                'key' => 'academica_configuracion',
-                                'label' => 'Academica',
-                                'url' => baseUrl('configuracion/academica'),
+                                'key' => 'academica_areas',
+                                'label' => 'Areas academicas',
+                                'url' => baseUrl('configuracion/academica') . '?view=areas',
                                 'icon' => 'fa-book',
+                            ],
+                            [
+                                'key' => 'academica_asignaturas',
+                                'label' => 'Asignaturas',
+                                'url' => baseUrl('configuracion/academica') . '?view=asignaturas',
+                                'icon' => 'fa-list',
+                            ],
+                            [
+                                'key' => 'academica_grados',
+                                'label' => 'Grados',
+                                'url' => baseUrl('configuracion/academica') . '?view=grados',
+                                'icon' => 'fa-sort-numeric-asc',
+                            ],
+                            [
+                                'key' => 'academica_cursos',
+                                'label' => 'Cursos',
+                                'url' => baseUrl('configuracion/academica') . '?view=cursos',
+                                'icon' => 'fa-users',
+                            ],
+                            [
+                                'key' => 'academica_materias',
+                                'label' => 'Materias por curso',
+                                'url' => baseUrl('configuracion/academica') . '?view=materias',
+                                'icon' => 'fa-bookmark',
+                            ],
+                            [
+                                'key' => 'academica_docentes',
+                                'label' => 'Asignacion de docentes',
+                                'url' => baseUrl('configuracion/academica') . '?view=docentes',
+                                'icon' => 'fa-user-plus',
                             ],
                             [
                                 'key' => 'calificaciones',
@@ -205,10 +248,22 @@ $sidebarModules = [
                                 'icon' => 'fa-check-square',
                             ],
                             [
+                                'key' => 'configuracion_contable',
+                                'label' => 'Configuracion contable',
+                                'url' => baseUrl('configuracion/contable'),
+                                'icon' => 'fa-usd',
+                            ],
+                            [
                                 'key' => 'asistencia_configuracion',
-                                'label' => 'Asistencia',
+                                'label' => 'Rango de clases',
                                 'url' => baseUrl('asistencia/configuracion'),
                                 'icon' => 'fa-calendar-check-o',
+                            ],
+                            [
+                                'key' => 'asistencia_calendario',
+                                'label' => 'Calendario institucional',
+                                'url' => baseUrl('asistencia/calendario'),
+                                'icon' => 'fa-calendar',
                             ],
                         ],
                     ],
@@ -216,26 +271,54 @@ $sidebarModules = [
             ],
         ],
     ],
-    'reportes' => [
-        'title' => 'Reportes',
-        'items' => [
+    'contabilidad' => [
+        'title' => 'Gestion Contable',
+        'groups' => [
             [
-                'key' => 'reporte_asistencia',
-                'label' => 'Reporte de asistencia',
-                'url' => baseUrl('reportes/asistencia'),
-                'icon' => 'fa-calendar-check-o',
+                'title' => 'Operacion',
+                'items' => [
+                    [
+                        'key' => 'contabilidad_dashboard',
+                        'label' => 'Resumen',
+                        'url' => baseUrl('contabilidad'),
+                        'icon' => 'fa-dashboard',
+                    ],
+                    [
+                        'key' => 'contabilidad_obligaciones',
+                        'label' => 'Obligaciones',
+                        'url' => '#',
+                        'icon' => 'fa-list-alt',
+                    ],
+                    [
+                        'key' => 'contabilidad_comprobantes',
+                        'label' => 'Comprobantes',
+                        'url' => '#',
+                        'icon' => 'fa-file-text-o',
+                    ],
+                    [
+                        'key' => 'contabilidad_rubros',
+                        'label' => 'Rubros adicionales',
+                        'url' => '#',
+                        'icon' => 'fa-plus-square',
+                    ],
+                ],
             ],
             [
-                'key' => 'reporte_libreta',
-                'label' => 'Libreta de calificaciones',
-                'url' => baseUrl('reportes/libreta'),
-                'icon' => 'fa-file-text-o',
-            ],
-            [
-                'key' => 'reporte_cuadro_final',
-                'label' => 'Cuadro final',
-                'url' => baseUrl('reportes/cuadro-final'),
-                'icon' => 'fa-table',
+                'title' => 'Consulta',
+                'items' => [
+                    [
+                        'key' => 'contabilidad_reportes',
+                        'label' => 'Reportes',
+                        'url' => '#',
+                        'icon' => 'fa-bar-chart',
+                    ],
+                    [
+                        'key' => 'contabilidad_auditoria',
+                        'label' => 'Auditoria',
+                        'url' => '#',
+                        'icon' => 'fa-search',
+                    ],
+                ],
             ],
         ],
     ],
@@ -337,7 +420,7 @@ $permissionMap = [
     'novedades_supervision' => 'novedades.supervisar',
     'novedades_propias' => 'novedades.ver_propia',
     'novedades_representante' => 'novedades.representante.ver',
-    'academico_home' => ['estudiantes.gestionar', 'personas.gestionar', 'matriculas.gestionar', 'asistencia.calendario.gestionar', 'asistencia.registrar', 'asistencia.supervisar', 'justificaciones.gestionar', 'asistencia.ver_propia', 'asistencia.representante.ver', 'novedades.registrar', 'novedades.supervisar', 'novedades.ver_propia', 'novedades.representante.ver', 'calificaciones.registrar', 'calificaciones.editar', 'calificaciones.configurar', 'calificaciones.validar', 'calificaciones.publicar', 'calificaciones.auditoria.ver'],
+    'academico_home' => ['estudiantes.gestionar', 'personas.gestionar', 'matriculas.gestionar', 'asistencia.registrar', 'asistencia.supervisar', 'justificaciones.gestionar', 'asistencia.ver_propia', 'asistencia.representante.ver', 'novedades.registrar', 'novedades.supervisar', 'novedades.ver_propia', 'novedades.representante.ver', 'calificaciones.registrar', 'calificaciones.editar', 'calificaciones.configurar', 'calificaciones.validar', 'calificaciones.publicar', 'calificaciones.auditoria.ver'],
     'estudiantes' => 'estudiantes.gestionar',
     'personal' => 'personas.gestionar',
     'personal_register' => 'personas.gestionar',
@@ -345,7 +428,7 @@ $permissionMap = [
     'personal_listing' => 'personas.gestionar',
     'matriculas' => 'matriculas.gestionar',
     'calificaciones_registro' => ['asistencia.registrar', 'calificaciones.registrar', 'calificaciones.editar', 'calificaciones.configurar', 'calificaciones.validar', 'calificaciones.publicar', 'calificaciones.auditoria.ver'],
-    'asistencia_home' => ['asistencia.calendario.gestionar', 'asistencia.registrar', 'asistencia.supervisar', 'justificaciones.gestionar', 'asistencia.ver_propia', 'asistencia.representante.ver', 'novedades.registrar', 'novedades.supervisar', 'novedades.ver_propia', 'novedades.representante.ver'],
+    'asistencia_home' => ['asistencia.registrar', 'asistencia.supervisar', 'justificaciones.gestionar', 'asistencia.ver_propia', 'asistencia.representante.ver', 'novedades.registrar', 'novedades.supervisar', 'novedades.ver_propia', 'novedades.representante.ver'],
     'asistencia_configuracion' => 'asistencia.calendario.gestionar',
     'asistencia_calendario' => 'asistencia.calendario.gestionar',
     'asistencia_justificaciones' => 'justificaciones.gestionar',
@@ -359,6 +442,7 @@ $permissionMap = [
     'periodos' => 'configuracion.gestionar',
     'configuracion_matricula' => 'configuracion.gestionar',
     'configuracion_matricula_documentos' => 'matriculas.documentos',
+    'configuracion_contable' => 'contabilidad.configurar',
     'grados' => 'catalogos.gestionar',
     'cursos' => 'cursos.gestionar',
     'areas_academicas' => 'asistencia.calendario.gestionar',
@@ -369,6 +453,13 @@ $permissionMap = [
     'reporte_asistencia' => 'asistencia.supervisar',
     'reporte_libreta' => ['calificaciones.validar', 'calificaciones.configurar', 'calificaciones.registrar', 'calificaciones.editar', 'calificaciones.publicar'],
     'reporte_cuadro_final' => ['calificaciones.validar', 'calificaciones.configurar', 'calificaciones.registrar', 'calificaciones.editar'],
+    'reportes_home' => ['asistencia.supervisar', 'calificaciones.validar', 'calificaciones.configurar', 'calificaciones.registrar', 'calificaciones.editar', 'calificaciones.publicar'],
+    'contabilidad_dashboard' => 'contabilidad.ver',
+    'contabilidad_obligaciones' => ['contabilidad.obligaciones.ver', 'contabilidad.obligaciones.generar', 'contabilidad.obligaciones.editar'],
+    'contabilidad_comprobantes' => ['contabilidad.comprobantes.revisar', 'contabilidad.comprobantes.aprobar', 'contabilidad.comprobantes.rechazar'],
+    'contabilidad_rubros' => ['contabilidad.rubros.ver', 'contabilidad.rubros.crear', 'contabilidad.rubros.editar'],
+    'contabilidad_reportes' => ['contabilidad.reportes.ver', 'contabilidad.reportes.exportar'],
+    'contabilidad_auditoria' => 'contabilidad.auditoria.ver',
     'seguridad_home' => ['seguridad.usuarios', 'seguridad.roles_permisos', 'usuarios_temporales.gestionar'],
     'seguridad_catalogos' => 'seguridad.roles_permisos',
     'seguridad_usuarios' => 'seguridad.usuarios',
@@ -394,8 +485,8 @@ $canAccess = static function (string $key) use ($permissionMap, $userPermissions
 $modulePermissions = [
     'inicio' => ['dashboard.ver', 'matricula_temporal.ver', 'representante.matricula_nueva', 'estudiante.mi_matricula', 'representante.estudiantes', 'asistencia.ver_propia', 'asistencia.representante.ver', 'novedades.ver_propia', 'novedades.representante.ver'],
     'academico' => ['estudiantes.gestionar', 'personas.gestionar', 'matriculas.gestionar', 'asistencia.calendario.gestionar', 'asistencia.registrar', 'asistencia.supervisar', 'justificaciones.gestionar', 'asistencia.ver_propia', 'asistencia.representante.ver', 'novedades.registrar', 'novedades.supervisar', 'novedades.ver_propia', 'novedades.representante.ver', 'calificaciones.registrar', 'calificaciones.editar', 'calificaciones.configurar', 'calificaciones.validar', 'calificaciones.publicar', 'calificaciones.auditoria.ver'],
-    'reportes' => ['dashboard.ver', 'asistencia.supervisar', 'calificaciones.validar', 'calificaciones.configurar', 'calificaciones.registrar', 'calificaciones.editar', 'calificaciones.publicar'],
-    'configuracion' => ['configuracion.gestionar', 'catalogos.gestionar', 'cursos.gestionar', 'matriculas.documentos', 'asistencia.calendario.gestionar', 'calificaciones.configurar', 'calificaciones.plantillas.gestionar'],
+    'configuracion' => ['configuracion.gestionar', 'catalogos.gestionar', 'cursos.gestionar', 'matriculas.documentos', 'asistencia.calendario.gestionar', 'calificaciones.configurar', 'calificaciones.plantillas.gestionar', 'contabilidad.configurar'],
+    'contabilidad' => ['contabilidad.ver', 'contabilidad.configurar', 'contabilidad.obligaciones.ver', 'contabilidad.rubros.ver', 'contabilidad.comprobantes.revisar', 'contabilidad.pagos.registrar', 'contabilidad.reportes.ver', 'contabilidad.auditoria.ver'],
     'seguridad' => ['seguridad.usuarios', 'seguridad.roles_permisos', 'usuarios_temporales.gestionar'],
 ];
 $canAccessModule = static function (string $moduleKey) use ($modulePermissions, $userPermissions, $representativeNewStudentEnabled): bool {
@@ -586,6 +677,7 @@ foreach ($logoPatterns as $logoPattern) {
                             <div class="empty-state">No existen periodos lectivos registrados.</div>
                         <?php else: ?>
                             <form method="POST" action="<?= htmlspecialchars(baseUrl('configuracion/periodo-visualizado'), ENT_QUOTES, 'UTF-8'); ?>" class="topbar-period-form">
+                                <?= csrfField(); ?>
                                 <input type="hidden" name="redirect_to" value="<?= htmlspecialchars(currentPath(), ENT_QUOTES, 'UTF-8'); ?>">
                                 <label for="topbar-period-select">Periodo lectivo</label>
                                 <select id="topbar-period-select" name="pleid">
@@ -618,8 +710,8 @@ foreach ($logoPatterns as $logoPattern) {
                             $itemKey = (string) ($item['key'] ?? '');
                             $isActiveSidebarItem = ($currentSection ?? '') === $itemKey
                                 || ($itemKey === 'asistencia_home' && str_starts_with((string) ($currentSection ?? ''), 'asistencia_'))
-                                || ($itemKey === 'asistencia_home' && ($currentSection ?? '') === 'reporte_asistencia')
                                 || ($itemKey === 'asistencia_home' && str_starts_with((string) ($currentSection ?? ''), 'novedades_'))
+                                || ($itemKey === 'reportes_home' && str_starts_with((string) ($currentSection ?? ''), 'reporte_'))
                                 || (
                                     $itemKey === 'configuracion_academica'
                                     && in_array((string) ($currentSection ?? ''), [
@@ -634,7 +726,9 @@ foreach ($logoPatterns as $logoPattern) {
                                         'materias_curso',
                                         'docentes_materias',
                                         'asistencia_configuracion',
+                                        'asistencia_calendario',
                                         'calificaciones',
+                                        'configuracion_contable',
                                     ], true)
                                 );
                             $sidebarChildren = isset($item['children']) && is_array($item['children']) ? $item['children'] : [];
@@ -651,8 +745,21 @@ foreach ($logoPatterns as $logoPattern) {
                                     <?php foreach ($sidebarChildren as $child): ?>
                                         <?php
                                         $childKey = (string) ($child['key'] ?? '');
+                                        $selectedAcademicConfigView = (string) ($_GET['view'] ?? 'areas');
+                                        $academicChildViewMap = [
+                                            'academica_areas' => 'areas',
+                                            'academica_asignaturas' => 'asignaturas',
+                                            'academica_grados' => 'grados',
+                                            'academica_cursos' => 'cursos',
+                                            'academica_materias' => 'materias',
+                                            'academica_docentes' => 'docentes',
+                                        ];
                                         $isActiveSidebarChild = ($currentSection ?? '') === $childKey
-                                            || ($childKey === 'academica_configuracion' && ($currentSection ?? '') === 'configuracion_academica');
+                                            || (
+                                                isset($academicChildViewMap[$childKey])
+                                                && ($currentSection ?? '') === 'configuracion_academica'
+                                                && $selectedAcademicConfigView === $academicChildViewMap[$childKey]
+                                            );
                                         ?>
                                         <a
                                             class="sidebar-subnav-link <?= $isActiveSidebarChild ? 'is-active' : ''; ?>"
@@ -669,6 +776,7 @@ foreach ($logoPatterns as $logoPattern) {
                 <?php endforeach; ?>
             </nav>
             <form method="POST" action="<?= htmlspecialchars(baseUrl('logout'), ENT_QUOTES, 'UTF-8'); ?>">
+                <?= csrfField(); ?>
                 <button class="btn-secondary sidebar-logout-button" type="submit">Cerrar sesion</button>
             </form>
         </aside>

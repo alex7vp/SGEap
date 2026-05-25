@@ -9,6 +9,7 @@ $assignedIds = $assignedPermissions[$roleId] ?? [];
 $categoryLabels = [
     'asistencia' => 'Asistencia',
     'calificaciones' => 'Calificaciones',
+    'contabilidad' => 'Gestion Contable',
     'configuracion' => 'Configuracion',
     'catalogos' => 'Catalogos',
     'cursos' => 'Cursos',
@@ -71,6 +72,7 @@ uasort($permissionCategories, static fn (array $a, array $b): int => strcmp((str
     <?php endif; ?>
 
     <form method="POST" action="<?= $h(baseUrl('seguridad/roles-permisos')); ?>" class="permission-form">
+        <?= csrfField(); ?>
         <input type="hidden" name="role_id" value="<?= $h($roleId); ?>">
 
         <div class="permission-category-list">

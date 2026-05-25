@@ -308,6 +308,7 @@ foreach (($components[(int) ($selectedSubperiodId ?? 0)] ?? []) as $component) {
                 <?php else: ?>
                     <?php if ($canAuthorizeGradeEntry && !$selectedSubperiodInRange && is_array($selectedSubperiod)): ?>
                         <form id="gradebook-reopen-form" method="POST" action="<?= $h(baseUrl('calificaciones/habilitar-subperiodo')); ?>">
+                            <?= csrfField(); ?>
                             <input type="hidden" name="mtcid" value="<?= $h($selectedSubject['mtcid']); ?>">
                             <input type="hidden" name="spcid" value="<?= $h($selectedSubperiodId); ?>">
                             <?php if ($useAdministrativeSelection): ?>
@@ -316,6 +317,7 @@ foreach (($components[(int) ($selectedSubperiodId ?? 0)] ?? []) as $component) {
                         </form>
                     <?php endif; ?>
                     <form method="POST" action="<?= $h(baseUrl('calificaciones/notas')); ?>">
+                        <?= csrfField(); ?>
                         <input type="hidden" name="mtcid" value="<?= $h($selectedSubject['mtcid']); ?>">
                         <input type="hidden" name="spcid" value="<?= $h($selectedSubperiodId); ?>">
                         <?php if ($useAdministrativeSelection): ?>
@@ -494,6 +496,7 @@ foreach (($components[(int) ($selectedSubperiodId ?? 0)] ?? []) as $component) {
                         <?php $componentId = (int) $component['cpcid']; ?>
                         <dialog class="calendar-dialog gradebook-activity-dialog" id="gradebook-activity-dialog-<?= $h($componentId); ?>">
                             <form method="POST" action="<?= $h(baseUrl('calificaciones/actividad')); ?>" class="data-form">
+                                <?= csrfField(); ?>
                                 <input type="hidden" name="mtcid" value="<?= $h($selectedSubject['mtcid']); ?>">
                                 <input type="hidden" name="spcid" value="<?= $h($selectedSubperiodId); ?>">
                                 <input type="hidden" name="cpcid" value="<?= $h($componentId); ?>">

@@ -86,6 +86,7 @@ $contextLabels = [
                                         class="status-switch-form"
                                         onsubmit="return confirm('Confirma que desea anular esta novedad?');"
                                     >
+                                        <?= csrfField(); ?>
                                         <input type="hidden" name="noeid" value="<?= htmlspecialchars((string) $novelty['noeid'], ENT_QUOTES, 'UTF-8'); ?>">
                                         <input type="text" name="noemotivo_anulacion" maxlength="250" placeholder="Motivo" required>
                                         <button class="btn-secondary btn-auto" type="submit">Anular</button>

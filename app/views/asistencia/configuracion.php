@@ -32,6 +32,7 @@ $configurationNote = (string) ($attendanceConfiguration['coaobservacion'] ?? '')
         </header>
 
         <form class="data-form" method="POST" action="<?= htmlspecialchars(baseUrl('asistencia/configuracion'), ENT_QUOTES, 'UTF-8'); ?>">
+            <?= csrfField(); ?>
             <div class="form-grid">
                 <div>
                     <div class="input-group">
@@ -73,7 +74,6 @@ $configurationNote = (string) ($attendanceConfiguration['coaobservacion'] ?? '')
             </div>
             <div class="actions-row">
                 <button class="btn-primary btn-inline" type="submit">Guardar configuracion</button>
-                <a class="btn-secondary btn-inline" href="<?= htmlspecialchars(baseUrl('asistencia/calendario#calendario-mes'), ENT_QUOTES, 'UTF-8'); ?>">Ver calendario</a>
             </div>
         </form>
     </section>

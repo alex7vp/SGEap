@@ -2109,11 +2109,16 @@ class AttendanceModel extends Model
     public function calendarDaysByRange(int $periodId, string $startDate, string $endDate): array
     {
         $statement = $this->db->prepare(
-            "SELECT caid, pleid, cafecha, catipo_jornada, cahabilitado, cahora_limite, caobservacion
-             FROM calendario_asistencia
-             WHERE pleid = :period_id
-               AND cafecha BETWEEN :start_date AND :end_date
-             ORDER BY cafecha ASC"
+            "SELECT ca.caid, ca.pleid, ca.cafecha, ca.catipo_jornada, ca.cahabilitado, ca.cahora_limite, ca.caobservacion,
+                    COUNT(ae.aesid) AS asistencia_registrada
+             FROM calendario_asistencia ca
+             LEFT JOIN sesion_clase sc ON sc.caid = ca.caid
+                AND sc.sclestado <> 'ANULADA'
+             LEFT JOIN asistencia_estudiante ae ON ae.sclid = sc.sclid
+             WHERE ca.pleid = :period_id
+               AND ca.cafecha BETWEEN :start_date AND :end_date
+             GROUP BY ca.caid, ca.pleid, ca.cafecha, ca.catipo_jornada, ca.cahabilitado, ca.cahora_limite, ca.caobservacion
+             ORDER BY ca.cafecha ASC"
         );
         $statement->execute([
             'period_id' => $periodId,
@@ -2128,6 +2133,25 @@ class AttendanceModel extends Model
         }
 
         return $map;
+    }
+
+    public function calendarDateHasAttendance(int $periodId, string $date): bool
+    {
+        $statement = $this->db->prepare(
+            "SELECT COUNT(ae.aesid)
+             FROM calendario_asistencia ca
+             INNER JOIN sesion_clase sc ON sc.caid = ca.caid
+                AND sc.sclestado <> 'ANULADA'
+             INNER JOIN asistencia_estudiante ae ON ae.sclid = sc.sclid
+             WHERE ca.pleid = :period_id
+               AND ca.cafecha = :class_date"
+        );
+        $statement->execute([
+            'period_id' => $periodId,
+            'class_date' => $date,
+        ]);
+
+        return (int) $statement->fetchColumn() > 0;
     }
 
     public function calendarDayByDate(int $periodId, string $date): array|false

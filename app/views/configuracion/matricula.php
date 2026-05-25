@@ -36,6 +36,7 @@ $selectedMatriculationConfigMode = $editingConfigurationId > 0 || empty($setting
     </header>
 
     <form class="data-form matriculation-config-form" method="POST" action="<?= htmlspecialchars(baseUrl($editingConfigurationId > 0 ? 'configuracion/matricula/actualizar' : 'configuracion/matricula'), ENT_QUOTES, 'UTF-8'); ?>">
+        <?= csrfField(); ?>
         <?php if ($editingConfigurationId > 0): ?>
             <input type="hidden" name="cmid" value="<?= htmlspecialchars((string) $editingConfigurationId, ENT_QUOTES, 'UTF-8'); ?>">
         <?php endif; ?>
@@ -173,6 +174,7 @@ $selectedMatriculationConfigMode = $editingConfigurationId > 0 || empty($setting
                             <td>
                                 <?php if (!empty($setting['cmid'])): ?>
                                     <form method="POST" action="<?= htmlspecialchars(baseUrl('configuracion/matricula/ordinaria'), ENT_QUOTES, 'UTF-8'); ?>" class="inline-toggle-form">
+                                        <?= csrfField(); ?>
                                         <input type="hidden" name="cmid" value="<?= htmlspecialchars((string) $setting['cmid'], ENT_QUOTES, 'UTF-8'); ?>">
                                         <input type="hidden" name="enabled" value="<?= !empty($setting['cmhabilitada']) ? '0' : '1'; ?>">
                                         <button type="submit" class="permission-option-state permission-option-toggle <?= !empty($setting['cmhabilitada']) ? 'is-active' : 'is-inactive'; ?>" title="<?= !empty($setting['cmhabilitada']) ? 'Cerrar matricula ordinaria' : 'Abrir matricula ordinaria'; ?>">
@@ -191,6 +193,7 @@ $selectedMatriculationConfigMode = $editingConfigurationId > 0 || empty($setting
                             <td>
                                 <?php if (!empty($setting['cmid'])): ?>
                                     <form method="POST" action="<?= htmlspecialchars(baseUrl('configuracion/matricula/extraordinaria'), ENT_QUOTES, 'UTF-8'); ?>" class="inline-toggle-form">
+                                        <?= csrfField(); ?>
                                         <input type="hidden" name="cmid" value="<?= htmlspecialchars((string) $setting['cmid'], ENT_QUOTES, 'UTF-8'); ?>">
                                         <input type="hidden" name="enabled" value="<?= !empty($setting['cmhabilitadaextraordinaria']) ? '0' : '1'; ?>">
                                         <button

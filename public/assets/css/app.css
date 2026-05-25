@@ -587,13 +587,13 @@ input::placeholder {
 
 .sidebar-nav {
     display: grid;
-    gap: 12px;
-    margin: 18px 0;
+    gap: 7px;
+    margin: 12px 0;
 }
 
 .sidebar-group {
     display: grid;
-    gap: 6px;
+    gap: 3px;
 }
 
 .sidebar-group + .sidebar-group {
@@ -613,8 +613,8 @@ input::placeholder {
 .sidebar-nav a {
     display: inline-flex;
     align-items: center;
-    gap: 10px;
-    padding: 9px 11px;
+    gap: 8px;
+    padding: 6px 9px;
     border-radius: 0;
     color: var(--text);
     text-decoration: none;
@@ -651,16 +651,16 @@ input::placeholder {
 
 .sidebar-subnav {
     display: grid;
-    gap: 2px;
-    margin: -4px 0 4px 14px;
-    padding: 4px 0 4px 8px;
+    gap: 1px;
+    margin: -2px 0 2px 12px;
+    padding: 2px 0 2px 7px;
     border-left: 2px solid rgba(15, 76, 129, 0.16);
 }
 
 .sidebar-nav .sidebar-subnav-link {
-    gap: 8px;
-    min-height: 26px;
-    padding: 5px 8px;
+    gap: 7px;
+    min-height: 23px;
+    padding: 3px 7px;
     background: transparent;
     border-color: transparent;
     color: #42566b;
@@ -1253,6 +1253,8 @@ input::placeholder {
 }
 
 .content-body {
+    display: flex;
+    flex-direction: column;
     padding: 24px 28px 28px;
 }
 
@@ -1386,6 +1388,11 @@ a.btn-primary.btn-icon-only.btn-icon-small:hover {
     background: var(--card-soft);
     color: var(--muted);
     font-size: 0.92rem;
+}
+
+.content-body > .module-note {
+    order: 1000;
+    margin: 18px 0 0;
 }
 
 .sr-only {
@@ -1543,41 +1550,45 @@ a.btn-primary.btn-icon-only.btn-icon-small:hover {
 }
 
 .grade-profile-creation-block {
-    padding-bottom: 1rem;
+    padding-bottom: 0;
 }
 
 .grade-profile-mode-selector {
     display: inline-flex;
     flex-wrap: wrap;
-    gap: 8px;
-    margin-bottom: 1rem;
-    padding: 6px;
-    border: 1px solid #c7d6e4;
-    background: #f4f8fb;
+    gap: 6px;
+    margin-bottom: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
 }
 
 .grade-profile-mode-option {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
-    min-height: 34px;
-    padding: 6px 12px;
-    border: 1px solid transparent;
-    background: #ffffff;
+    gap: 6px;
+    min-height: 30px;
+    padding: 4px 10px;
+    border: 0;
+    background: #f8fafc;
     color: var(--text);
     font-size: .88rem;
     font-weight: 700;
     cursor: pointer;
+    box-shadow: none;
 }
 
 .grade-profile-mode-option:has(input:checked) {
-    border-color: var(--primary);
     background: #eaf4ff;
     color: var(--primary);
 }
 
 .grade-profile-mode-option input {
-    width: auto;
+    position: absolute;
+    inline-size: 1px;
+    block-size: 1px;
+    opacity: 0;
+    pointer-events: none;
 }
 
 .grade-profile-panel-header {
@@ -2330,6 +2341,22 @@ a.btn-primary.btn-icon-only.btn-icon-small:hover {
     padding: 16px 18px 0;
 }
 
+.catalog-feedback-footer {
+    border-top: 1px solid var(--border);
+    margin-top: 12px;
+    padding: 10px 18px 12px;
+    background: #f8fafc;
+}
+
+.catalog-feedback-footer .alert {
+    margin: 0;
+}
+
+.catalog-module-footer {
+    margin-top: 12px;
+    margin-bottom: 0;
+}
+
 .catalog-create-panel {
     align-items: stretch;
     gap: 8px;
@@ -2949,7 +2976,14 @@ a.btn-primary.btn-icon-only.btn-icon-small:hover {
 }
 
 .role-permission-filter-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
     align-items: flex-start;
+}
+
+.role-permission-role-selector {
+    flex: 1 1 520px;
 }
 
 .role-permission-filter-group {
@@ -2963,18 +2997,35 @@ a.btn-primary.btn-icon-only.btn-icon-small:hover {
     min-width: 0;
 }
 
-.role-permission-filter-button {
-    border-radius: 0 8px 8px 0;
-    min-width: 108px;
-    box-shadow: none;
-}
-
-.role-permission-filter-group select + .role-permission-filter-button {
-    margin-left: -1px;
-}
-
 .security-assignment-block + .security-assignment-block {
     margin-top: 24px;
+}
+
+[data-academic-config-view-panel] > .grade-profile-creation-block {
+    margin-bottom: 6px;
+}
+
+[data-academic-config-view-panel] > .grade-profile-creation-block + [data-option-view-panel],
+[data-academic-config-view-panel] > .grade-profile-creation-block + .security-assignment-block {
+    margin-top: 6px;
+}
+
+.grade-config-view-stack > .grade-profile-creation-block {
+    margin-bottom: 6px;
+}
+
+.grade-config-view-stack > .grade-profile-creation-block + [data-option-view-panel] {
+    margin-top: 6px;
+}
+
+.grade-profile-detail-selector {
+    margin-top: 12px;
+    margin-bottom: 6px;
+}
+
+.grade-profile-edit-form[data-option-view-panel],
+#promocion[data-option-view-panel] {
+    margin-top: 6px;
 }
 
 .security-assignment-header {
@@ -4432,13 +4483,83 @@ thead .role-user-sticky {
     text-align: center;
 }
 
-.calendar-month-selector {
+.calendar-month-title {
     display: flex;
     justify-content: center;
+    min-width: 0;
 }
 
-.calendar-month-selector select {
-    width: min(100%, 280px);
+.calendar-month-picker {
+    position: relative;
+}
+
+.calendar-month-picker summary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 34px;
+    padding: 4px 12px;
+    color: var(--primary);
+    font-size: 1.1rem;
+    font-weight: 700;
+    letter-spacing: 0;
+    text-transform: uppercase;
+    cursor: pointer;
+    list-style: none;
+}
+
+.calendar-month-picker summary::-webkit-details-marker {
+    display: none;
+}
+
+.calendar-month-picker summary::after {
+    content: "\f078";
+    font-family: FontAwesome;
+    font-size: 0.72rem;
+    line-height: 1;
+}
+
+.calendar-month-menu {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 50%;
+    z-index: 20;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(120px, 1fr));
+    gap: 6px;
+    width: min(320px, calc(100vw - 48px));
+    padding: 10px;
+    border: 1px solid var(--border);
+    background: #ffffff;
+    box-shadow: var(--shadow-soft);
+    transform: translateX(-50%);
+}
+
+.calendar-month-menu a {
+    padding: 7px 9px;
+    border: 1px solid var(--border);
+    background: #f8fbfe;
+    color: var(--text);
+    text-align: center;
+    text-decoration: none;
+    font-size: 0.86rem;
+}
+
+.calendar-month-menu a:hover,
+.calendar-month-menu a.is-active {
+    border-color: var(--primary);
+    background: var(--primary-soft);
+    color: var(--primary);
+    text-decoration: none;
+}
+
+.calendar-bulk-actions {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
 }
 
 .data-table th [data-hour-master] {
@@ -4469,6 +4590,7 @@ thead .role-user-sticky {
 }
 
 .calendar-day {
+    position: relative;
     min-height: 82px;
     padding: 8px;
     border-right: 1px solid var(--border);
@@ -4483,12 +4605,50 @@ thead .role-user-sticky {
     transition: background 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
 }
 
+.calendar-day-checkbox {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    margin: 0;
+    z-index: 2;
+}
+
+.calendar-day-checkbox input {
+    width: 13px;
+    height: 13px;
+    margin: 0;
+    accent-color: var(--primary);
+}
+
+.calendar-day-edit {
+    display: inline-flex;
+    width: fit-content;
+    color: inherit;
+    text-decoration: none;
+}
+
+.calendar-day-edit:hover,
+.calendar-day-edit:focus-visible {
+    color: var(--primary);
+    text-decoration: none;
+}
+
+.calendar-day.is-editable {
+    cursor: pointer;
+}
+
 .calendar-day strong {
     color: #16354f;
     font-size: 0.92rem;
 }
 
 .calendar-day span,
+.calendar-day small,
 .calendar-status-pill {
     display: inline-flex;
     align-items: center;
@@ -4503,6 +4663,13 @@ thead .role-user-sticky {
     text-transform: uppercase;
     background: #f4f6f8;
     color: var(--muted);
+}
+
+.calendar-day small {
+    border-radius: 6px;
+    background: #e5e7eb;
+    color: #4b5563;
+    text-transform: none;
 }
 
 .calendar-day.is-type-normal span,
@@ -4599,6 +4766,16 @@ thead .role-user-sticky {
 
 .calendar-day.is-outside-range strong {
     color: #98a2b3;
+}
+
+.calendar-day.is-locked {
+    background: #f3f4f6;
+    box-shadow: inset 3px 0 0 #6b7280;
+}
+
+.calendar-day.is-locked:hover {
+    color: var(--text);
+    transform: none;
 }
 
 .calendar-day.is-selected {

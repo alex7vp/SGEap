@@ -188,6 +188,7 @@ $healthConditionTemplate .= '</select></div></div>'
     <?php endif; ?>
 
     <form class="data-form student-module-form <?= $readOnly ? 'is-readonly' : ''; ?>" method="POST" action="<?= $h(baseUrl($moduleFormAction)); ?>">
+        <?= csrfField(); ?>
         <input type="hidden" name="estid" value="<?= $h($studentId); ?>">
         <input type="hidden" name="section" value="<?= $h($section); ?>">
         <?php foreach ($extraHiddenFields as $fieldName => $fieldValue): ?>

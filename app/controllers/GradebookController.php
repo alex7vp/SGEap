@@ -612,7 +612,7 @@ class GradebookController extends Controller
         $this->view('calificaciones.libreta', [
             'appName' => config('app')['name'] ?? 'SGEap',
             'pageTitle' => 'Libreta de calificaciones',
-            'currentModule' => 'reportes',
+            'currentModule' => 'academico',
             'currentSection' => 'reporte_libreta',
             'user' => $user,
             'currentPeriod' => $period,
@@ -713,7 +713,7 @@ class GradebookController extends Controller
         $this->view('calificaciones.cuadro_final', [
             'appName' => config('app')['name'] ?? 'SGEap',
             'pageTitle' => 'Cuadro final',
-            'currentModule' => 'reportes',
+            'currentModule' => 'academico',
             'currentSection' => 'reporte_cuadro_final',
             'user' => $user,
             'currentPeriod' => $period,

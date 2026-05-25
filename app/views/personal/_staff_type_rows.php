@@ -27,6 +27,7 @@
         <?php endforeach; ?>
         <td>
             <form id="staff-type-form-<?= htmlspecialchars((string) $staffId, ENT_QUOTES, 'UTF-8'); ?>" method="POST" action="<?= htmlspecialchars(baseUrl('personal/tipos'), ENT_QUOTES, 'UTF-8'); ?>">
+                <?= csrfField(); ?>
                 <input type="hidden" name="staff_id" value="<?= htmlspecialchars((string) $staffId, ENT_QUOTES, 'UTF-8'); ?>">
             </form>
             <button class="btn-primary btn-auto btn-icon-only btn-icon-small" type="submit" form="staff-type-form-<?= htmlspecialchars((string) $staffId, ENT_QUOTES, 'UTF-8'); ?>" title="Guardar tipos" aria-label="Guardar tipos">

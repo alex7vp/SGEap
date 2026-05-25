@@ -18,6 +18,7 @@ require BASE_PATH . '/app/views/partials/header.php';
     <p class="module-note">Este formulario adopta la misma estructura compacta de personas para mantener consistencia entre modulos.</p>
 
     <form class="data-form" method="POST" action="<?= htmlspecialchars(baseUrl('estudiantes'), ENT_QUOTES, 'UTF-8'); ?>">
+        <?= csrfField(); ?>
         <div class="form-grid">
             <div class="form-group form-group-full">
                 <div class="input-group">

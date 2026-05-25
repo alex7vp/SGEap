@@ -20,6 +20,7 @@ $h = static fn (mixed $value): string => htmlspecialchars((string) $value, ENT_Q
         <div class="empty-state">No existen areas activas. Registra o activa un area academica primero.</div>
     <?php else: ?>
         <form class="data-form" method="POST" action="<?= $h(baseUrl('configuracion/academica/asignaturas')); ?>">
+            <?= csrfField(); ?>
             <div class="form-grid">
                 <div>
                     <div class="input-group">
@@ -72,6 +73,7 @@ $h = static fn (mixed $value): string => htmlspecialchars((string) $value, ENT_Q
                         <tr data-security-row>
                             <td>
                                 <form id="subject-form-<?= $h($subject['asgid']); ?>" method="POST" action="<?= $h(baseUrl('configuracion/academica/asignaturas/actualizar')); ?>" data-security-edit-form>
+                                    <?= csrfField(); ?>
                                     <input type="hidden" name="asgid" value="<?= $h($subject['asgid']); ?>">
                                     <select class="security-inline-select" name="areaid" required disabled data-security-input>
                                         <?php foreach ($areas as $area): ?>
@@ -90,6 +92,7 @@ $h = static fn (mixed $value): string => htmlspecialchars((string) $value, ENT_Q
                             </td>
                             <td>
                                 <form method="POST" action="<?= $h(baseUrl('configuracion/academica/asignaturas/estado')); ?>" class="status-switch-form">
+                                    <?= csrfField(); ?>
                                     <input type="hidden" name="asgid" value="<?= $h($subject['asgid']); ?>">
                                     <input type="hidden" name="asgestado" value="<?= !empty($subject['asgestado']) ? '0' : '1'; ?>">
                                     <button class="status-switch <?= !empty($subject['asgestado']) ? 'is-active' : ''; ?>" type="submit" title="<?= !empty($subject['asgestado']) ? 'Inactivar asignatura' : 'Activar asignatura'; ?>" aria-label="<?= !empty($subject['asgestado']) ? 'Inactivar asignatura' : 'Activar asignatura'; ?>">

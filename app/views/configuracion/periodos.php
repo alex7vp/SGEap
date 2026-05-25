@@ -30,6 +30,7 @@ $selectedPeriodMode = $editingPeriodId > 0 || empty($periods) ? 'form' : 'list';
     </header>
 
     <form class="data-form" method="POST" action="<?= htmlspecialchars(baseUrl($editingPeriodId > 0 ? 'configuracion/periodos/actualizar' : 'configuracion/periodos'), ENT_QUOTES, 'UTF-8'); ?>">
+        <?= csrfField(); ?>
         <?php if ($editingPeriodId > 0): ?>
             <input type="hidden" name="pleid" value="<?= htmlspecialchars((string) $editingPeriodId, ENT_QUOTES, 'UTF-8'); ?>">
         <?php endif; ?>
@@ -126,6 +127,7 @@ $selectedPeriodMode = $editingPeriodId > 0 || empty($periods) ? 'form' : 'list';
                             <td><?= htmlspecialchars((string) $period['plefechafin'], ENT_QUOTES, 'UTF-8'); ?></td>
                             <td>
                                 <form method="POST" action="<?= htmlspecialchars(baseUrl('configuracion/periodo-actual'), ENT_QUOTES, 'UTF-8'); ?>" class="status-switch-form">
+                                    <?= csrfField(); ?>
                                     <input type="hidden" name="pleid" value="<?= htmlspecialchars((string) $period['pleid'], ENT_QUOTES, 'UTF-8'); ?>">
                                     <input type="hidden" name="redirect_to" value="/configuracion/periodos">
                                     <button

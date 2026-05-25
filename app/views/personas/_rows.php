@@ -23,6 +23,7 @@
                 </a>
 
                 <form method="POST" action="<?= htmlspecialchars(baseUrl('personas/eliminar'), ENT_QUOTES, 'UTF-8'); ?>" onsubmit="return confirm('Confirma que desea eliminar esta persona?');">
+                    <?= csrfField(); ?>
                     <input type="hidden" name="perid" value="<?= htmlspecialchars((string) $person['perid'], ENT_QUOTES, 'UTF-8'); ?>">
                     <button
                         class="icon-button icon-button-delete"

@@ -79,10 +79,10 @@ INSERT INTO documento_matricula (
     domobligatorio,
     domactivo
 ) VALUES
-('Cedula del estudiante', 'Copia de cedula o documento de identidad del estudiante', 'ESTATICO', 'URL', '#', NULL, NULL, true, true),
-('Cedula del representante', 'Copia de cedula o documento de identidad del representante', 'ESTATICO', 'URL', '#', NULL, NULL, true, true),
-('Certificado de promocion', 'Certificado de promocion o pase de ano anterior', 'ESTATICO', 'URL', '#', NULL, NULL, true, true),
-('Ficha de matricula', 'Plantilla institucional de ficha de matricula', 'PLANTILLA', 'ARCHIVO', NULL, 'ficha_matricula.docx', 'DOCX', true, true)
+('Codigo de convivencia', 'Documento institucional de normas de convivencia que debe aceptar el estudiante y su representante.', 'ESTATICO', 'URL', '#', NULL, NULL, true, true),
+('Politica de privacidad de datos', 'Autorizacion y aceptacion del tratamiento de datos personales para el proceso de matriculacion.', 'ESTATICO', 'URL', '#', NULL, NULL, true, true),
+('Terminos y condiciones de matriculacion', 'Condiciones generales del proceso de matriculacion que deben ser aceptadas por el representante.', 'ESTATICO', 'URL', '#', NULL, NULL, true, true),
+('Carta compromiso de padres de familia', 'Compromiso del padre, madre o representante legal con las obligaciones institucionales.', 'ESTATICO', 'URL', '#', NULL, NULL, true, true)
 ON CONFLICT (domnombre) DO NOTHING;
 
 INSERT INTO grado (nedid, granombre)

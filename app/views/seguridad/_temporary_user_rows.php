@@ -43,6 +43,7 @@ $stateClass = static function (string $state): string {
             <?php if ($canManage): ?>
                 <div class="actions-group temporary-user-actions">
                     <form method="POST" action="<?= htmlspecialchars(baseUrl('seguridad/usuarios-temporales/clave'), ENT_QUOTES, 'UTF-8'); ?>" class="security-password-reset-form">
+                        <?= csrfField(); ?>
                         <input type="hidden" name="usuid" value="<?= htmlspecialchars((string) $account['usuid'], ENT_QUOTES, 'UTF-8'); ?>">
                         <input
                             class="security-password-reset-input"
@@ -58,6 +59,7 @@ $stateClass = static function (string $state): string {
                         </button>
                     </form>
                     <form method="POST" action="<?= htmlspecialchars(baseUrl('seguridad/usuarios-temporales/extender'), ENT_QUOTES, 'UTF-8'); ?>" class="security-password-reset-form">
+                        <?= csrfField(); ?>
                         <input type="hidden" name="usuid" value="<?= htmlspecialchars((string) $account['usuid'], ENT_QUOTES, 'UTF-8'); ?>">
                         <input
                             class="temporary-user-expiration-input"
@@ -72,6 +74,7 @@ $stateClass = static function (string $state): string {
                         </button>
                     </form>
                     <form method="POST" action="<?= htmlspecialchars(baseUrl('seguridad/usuarios-temporales/eliminar'), ENT_QUOTES, 'UTF-8'); ?>" class="security-password-reset-form">
+                        <?= csrfField(); ?>
                         <input type="hidden" name="usuid" value="<?= htmlspecialchars((string) $account['usuid'], ENT_QUOTES, 'UTF-8'); ?>">
                         <input
                             class="temporary-user-reason-input"

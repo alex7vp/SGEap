@@ -78,6 +78,47 @@ function redirect(string $path): void
     exit;
 }
 
+function csrfToken(): string
+{
+    if (empty($_SESSION['_csrf_token']) || !is_string($_SESSION['_csrf_token'])) {
+        $_SESSION['_csrf_token'] = bin2hex(random_bytes(32));
+    }
+
+    return $_SESSION['_csrf_token'];
+}
+
+function csrfField(): string
+{
+    return '<input type="hidden" name="_csrf_token" value="' .
+        htmlspecialchars(csrfToken(), ENT_QUOTES, 'UTF-8') .
+        '">';
+}
+
+function isValidCsrfToken(?string $token): bool
+{
+    return is_string($token)
+        && isset($_SESSION['_csrf_token'])
+        && is_string($_SESSION['_csrf_token'])
+        && hash_equals($_SESSION['_csrf_token'], $token);
+}
+
+function verifyCsrfRequest(): void
+{
+    if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
+        return;
+    }
+
+    $token = $_POST['_csrf_token'] ?? null;
+
+    if (isValidCsrfToken(is_string($token) ? $token : null)) {
+        return;
+    }
+
+    http_response_code(403);
+    echo 'La sesion del formulario expiro. Regrese e intente nuevamente.';
+    exit;
+}
+
 function sessionFlash(string $key, ?string $value = null): ?string
 {
     if ($value !== null) {

@@ -397,6 +397,7 @@ $healthConditionTemplate = ob_get_clean();
             <div class="empty-state">Para matricular necesitas cursos activos del periodo, estados de matricula y parentescos registrados.</div>
         <?php else: ?>
             <form class="data-form matricula-form" method="POST" action="<?= htmlspecialchars(baseUrl($matriculationFormAction), ENT_QUOTES, 'UTF-8'); ?>" enctype="multipart/form-data" data-matricula-form data-matricula-draft-key="<?= htmlspecialchars($matriculationDraftKey, ENT_QUOTES, 'UTF-8'); ?>">
+                <?= csrfField(); ?>
                 <input type="hidden" name="existing_estid" value="<?= htmlspecialchars((string) ($old['existing_estid'] ?? 0), ENT_QUOTES, 'UTF-8'); ?>">
                 <div class="wizard-tabs" role="tablist" aria-label="Secciones de matricula">
                     <button type="button" class="wizard-tab is-active" data-wizard-tab="persona">Estudiante</button>
@@ -855,6 +856,7 @@ $healthConditionTemplate = ob_get_clean();
                 action="<?= htmlspecialchars(baseUrl('matriculas/sincronizar-accesos'), ENT_QUOTES, 'UTF-8'); ?>"
                 onsubmit="return confirm('Se crearan o reactivaran usuarios para estudiantes y representantes con matricula activa. Desea continuar?');"
             >
+                <?= csrfField(); ?>
                 <button class="btn-secondary btn-auto" type="submit">
                     <i class="fa fa-refresh" aria-hidden="true"></i>
                     <span>Sincronizar usuarios</span>

@@ -42,10 +42,10 @@ class ModuleController extends Controller
                 ],
                 [
                     'label' => 'Novedades y asistencia',
-                    'description' => 'Centraliza configuracion, calendarios, registro, supervision, justificaciones, reportes y novedades.',
+                    'description' => 'Centraliza registro, supervision, justificaciones, reportes y novedades.',
                     'url' => baseUrl('asistencia'),
                     'icon' => 'fa-calendar-check-o',
-                    'permission' => 'asistencia.calendario.gestionar|asistencia.registrar|asistencia.supervisar|justificaciones.gestionar|asistencia.ver_propia|asistencia.representante.ver|novedades.registrar|novedades.supervisar|novedades.ver_propia|novedades.representante.ver',
+                    'permission' => 'asistencia.registrar|asistencia.supervisar|justificaciones.gestionar|asistencia.ver_propia|asistencia.representante.ver|novedades.registrar|novedades.supervisar|novedades.ver_propia|novedades.representante.ver',
                 ],
                 [
                     'label' => 'Calificaciones',
@@ -53,6 +53,13 @@ class ModuleController extends Controller
                     'url' => baseUrl('calificaciones/registro'),
                     'icon' => 'fa-check-square',
                     'permission' => 'asistencia.registrar|calificaciones.registrar|calificaciones.editar|calificaciones.configurar|calificaciones.validar|calificaciones.publicar|calificaciones.auditoria.ver',
+                ],
+                [
+                    'label' => 'Reportes',
+                    'description' => 'Agrupa reportes academicos de asistencia, calificaciones y novedades.',
+                    'url' => baseUrl('reportes'),
+                    'icon' => 'fa-bar-chart',
+                    'permission' => 'asistencia.supervisar|calificaciones.validar|calificaciones.configurar|calificaciones.registrar|calificaciones.editar|calificaciones.publicar',
                 ],
             ]
         );
@@ -64,22 +71,8 @@ class ModuleController extends Controller
             'academico',
             'asistencia_home',
             'Novedades y asistencia',
-            'Agrupa la configuracion operativa, calendarios, registro, supervision, justificaciones, reportes y consultas de novedades y asistencia.',
+            'Agrupa registro, supervision, justificaciones, reportes y consultas de novedades y asistencia.',
             [
-                [
-                    'label' => 'Configuracion de asistencia',
-                    'description' => 'Define el rango real de inicio y fin de clases usado por el calendario.',
-                    'url' => baseUrl('asistencia/configuracion'),
-                    'icon' => 'fa-calendar-check-o',
-                    'permission' => 'asistencia.calendario.gestionar',
-                ],
-                [
-                    'label' => 'Calendario de asistencia',
-                    'description' => 'Define jornadas normales, reducidas, suspendidas o especiales por fecha.',
-                    'url' => baseUrl('asistencia/calendario'),
-                    'icon' => 'fa-calendar',
-                    'permission' => 'asistencia.calendario.gestionar',
-                ],
                 [
                     'label' => 'Justificaciones',
                     'description' => 'Registra, aprueba, rechaza y anula justificaciones de asistencia.',
@@ -107,13 +100,6 @@ class ModuleController extends Controller
                     'url' => baseUrl('asistencia/registro'),
                     'icon' => 'fa-check-square-o',
                     'permission' => 'asistencia.registrar',
-                ],
-                [
-                    'label' => 'Reporte de asistencia',
-                    'description' => 'Consolida asistencias, atrasos y faltas por rango, curso o estudiante.',
-                    'url' => baseUrl('reportes/asistencia'),
-                    'icon' => 'fa-bar-chart',
-                    'permission' => 'asistencia.supervisar',
                 ],
                 [
                     'label' => 'Mi asistencia y novedades',
@@ -162,6 +148,13 @@ class ModuleController extends Controller
                     'icon' => 'fa-sitemap',
                     'permission' => 'configuracion.gestionar|catalogos.gestionar|cursos.gestionar|matriculas.documentos|asistencia.calendario.gestionar',
                 ],
+                [
+                    'label' => 'Configuracion contable',
+                    'description' => 'Define valores oficiales, alcances, meses de pension y reglas base para Gestion Contable.',
+                    'url' => baseUrl('configuracion/contable'),
+                    'icon' => 'fa-usd',
+                    'permission' => 'contabilidad.configurar',
+                ],
             ]
         );
     }
@@ -185,16 +178,6 @@ class ModuleController extends Controller
         ));
         $views = array_values(array_filter([
             [
-                'key' => 'grados',
-                'label' => 'Grados',
-                'permission' => 'catalogos.gestionar',
-            ],
-            [
-                'key' => 'cursos',
-                'label' => 'Cursos',
-                'permission' => 'cursos.gestionar',
-            ],
-            [
                 'key' => 'areas',
                 'label' => 'Areas academicas',
                 'permission' => 'asistencia.calendario.gestionar',
@@ -203,6 +186,16 @@ class ModuleController extends Controller
                 'key' => 'asignaturas',
                 'label' => 'Asignaturas',
                 'permission' => 'asistencia.calendario.gestionar',
+            ],
+            [
+                'key' => 'grados',
+                'label' => 'Grados',
+                'permission' => 'catalogos.gestionar',
+            ],
+            [
+                'key' => 'cursos',
+                'label' => 'Cursos',
+                'permission' => 'cursos.gestionar',
             ],
             [
                 'key' => 'materias',
@@ -231,6 +224,7 @@ class ModuleController extends Controller
             'selectedAcademicView' => $selectedView,
             'currentPeriod' => $period,
             'grades' => $grades,
+            'levels' => $gradeModel->allLevels(),
             'parallels' => $courseModel->allParallels(),
             'courses' => $courses,
             'activeCourses' => array_values(array_filter($courses, static fn (array $course): bool => !empty($course['curestado']))),
@@ -242,16 +236,37 @@ class ModuleController extends Controller
             'activeCourseSubjects' => $activeCourseSubjects,
             'teachers' => $attendanceModel->activeTeachers(),
             'teacherAssignments' => $periodId > 0 ? $attendanceModel->activeTeacherAssignmentsByCourseSubject($periodId) : [],
+            'gradeFormFeedback' => $this->gradeFormFeedback(),
             'gradeListFeedback' => $this->gradeListFeedback(),
             'courseListFeedback' => $this->courseListFeedback(),
             'success' => sessionFlash('success'),
             'error' => sessionFlash('error'),
+            'gradeOld' => [
+                'graid' => '',
+                'nedid' => sessionFlash('old_nedid') ?? '',
+                'granombre' => sessionFlash('old_granombre') ?? '',
+            ],
             'old' => [
                 'graid' => sessionFlash('old_course_grade') ?? '',
                 'prlid' => sessionFlash('old_course_parallel') ?? '',
                 'curestado' => sessionFlash('old_course_status') ?? '1',
             ],
         ]);
+    }
+
+    private function gradeFormFeedback(): ?array
+    {
+        $type = sessionFlash('grade_form_feedback_type');
+        $message = sessionFlash('grade_form_feedback_message');
+
+        if ($type === null || $message === null) {
+            return null;
+        }
+
+        return [
+            'type' => $type,
+            'message' => $message,
+        ];
     }
 
     private function gradeListFeedback(): ?array
@@ -287,10 +302,10 @@ class ModuleController extends Controller
     public function reports(): void
     {
         $this->renderModuleHome(
-            'reportes',
+            'academico',
             'reportes_home',
-            'Reportes',
-            'Consolida salidas de informacion y consultas ejecutivas.',
+            'Reportes academicos',
+            'Consolida reportes de asistencia, calificaciones y novedades vinculados a la gestion academica.',
             [
                 [
                     'label' => 'Reporte de asistencia',

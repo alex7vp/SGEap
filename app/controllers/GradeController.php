@@ -17,26 +17,8 @@ class GradeController extends Controller
 
     public function create(): void
     {
-        $user = $this->requireAuth();
-        $gradeModel = new GradeModel();
-
-        $this->view('grados.create', [
-            'appName' => config('app')['name'] ?? 'SGEap',
-            'pageTitle' => 'Nuevo grado',
-            'currentSection' => 'grados',
-            'user' => $user,
-            'success' => null,
-            'error' => null,
-            'gradeFormFeedback' => $this->gradeFormFeedback(),
-            'formAction' => baseUrl('grados'),
-            'submitLabel' => 'Guardar grado',
-            'levels' => $gradeModel->allLevels(),
-            'old' => [
-                'graid' => '',
-                'nedid' => sessionFlash('old_nedid') ?? '',
-                'granombre' => sessionFlash('old_granombre') ?? '',
-            ],
-        ]);
+        $this->requireAuth();
+        $this->redirect('/configuracion/academica?view=grados#grado-form');
     }
 
     public function edit(): void
@@ -78,7 +60,7 @@ class GradeController extends Controller
         if ($data['nedid'] <= 0 || $data['granombre'] === '') {
             $this->flashGradeFormData($data);
             $this->flashGradeFormFeedback('error', 'Nivel educativo y nombre del grado son obligatorios.');
-            $this->redirect('/grados/crear#grado-form');
+            $this->redirect('/configuracion/academica?view=grados#grado-form');
         }
 
         $gradeModel = new GradeModel();
@@ -86,7 +68,7 @@ class GradeController extends Controller
         if ($gradeModel->existsCombination($data['nedid'], $data['granombre'])) {
             $this->flashGradeFormData($data);
             $this->flashGradeFormFeedback('error', 'Ya existe un grado registrado con ese nombre en el nivel seleccionado.');
-            $this->redirect('/grados/crear#grado-form');
+            $this->redirect('/configuracion/academica?view=grados#grado-form');
         }
 
         $gradeModel->create($data);
