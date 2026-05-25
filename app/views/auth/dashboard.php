@@ -26,6 +26,9 @@ $canOwnAttendance = $can('asistencia.ver_propia');
 $canRepresentativeAttendance = $can('asistencia.representante.ver');
 $canOwnNovelties = $can('novedades.ver_propia');
 $canRepresentativeNovelties = $can('novedades.representante.ver');
+$canRepresentativeAccounting = $can('contabilidad.representante.obligaciones.ver')
+    || $can('contabilidad.representante.pagos.ver')
+    || $can('contabilidad.representante.comprobantes.subir');
 $canGradesModule = $can('calificaciones.registrar')
     || $can('calificaciones.editar')
     || $can('calificaciones.configurar')
@@ -86,6 +89,7 @@ $quickLinks = [
     ['visible' => $canOwnMatriculation, 'label' => 'Mi matricula', 'url' => baseUrl('mi-matricula')],
     ['visible' => $canOwnAttendance || $canOwnNovelties, 'label' => 'Mi asistencia y novedades', 'url' => baseUrl('asistencia/mi-asistencia')],
     ['visible' => $canRepresentativeStudents, 'label' => 'Mis estudiantes', 'url' => baseUrl('dashboard')],
+    ['visible' => $canRepresentativeAccounting, 'label' => 'Mis pagos', 'url' => baseUrl('representante/contabilidad')],
     ['visible' => $canRepresentativeAttendance || $canRepresentativeNovelties, 'label' => 'Asistencia y novedades representados', 'url' => baseUrl('asistencia/representante')],
     ['visible' => $canPersonas, 'label' => 'Ver personal', 'url' => baseUrl('personal')],
     ['visible' => $canEstudiantes, 'label' => 'Registrar estudiante', 'url' => baseUrl('estudiantes/crear')],

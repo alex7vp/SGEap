@@ -8,4 +8,5 @@ return [
     'debug' => filter_var(env('APP_DEBUG', true), FILTER_VALIDATE_BOOL),
     'url' => env('APP_URL', 'http://localhost/SGEap/public'),
     'timezone' => env('APP_TIMEZONE', 'America/Guayaquil'),
+    'session_timeout_minutes' => (int) env('APP_SESSION_TIMEOUT_MINUTES', 30),
 ];

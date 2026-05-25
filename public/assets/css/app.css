@@ -1284,6 +1284,228 @@ input::placeholder {
     width: auto;
 }
 
+.accounting-assign-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 8px;
+    min-width: 92px;
+    min-height: 30px;
+    padding: 0 10px;
+    border: 1px solid #c7d6e5;
+    border-radius: 0;
+    background: #eaf3fb;
+    color: #0d4f86;
+    font-size: 0.95rem;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.accounting-actions-inline {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+}
+
+.accounting-assign-button .fa {
+    color: #0d4f86;
+    font-size: 0.9rem;
+}
+
+.accounting-assign-button:hover {
+    background: #dcecf8;
+}
+
+.accounting-assign-button:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.data-table .table-input {
+    width: 100%;
+    min-width: 70px;
+    border: 1px solid var(--border);
+    padding: 0;
+    background: #ffffff;
+    color: var(--text);
+    font: inherit;
+    outline: 0;
+}
+
+.data-table .table-input[type="number"] {
+    appearance: textfield;
+    -moz-appearance: textfield;
+}
+
+.data-table .table-input[type="number"]::-webkit-outer-spin-button,
+.data-table .table-input[type="number"]::-webkit-inner-spin-button {
+    margin: 0;
+    -webkit-appearance: none;
+}
+
+.data-table .table-input:focus {
+    border-color: #0d4f86;
+    box-shadow: 0 0 0 1px rgba(13, 79, 134, 0.12);
+}
+
+.data-table .table-input[readonly] {
+    border: 0;
+    background: transparent;
+    color: var(--muted);
+}
+
+.data-table .table-input[readonly]:focus {
+    box-shadow: none;
+}
+
+.accounting-detail-value-column {
+    width: 86px;
+    max-width: 86px;
+}
+
+.data-table .accounting-detail-value-input {
+    width: 70px;
+    min-width: 70px;
+    max-width: 70px;
+}
+
+.data-table .accounting-scholarship-percent-input {
+    width: 54px;
+    min-width: 54px;
+    max-width: 54px;
+}
+
+.data-table .accounting-scholarship-amount-input {
+    width: 70px;
+    min-width: 70px;
+    max-width: 70px;
+}
+
+.modal-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 1050;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(14, 32, 52, 0.35);
+}
+
+.modal-backdrop[hidden] {
+    display: none;
+}
+
+.modal-card {
+    width: min(460px, 100%);
+    background: #ffffff;
+    border: 1px solid var(--border);
+    box-shadow: 0 18px 40px rgba(20, 35, 55, 0.18);
+}
+
+.accounting-detail-modal {
+    width: min(980px, 100%);
+}
+
+.accounting-upload-form,
+.accounting-review-actions,
+.accounting-review-form {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.accounting-review-actions {
+    align-items: flex-start;
+    flex-direction: column;
+}
+
+.accounting-review-form {
+    flex-wrap: wrap;
+}
+
+.accounting-review-form label {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.78rem;
+}
+
+.accounting-review-form .table-input {
+    min-width: 0;
+    height: 24px;
+    border: 1px solid var(--border);
+    padding: 0 4px;
+    background: #ffffff;
+}
+
+.accounting-review-value-input {
+    width: 72px;
+}
+
+.accounting-review-invoice-input {
+    width: 96px;
+}
+
+.accounting-review-observation {
+    flex: 1 1 180px;
+}
+
+.file-inline-control input {
+    width: 190px;
+    max-width: 100%;
+    font-size: 0.78rem;
+}
+
+.checkbox-inline {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    margin: 0;
+    font-size: 0.78rem;
+}
+
+.modal-header,
+.modal-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border);
+}
+
+.modal-header h3 {
+    margin: 0;
+    font-size: 1rem;
+}
+
+.modal-close {
+    border: 0;
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+}
+
+.modal-body {
+    padding: 16px;
+}
+
+.modal-body p {
+    margin: 0;
+    color: var(--muted);
+}
+
+.modal-actions {
+    justify-content: flex-end;
+    border-top: 1px solid var(--border);
+    border-bottom: 0;
+}
+
 .btn-icon-only {
     display: inline-flex;
     align-items: center;

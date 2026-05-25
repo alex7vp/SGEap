@@ -15,6 +15,14 @@ abstract class Controller
             $this->redirect('/login');
         }
 
+        if (authenticatedSessionExpired()) {
+            expireAuthenticatedSession();
+            sessionFlash('error', 'La sesion expiro por inactividad. Inicie sesion nuevamente.');
+            $this->redirect('/login');
+        }
+
+        refreshAuthenticatedSessionActivity();
+
         $user = $_SESSION['auth'];
 
         $rolePermissionModel = new RolePermissionModel();
@@ -65,6 +73,7 @@ abstract class Controller
             '/mi-matricula' => 'estudiante.mi_matricula',
             '/representante/estudiante' => 'representante.estudiantes',
             '/representante/estudiante/modulo' => 'representante.estudiantes',
+            '/representante/contabilidad' => 'contabilidad.representante.obligaciones.ver|contabilidad.representante.pagos.ver|contabilidad.representante.comprobantes.subir',
             '/academico' => 'estudiantes.gestionar|personas.gestionar|matriculas.gestionar|asistencia.calendario.gestionar|asistencia.registrar|asistencia.supervisar|justificaciones.gestionar|asistencia.ver_propia|asistencia.representante.ver|novedades.registrar|novedades.supervisar|novedades.ver_propia|novedades.representante.ver|calificaciones.registrar|calificaciones.editar|calificaciones.configurar|calificaciones.validar|calificaciones.publicar|calificaciones.auditoria.ver',
             '/calificaciones/registro' => 'asistencia.registrar|calificaciones.registrar|calificaciones.editar|calificaciones.configurar|calificaciones.validar|calificaciones.publicar|calificaciones.auditoria.ver',
             '/calificaciones/actividad' => 'asistencia.registrar|calificaciones.registrar|calificaciones.editar|calificaciones.configurar',
@@ -85,6 +94,15 @@ abstract class Controller
             '/reportes/libreta' => 'calificaciones.validar|calificaciones.configurar|calificaciones.registrar|calificaciones.editar|calificaciones.publicar',
             '/reportes/cuadro-final' => 'calificaciones.validar|calificaciones.configurar|calificaciones.registrar|calificaciones.editar',
             '/contabilidad' => 'contabilidad.ver',
+            '/contabilidad/obligaciones' => 'contabilidad.obligaciones.ver',
+            '/contabilidad/obligaciones/detalle' => 'contabilidad.obligaciones.ver',
+            '/contabilidad/obligaciones/generar' => 'contabilidad.obligaciones.generar',
+            '/contabilidad/obligaciones/actualizar' => 'contabilidad.obligaciones.editar',
+            '/contabilidad/obligaciones/anular' => 'contabilidad.obligaciones.editar',
+            '/contabilidad/comprobantes' => 'contabilidad.comprobantes.revisar',
+            '/contabilidad/comprobantes/aprobar' => 'contabilidad.comprobantes.aprobar',
+            '/contabilidad/comprobantes/rechazar' => 'contabilidad.comprobantes.rechazar',
+            '/representante/contabilidad/comprobante' => 'contabilidad.representante.comprobantes.subir',
             '/seguridad' => 'seguridad.usuarios|seguridad.roles_permisos|usuarios_temporales.gestionar',
             '/personas' => 'personas.gestionar',
             '/personal' => 'personas.gestionar',
@@ -130,6 +148,7 @@ abstract class Controller
             '/matricula-temporal/' => 'matricula_temporal.editar|representante.matricula_nueva|representante.estudiantes',
             '/mi-matricula/' => 'estudiante.mi_matricula',
             '/representante/estudiante/' => 'representante.estudiantes',
+            '/representante/contabilidad/' => 'contabilidad.representante.obligaciones.ver|contabilidad.representante.pagos.ver|contabilidad.representante.comprobantes.subir',
             '/personal/' => 'personas.gestionar',
             '/matriculas/' => 'matriculas.gestionar',
             '/estudiantes/' => 'estudiantes.gestionar',
@@ -146,6 +165,8 @@ abstract class Controller
             '/configuracion/matricula/documentos' => 'matriculas.documentos',
             '/configuracion/matricula' => 'configuracion.gestionar',
             '/configuracion/contable/' => 'contabilidad.configurar',
+            '/contabilidad/obligaciones/' => 'contabilidad.obligaciones.ver|contabilidad.obligaciones.generar|contabilidad.obligaciones.editar',
+            '/contabilidad/comprobantes/' => 'contabilidad.comprobantes.revisar|contabilidad.comprobantes.aprobar|contabilidad.comprobantes.rechazar',
             '/seguridad/usuarios/clave' => 'seguridad.usuarios',
             '/seguridad/usuarios/estado' => 'seguridad.usuarios',
             '/seguridad/usuarios-temporales/' => 'usuarios_temporales.gestionar',

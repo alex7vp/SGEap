@@ -30,6 +30,7 @@ return static function (Router $router): void {
     $router->get('/mi-matricula/modulo', [StudentController::class, 'myMatriculationModule']);
     $router->get('/representante/estudiante', [StudentController::class, 'representativeStudent']);
     $router->get('/representante/estudiante/modulo', [StudentController::class, 'representativeStudentModule']);
+    $router->get('/representante/contabilidad', [AccountingController::class, 'representativePayments']);
     $router->get('/academico', [ModuleController::class, 'academic']);
     $router->get('/calificaciones/registro', [GradebookController::class, 'register']);
     $router->post('/calificaciones/actividad', [GradebookController::class, 'storeActivity']);
@@ -50,6 +51,9 @@ return static function (Router $router): void {
     $router->get('/reportes/libreta', [GradebookController::class, 'reportCard']);
     $router->get('/reportes/cuadro-final', [GradebookController::class, 'finalChart']);
     $router->get('/contabilidad', [AccountingController::class, 'index']);
+    $router->get('/contabilidad/obligaciones', [AccountingController::class, 'obligations']);
+    $router->get('/contabilidad/obligaciones/detalle', [AccountingController::class, 'obligationDetail']);
+    $router->get('/contabilidad/comprobantes', [AccountingController::class, 'receipts']);
     $router->get('/seguridad', [ModuleController::class, 'security']);
     $router->post('/logout', [AuthController::class, 'logout']);
 
@@ -84,6 +88,12 @@ return static function (Router $router): void {
     $router->post('/configuracion/matricula/documentos/eliminar', [ConfigurationController::class, 'deleteMatriculationDocument']);
     $router->post('/configuracion/contable', [ConfigurationController::class, 'storeAccountingConfiguration']);
     $router->post('/configuracion/contable/actualizar', [ConfigurationController::class, 'updateAccountingConfiguration']);
+    $router->post('/contabilidad/obligaciones/generar', [AccountingController::class, 'generateObligations']);
+    $router->post('/contabilidad/obligaciones/actualizar', [AccountingController::class, 'updateObligation']);
+    $router->post('/contabilidad/obligaciones/anular', [AccountingController::class, 'annulObligation']);
+    $router->post('/representante/contabilidad/comprobante', [AccountingController::class, 'storeRepresentativeReceipt']);
+    $router->post('/contabilidad/comprobantes/aprobar', [AccountingController::class, 'approveReceipt']);
+    $router->post('/contabilidad/comprobantes/rechazar', [AccountingController::class, 'rejectReceipt']);
     $router->post('/configuracion/academica/areas', [AttendanceController::class, 'storeArea']);
     $router->post('/configuracion/academica/areas/actualizar', [AttendanceController::class, 'updateArea']);
     $router->post('/configuracion/academica/areas/estado', [AttendanceController::class, 'toggleArea']);

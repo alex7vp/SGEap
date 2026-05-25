@@ -20,7 +20,17 @@ class AuthController extends Controller
 {
     public function index(): void
     {
+        header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+        header('Pragma: no-cache');
+        header('Expires: 0');
+
+        if (authenticatedSessionExpired()) {
+            expireAuthenticatedSession();
+            sessionFlash('error', 'La sesion expiro por inactividad. Inicie sesion nuevamente.');
+        }
+
         if (!empty($_SESSION['auth'])) {
+            refreshAuthenticatedSessionActivity();
             $this->redirect($this->landingPathForPermissions(
                 (array) ($_SESSION['auth']['permissions'] ?? []),
                 (int) ($_SESSION['auth']['usuid'] ?? 0)
@@ -58,6 +68,8 @@ class AuthController extends Controller
         $rolePermissionModel = new RolePermissionModel();
         $permissionCodes = $rolePermissionModel->permissionCodesByUser((int) $user['usuid']);
 
+        session_regenerate_id(true);
+
         $_SESSION['auth'] = [
             'usuid' => (int) $user['usuid'],
             'perid' => (int) $user['perid'],
@@ -66,6 +78,7 @@ class AuthController extends Controller
             'last_name' => trim((string) ($user['perapellidos'] ?? '')),
             'permissions' => $permissionCodes,
         ];
+        refreshAuthenticatedSessionActivity();
 
         $periodModel = new PeriodModel();
         $activePeriod = $periodModel->active();
@@ -129,8 +142,7 @@ class AuthController extends Controller
 
     public function logout(): void
     {
-        unset($_SESSION['auth']);
-        setCurrentAcademicPeriod(null);
+        expireAuthenticatedSession();
         sessionFlash('success', 'Sesion cerrada correctamente.');
         $this->redirect('/login');
     }

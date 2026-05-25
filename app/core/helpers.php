@@ -108,6 +108,10 @@ function verifyCsrfRequest(): void
         return;
     }
 
+    if (currentPath() === '/login') {
+        return;
+    }
+
     $token = $_POST['_csrf_token'] ?? null;
 
     if (isValidCsrfToken(is_string($token) ? $token : null)) {
@@ -141,6 +145,45 @@ function csrfFailureRedirectPath(): string
     }
 
     return empty($_SESSION['auth']) ? '/login' : '/dashboard';
+}
+
+function sessionInactivityTimeoutSeconds(): int
+{
+    $minutes = (int) (config('app')['session_timeout_minutes'] ?? 30);
+
+    return max(1, $minutes) * 60;
+}
+
+function authenticatedSessionExpired(): bool
+{
+    if (empty($_SESSION['auth'])) {
+        return false;
+    }
+
+    $lastActivity = (int) ($_SESSION['auth_last_activity'] ?? 0);
+
+    if ($lastActivity <= 0) {
+        return true;
+    }
+
+    return (time() - $lastActivity) > sessionInactivityTimeoutSeconds();
+}
+
+function refreshAuthenticatedSessionActivity(): void
+{
+    if (!empty($_SESSION['auth'])) {
+        $_SESSION['auth_last_activity'] = time();
+    }
+}
+
+function expireAuthenticatedSession(): void
+{
+    unset($_SESSION['auth'], $_SESSION['auth_last_activity'], $_SESSION['_csrf_token']);
+    setCurrentAcademicPeriod(null);
+
+    if (session_status() === PHP_SESSION_ACTIVE) {
+        session_regenerate_id(true);
+    }
 }
 
 function sessionFlash(string $key, ?string $value = null): ?string
@@ -388,6 +431,79 @@ function deleteManagedJustificationDocumentFile(string $path): void
     if (is_file($absolutePath)) {
         @unlink($absolutePath);
     }
+}
+
+function storeAccountingReceiptFile(array $file, string $studentName): array
+{
+    $errorCode = (int) ($file['error'] ?? UPLOAD_ERR_NO_FILE);
+
+    if ($errorCode === UPLOAD_ERR_NO_FILE) {
+        throw new \RuntimeException('Seleccione el comprobante de pago.');
+    }
+
+    if ($errorCode !== UPLOAD_ERR_OK) {
+        throw new \RuntimeException('No se pudo cargar el comprobante de pago.');
+    }
+
+    $tmpName = (string) ($file['tmp_name'] ?? '');
+
+    if ($tmpName === '' || !is_uploaded_file($tmpName)) {
+        throw new \RuntimeException('El comprobante de pago no es valido.');
+    }
+
+    $maxSize = 2 * 1024 * 1024;
+    $fileSize = (int) ($file['size'] ?? 0);
+
+    if ($fileSize <= 0 || $fileSize > $maxSize) {
+        throw new \RuntimeException('El comprobante debe pesar maximo 2 MB.');
+    }
+
+    $originalName = (string) ($file['name'] ?? '');
+    $extension = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
+    $allowedExtensions = ['pdf', 'jpg', 'jpeg', 'png'];
+
+    if (!in_array($extension, $allowedExtensions, true)) {
+        throw new \RuntimeException('El comprobante debe estar en formato PDF, JPG o PNG.');
+    }
+
+    $mime = 'application/octet-stream';
+    $finfo = new \finfo(FILEINFO_MIME_TYPE);
+    $detectedMime = $finfo->file($tmpName);
+
+    if (is_string($detectedMime) && $detectedMime !== '') {
+        $mime = $detectedMime;
+    }
+
+    $baseName = preg_replace('/[^a-z0-9]+/i', '-', strtolower(trim($studentName))) ?? '';
+    $baseName = trim($baseName, '-');
+
+    if ($baseName === '') {
+        $baseName = 'comprobante';
+    }
+
+    $relativeDirectory = 'docs/contabilidad/comprobantes/' . date('Y/m');
+    $targetDirectory = BASE_PATH . '/public/assets/' . $relativeDirectory;
+
+    if (!is_dir($targetDirectory) && !mkdir($targetDirectory, 0775, true) && !is_dir($targetDirectory)) {
+        throw new \RuntimeException('No se pudo preparar el directorio de comprobantes.');
+    }
+
+    $fileName = $baseName . '-' . date('YmdHis') . '-' . bin2hex(random_bytes(4)) . '.' . $extension;
+    $targetPath = $targetDirectory . '/' . $fileName;
+    $hash = hash_file('sha256', $tmpName);
+
+    if (!move_uploaded_file($tmpName, $targetPath)) {
+        throw new \RuntimeException('No se pudo guardar el comprobante de pago.');
+    }
+
+    return [
+        'path' => $relativeDirectory . '/' . $fileName,
+        'original_name' => $originalName,
+        'extension' => strtoupper($extension),
+        'mime' => $mime,
+        'size' => $fileSize,
+        'hash' => $hash,
+    ];
 }
 
 function deleteManagedMatriculationDocumentFile(string $path): void

@@ -38,6 +38,7 @@ $sectionModuleMap = [
     'dashboard' => 'inicio',
     'matricula_temporal' => 'inicio',
     'mi_matricula' => 'inicio',
+    'representante_pagos' => 'inicio',
     'academico_home' => 'academico',
     'personas' => 'academico',
     'estudiantes' => 'academico',
@@ -114,6 +115,12 @@ $sidebarModules = [
                 'label' => 'Mi matricula',
                 'url' => baseUrl('mi-matricula'),
                 'icon' => 'fa-address-card-o',
+            ],
+            [
+                'key' => 'representante_pagos',
+                'label' => 'Mis pagos',
+                'url' => baseUrl('representante/contabilidad'),
+                'icon' => 'fa-file-text-o',
             ],
         ],
     ],
@@ -286,13 +293,13 @@ $sidebarModules = [
                     [
                         'key' => 'contabilidad_obligaciones',
                         'label' => 'Obligaciones',
-                        'url' => '#',
+                        'url' => baseUrl('contabilidad/obligaciones'),
                         'icon' => 'fa-list-alt',
                     ],
                     [
                         'key' => 'contabilidad_comprobantes',
                         'label' => 'Comprobantes',
-                        'url' => '#',
+                        'url' => baseUrl('contabilidad/comprobantes'),
                         'icon' => 'fa-file-text-o',
                     ],
                     [
@@ -413,6 +420,7 @@ $permissionMap = [
     'dashboard' => 'dashboard.ver',
     'matricula_temporal' => ['matricula_temporal.ver', 'representante.matricula_nueva'],
     'mi_matricula' => 'estudiante.mi_matricula',
+    'representante_pagos' => ['contabilidad.representante.obligaciones.ver', 'contabilidad.representante.pagos.ver', 'contabilidad.representante.comprobantes.subir'],
     'representante_estudiantes' => 'representante.estudiantes',
     'asistencia_propia' => ['asistencia.ver_propia', 'novedades.ver_propia'],
     'asistencia_representante' => ['asistencia.representante.ver', 'novedades.representante.ver'],
@@ -483,7 +491,7 @@ $canAccess = static function (string $key) use ($permissionMap, $userPermissions
     return false;
 };
 $modulePermissions = [
-    'inicio' => ['dashboard.ver', 'matricula_temporal.ver', 'representante.matricula_nueva', 'estudiante.mi_matricula', 'representante.estudiantes', 'asistencia.ver_propia', 'asistencia.representante.ver', 'novedades.ver_propia', 'novedades.representante.ver'],
+    'inicio' => ['dashboard.ver', 'matricula_temporal.ver', 'representante.matricula_nueva', 'estudiante.mi_matricula', 'representante.estudiantes', 'asistencia.ver_propia', 'asistencia.representante.ver', 'novedades.ver_propia', 'novedades.representante.ver', 'contabilidad.representante.obligaciones.ver', 'contabilidad.representante.pagos.ver', 'contabilidad.representante.comprobantes.subir'],
     'academico' => ['estudiantes.gestionar', 'personas.gestionar', 'matriculas.gestionar', 'asistencia.calendario.gestionar', 'asistencia.registrar', 'asistencia.supervisar', 'justificaciones.gestionar', 'asistencia.ver_propia', 'asistencia.representante.ver', 'novedades.registrar', 'novedades.supervisar', 'novedades.ver_propia', 'novedades.representante.ver', 'calificaciones.registrar', 'calificaciones.editar', 'calificaciones.configurar', 'calificaciones.validar', 'calificaciones.publicar', 'calificaciones.auditoria.ver'],
     'configuracion' => ['configuracion.gestionar', 'catalogos.gestionar', 'cursos.gestionar', 'matriculas.documentos', 'asistencia.calendario.gestionar', 'calificaciones.configurar', 'calificaciones.plantillas.gestionar', 'contabilidad.configurar'],
     'contabilidad' => ['contabilidad.ver', 'contabilidad.configurar', 'contabilidad.obligaciones.ver', 'contabilidad.rubros.ver', 'contabilidad.comprobantes.revisar', 'contabilidad.pagos.registrar', 'contabilidad.reportes.ver', 'contabilidad.auditoria.ver'],

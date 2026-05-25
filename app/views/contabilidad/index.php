@@ -69,18 +69,18 @@ $metricCards = [
             <p>Matricula, pensiones, descuentos, vencimientos y reglas por nivel educativo.</p>
             <span class="cell-subtitle">Siguiente fase</span>
         </article>
-        <article class="module-home-card is-disabled">
+        <a class="module-home-card" href="<?= $h(baseUrl('contabilidad/obligaciones')); ?>">
             <span class="module-home-card-icon"><i class="fa fa-list-alt" aria-hidden="true"></i></span>
             <strong>Obligaciones</strong>
             <p>Generacion y administracion de matricula y pensiones del periodo.</p>
-            <span class="cell-subtitle">Siguiente fase</span>
-        </article>
-        <article class="module-home-card is-disabled">
+            <span class="cell-subtitle">Asignar y revisar</span>
+        </a>
+        <a class="module-home-card" href="<?= $h(baseUrl('contabilidad/comprobantes')); ?>">
             <span class="module-home-card-icon"><i class="fa fa-file-text-o" aria-hidden="true"></i></span>
             <strong>Comprobantes</strong>
             <p>Revision, aprobacion, rechazo y aplicacion de comprobantes.</p>
-            <span class="cell-subtitle">Siguiente fase</span>
-        </article>
+            <span class="cell-subtitle">Revisar pendientes</span>
+        </a>
         <article class="module-home-card is-disabled">
             <span class="module-home-card-icon"><i class="fa fa-plus-square" aria-hidden="true"></i></span>
             <strong>Rubros adicionales</strong>
