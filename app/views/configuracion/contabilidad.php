@@ -10,7 +10,6 @@ $settings = is_array($settings ?? null) ? $settings : [];
 $periods = is_array($periods ?? null) ? $periods : [];
 $levels = is_array($levels ?? null) ? $levels : [];
 $grades = is_array($grades ?? null) ? $grades : [];
-$courses = is_array($courses ?? null) ? $courses : [];
 $editingId = (int) ($old['cfoid'] ?? 0);
 $selectedMode = $editingId > 0 || !empty($feedback) || $settings === [] ? 'form' : ((string) ($_GET['panel'] ?? '') === 'list' ? 'list' : 'form');
 $monthNames = [
@@ -42,18 +41,9 @@ $scopeLabel = static function (array $row): string {
         return trim((string) (($row['grado_nednombre'] ?? '') . ' | ' . ($row['granombre'] ?? 'Grado')));
     }
 
-    if ($scope === 'CURSO') {
-        return trim((string) (($row['curso_nednombre'] ?? '') . ' | ' . ($row['curso_granombre'] ?? '') . ' ' . ($row['prlnombre'] ?? '')));
-    }
-
     return 'Sin alcance';
 };
 ?>
-
-<nav class="module-subnav" aria-label="Submodulos de configuracion contable">
-    <a href="<?= $h(baseUrl('configuracion/academica')); ?>">Configuracion academica</a>
-    <a class="is-active" href="<?= $h(baseUrl('configuracion/contable')); ?>">Configuracion contable</a>
-</nav>
 
 <p class="module-note">Administra los valores oficiales y reglas base que luego usara Gestion Contable para asignar valores a estudiantes y generar obligaciones.</p>
 
@@ -114,27 +104,16 @@ $scopeLabel = static function (array $row): string {
 
                     <div class="form-group">
                         <div class="input-group">
-                            <span class="input-addon">Tipo</span>
-                            <select name="cfotipo" required>
-                                <option value="PENSION" <?= (string) ($old['cfotipo'] ?? 'PENSION') === 'PENSION' ? 'selected' : ''; ?>>Pension</option>
-                                <option value="MATRICULA" <?= (string) ($old['cfotipo'] ?? '') === 'MATRICULA' ? 'selected' : ''; ?>>Matricula</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <div class="form-group">
-                        <div class="input-group">
                             <span class="input-addon">Alcance</span>
-                            <select name="cfoalcance" required>
+                            <select name="cfoalcance" required data-accounting-scope>
                                 <option value="INSTITUCION" <?= (string) ($old['cfoalcance'] ?? '') === 'INSTITUCION' ? 'selected' : ''; ?>>Institucion</option>
                                 <option value="NIVEL" <?= (string) ($old['cfoalcance'] ?? 'NIVEL') === 'NIVEL' ? 'selected' : ''; ?>>Nivel</option>
                                 <option value="GRADO" <?= (string) ($old['cfoalcance'] ?? '') === 'GRADO' ? 'selected' : ''; ?>>Grado</option>
-                                <option value="CURSO" <?= (string) ($old['cfoalcance'] ?? '') === 'CURSO' ? 'selected' : ''; ?>>Curso</option>
                             </select>
                         </div>
                     </div>
 
-                    <div class="form-group">
+                    <div class="form-group" data-accounting-scope-field="NIVEL">
                         <div class="input-group">
                             <span class="input-addon">Nivel</span>
                             <select name="nedid">
@@ -148,7 +127,7 @@ $scopeLabel = static function (array $row): string {
                         </div>
                     </div>
 
-                    <div class="form-group">
+                    <div class="form-group" data-accounting-scope-field="GRADO">
                         <div class="input-group">
                             <span class="input-addon">Grado</span>
                             <select name="graid">
@@ -164,12 +143,32 @@ $scopeLabel = static function (array $row): string {
 
                     <div class="form-group">
                         <div class="input-group">
-                            <span class="input-addon">Curso</span>
-                            <select name="curid">
-                                <option value="">Seleccione</option>
-                                <?php foreach ($courses as $course): ?>
-                                    <option value="<?= $h($course['curid'] ?? ''); ?>" <?= (string) ($old['curid'] ?? '') === (string) ($course['curid'] ?? '') ? 'selected' : ''; ?>>
-                                        <?= $h(($course['nednombre'] ?? '') . ' | ' . ($course['granombre'] ?? '') . ' ' . ($course['prlnombre'] ?? '')); ?>
+                            <span class="input-addon">Valor pension</span>
+                            <input type="number" name="cfovalor_pension" step="0.01" min="0" value="<?= $h($old['cfovalor_pension'] ?? ''); ?>" required>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <div class="input-group">
+                            <span class="input-addon">Valor matricula</span>
+                            <input type="number" name="cfovalor_matricula" step="0.01" min="0" value="<?= $h($old['cfovalor_matricula'] ?? ''); ?>" required>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <div class="input-group">
+                            <span class="input-addon">Cantidad pensiones</span>
+                            <input type="number" name="cfocantidad_pensiones" min="1" max="12" value="<?= $h($old['cfocantidad_pensiones'] ?? '10'); ?>" readonly data-accounting-months-count>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <div class="input-group">
+                            <span class="input-addon">Mes inicial</span>
+                            <select name="cfomes_inicio" data-accounting-start-month>
+                                <?php foreach ($monthNames as $monthNumber => $monthName): ?>
+                                    <option value="<?= $h($monthNumber); ?>" <?= (string) ($old['cfomes_inicio'] ?? '9') === (string) $monthNumber ? 'selected' : ''; ?>>
+                                        <?= $h($monthName); ?>
                                     </option>
                                 <?php endforeach; ?>
                             </select>
@@ -178,24 +177,10 @@ $scopeLabel = static function (array $row): string {
 
                     <div class="form-group">
                         <div class="input-group">
-                            <span class="input-addon">Valor oficial</span>
-                            <input type="number" name="cfovalor_oficial" step="0.01" min="0" value="<?= $h($old['cfovalor_oficial'] ?? ''); ?>" required>
-                        </div>
-                    </div>
-
-                    <div class="form-group">
-                        <div class="input-group">
-                            <span class="input-addon">Cantidad pensiones</span>
-                            <input type="number" name="cfocantidad_pensiones" min="1" max="12" value="<?= $h($old['cfocantidad_pensiones'] ?? '10'); ?>">
-                        </div>
-                    </div>
-
-                    <div class="form-group">
-                        <div class="input-group">
-                            <span class="input-addon">Mes inicial</span>
-                            <select name="cfomes_inicio">
+                            <span class="input-addon">Mes final</span>
+                            <select name="cfomes_fin" data-accounting-end-month>
                                 <?php foreach ($monthNames as $monthNumber => $monthName): ?>
-                                    <option value="<?= $h($monthNumber); ?>" <?= (string) ($old['cfomes_inicio'] ?? '9') === (string) $monthNumber ? 'selected' : ''; ?>>
+                                    <option value="<?= $h($monthNumber); ?>" <?= (string) ($old['cfomes_fin'] ?? '6') === (string) $monthNumber ? 'selected' : ''; ?>>
                                         <?= $h($monthName); ?>
                                     </option>
                                 <?php endforeach; ?>
@@ -307,6 +292,7 @@ $scopeLabel = static function (array $row): string {
                                     <span class="cell-subtitle">
                                         <?= $h((string) ($setting['cfocantidad_pensiones'] ?? '')); ?> pensiones desde
                                         <?= $h($monthNames[(int) ($setting['cfomes_inicio'] ?? 0)] ?? ''); ?>
+                                        hasta <?= $h($monthNames[(int) ($setting['cfomes_fin'] ?? 0)] ?? ''); ?>
                                         <?= $h($setting['cfoanio_inicio'] ?? ''); ?>, vence dia <?= $h($setting['cfodia_vencimiento'] ?? ''); ?>
                                     </span>
                                 <?php else: ?>
@@ -330,5 +316,69 @@ $scopeLabel = static function (array $row): string {
         <?php endif; ?>
     </section>
 </section>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const scopeSelect = document.querySelector('[data-accounting-scope]');
+    const scopeFields = document.querySelectorAll('[data-accounting-scope-field]');
+    const startMonthSelect = document.querySelector('[data-accounting-start-month]');
+    const endMonthSelect = document.querySelector('[data-accounting-end-month]');
+    const monthsCountInput = document.querySelector('[data-accounting-months-count]');
+
+    const updateScopeFields = function () {
+        if (!scopeSelect || scopeFields.length === 0) {
+            return;
+        }
+
+        const selectedScope = scopeSelect.value;
+
+        scopeFields.forEach(function (field) {
+            const isVisible = field.getAttribute('data-accounting-scope-field') === selectedScope;
+            const inputs = field.querySelectorAll('select, input, textarea');
+
+            field.hidden = !isVisible;
+            inputs.forEach(function (input) {
+                input.disabled = !isVisible;
+                if (!isVisible) {
+                    input.value = '';
+                }
+            });
+        });
+    };
+
+    const updateMonthsCount = function () {
+        if (!startMonthSelect || !endMonthSelect || !monthsCountInput) {
+            return;
+        }
+
+        const startMonth = parseInt(startMonthSelect.value, 10);
+        const endMonth = parseInt(endMonthSelect.value, 10);
+
+        if (Number.isNaN(startMonth) || Number.isNaN(endMonth)) {
+            monthsCountInput.value = '';
+            return;
+        }
+
+        monthsCountInput.value = endMonth >= startMonth
+            ? endMonth - startMonth + 1
+            : (12 - startMonth + 1) + endMonth;
+    };
+
+    if (scopeSelect) {
+        scopeSelect.addEventListener('change', updateScopeFields);
+    }
+
+    if (startMonthSelect) {
+        startMonthSelect.addEventListener('change', updateMonthsCount);
+    }
+
+    if (endMonthSelect) {
+        endMonthSelect.addEventListener('change', updateMonthsCount);
+    }
+
+    updateScopeFields();
+    updateMonthsCount();
+});
+</script>
 
 <?php require BASE_PATH . '/app/views/partials/footer.php'; ?>

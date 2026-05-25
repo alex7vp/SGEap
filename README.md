@@ -82,6 +82,11 @@ Tambien se puede usar el consolidado:
 
 - `database/scripts/sgeap.sql`
 
+Para actualizar una base ya instalada con los ultimos ajustes de configuracion contable:
+
+- `database/scripts/25_configuracion_contable_alcance.sql`
+- `database/scripts/26_configuracion_contable_mes_final.sql`
+
 Ver tambien `database/scripts/README_instalacion_limpia.md`.
 
 ## Documentacion funcional

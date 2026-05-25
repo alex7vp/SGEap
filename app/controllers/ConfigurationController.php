@@ -177,11 +177,9 @@ class ConfigurationController extends Controller
         $model = new AccountingConfigurationModel();
         $periodModel = new PeriodModel();
         $gradeModel = new GradeModel();
-        $courseModel = new CourseModel();
         $editId = (int) ($_GET['edit'] ?? 0);
         $editConfiguration = $editId > 0 ? $model->findConfiguration($editId) : false;
         $currentPeriod = currentAcademicPeriod();
-        $periodId = $currentPeriod !== null ? (int) ($currentPeriod['pleid'] ?? 0) : 0;
 
         $this->view('configuracion.contabilidad', [
             'appName' => config('app')['name'] ?? 'SGEap',
@@ -193,7 +191,6 @@ class ConfigurationController extends Controller
             'periods' => $periodModel->allOrdered(),
             'levels' => $gradeModel->allLevels(),
             'grades' => $gradeModel->allOrdered(),
-            'courses' => $periodId > 0 ? $courseModel->allByPeriod($periodId) : [],
             'settings' => $model->allConfigurations(),
             'feedback' => $this->accountingConfigurationFeedback(),
             'old' => $this->accountingConfigurationOld($editConfiguration),
@@ -778,14 +775,19 @@ class ConfigurationController extends Controller
         $model = new AccountingConfigurationModel();
 
         try {
-            $this->validateAccountingConfigurationData($data, $model);
-            $data['ccoid'] = $model->obligationConceptId((string) $data['cfotipo']);
+            [$pensionData, $matriculationData] = $this->accountingConfigurationPairData($data, $model);
+            $this->validateAccountingConfigurationData($pensionData, $model);
+            $this->validateAccountingConfigurationData($matriculationData, $model);
 
-            if ($model->existsActiveCombination($data)) {
-                throw new \RuntimeException('Ya existe una configuracion activa para ese periodo, alcance y tipo.');
+            if ($model->existsActiveCombination($pensionData)) {
+                throw new \RuntimeException('Ya existe una configuracion activa de pension para ese periodo y alcance.');
             }
 
-            $model->createConfiguration($data);
+            if ($model->existsActiveCombination($matriculationData)) {
+                throw new \RuntimeException('Ya existe una configuracion activa de matricula para ese periodo y alcance.');
+            }
+
+            $model->saveConfigurationPair($pensionData, $matriculationData);
             $this->flashAccountingConfigurationFeedback('success', 'Configuracion contable registrada correctamente.');
             $this->redirect('/configuracion/contable?panel=list#configuraciones-contables');
         } catch (\Throwable $exception) {
@@ -810,14 +812,23 @@ class ConfigurationController extends Controller
         $data = $this->accountingConfigurationFormData($user);
 
         try {
-            $this->validateAccountingConfigurationData($data, $model);
-            $data['ccoid'] = $model->obligationConceptId((string) $data['cfotipo']);
+            $peer = $model->findCombination($current, (string) ($current['cfotipo'] === 'PENSION' ? 'MATRICULA' : 'PENSION'), $configurationId);
+            [$pensionData, $matriculationData] = $this->accountingConfigurationPairData($data, $model);
+            $pensionId = (string) ($current['cfotipo'] ?? '') === 'PENSION' ? $configurationId : ($peer !== false ? (int) $peer['cfoid'] : null);
+            $matriculationId = (string) ($current['cfotipo'] ?? '') === 'MATRICULA' ? $configurationId : ($peer !== false ? (int) $peer['cfoid'] : null);
 
-            if ($model->existsActiveCombination($data, $configurationId)) {
-                throw new \RuntimeException('Ya existe otra configuracion activa para ese periodo, alcance y tipo.');
+            $this->validateAccountingConfigurationData($pensionData, $model);
+            $this->validateAccountingConfigurationData($matriculationData, $model);
+
+            if ($model->existsActiveCombination($pensionData, $pensionId)) {
+                throw new \RuntimeException('Ya existe otra configuracion activa de pension para ese periodo y alcance.');
             }
 
-            $model->updateConfiguration($configurationId, $data);
+            if ($model->existsActiveCombination($matriculationData, $matriculationId)) {
+                throw new \RuntimeException('Ya existe otra configuracion activa de matricula para ese periodo y alcance.');
+            }
+
+            $model->saveConfigurationPair($pensionData, $matriculationData, $pensionId, $matriculationId);
             $this->flashAccountingConfigurationFeedback('success', 'Configuracion contable actualizada correctamente.');
             $this->redirect('/configuracion/contable?panel=list#configuraciones-contables');
         } catch (\Throwable $exception) {
@@ -1426,22 +1437,22 @@ class ConfigurationController extends Controller
 
     private function accountingConfigurationFormData(array $user): array
     {
-        $type = mb_strtoupper(trim((string) ($_POST['cfotipo'] ?? 'PENSION')));
         $scope = mb_strtoupper(trim((string) ($_POST['cfoalcance'] ?? 'NIVEL')));
         $generatesLateFee = (string) ($_POST['cfogenera_mora'] ?? '0') === '1';
+        $startMonth = (int) ($_POST['cfomes_inicio'] ?? 9);
+        $endMonth = (int) ($_POST['cfomes_fin'] ?? 6);
 
         return [
             'pleid' => (int) ($_POST['pleid'] ?? 0),
-            'cfoalcance' => in_array($scope, ['INSTITUCION', 'NIVEL', 'GRADO', 'CURSO'], true) ? $scope : 'NIVEL',
+            'cfoalcance' => in_array($scope, ['INSTITUCION', 'NIVEL', 'GRADO'], true) ? $scope : 'NIVEL',
             'nedid' => $scope === 'NIVEL' ? (int) ($_POST['nedid'] ?? 0) : null,
             'graid' => $scope === 'GRADO' ? (int) ($_POST['graid'] ?? 0) : null,
-            'curid' => $scope === 'CURSO' ? (int) ($_POST['curid'] ?? 0) : null,
-            'ccoid' => 0,
-            'cfotipo' => in_array($type, ['MATRICULA', 'PENSION'], true) ? $type : 'PENSION',
-            'cfovalor_oficial' => number_format(max(0, (float) ($_POST['cfovalor_oficial'] ?? 0)), 2, '.', ''),
-            'cfocantidad_pensiones' => $type === 'PENSION' ? (int) ($_POST['cfocantidad_pensiones'] ?? 10) : null,
-            'cfomes_inicio' => $type === 'PENSION' ? (int) ($_POST['cfomes_inicio'] ?? 9) : null,
-            'cfoanio_inicio' => $type === 'PENSION' ? (int) ($_POST['cfoanio_inicio'] ?? date('Y')) : null,
+            'cfovalor_pension' => number_format(max(0, (float) ($_POST['cfovalor_pension'] ?? 0)), 2, '.', ''),
+            'cfovalor_matricula' => number_format(max(0, (float) ($_POST['cfovalor_matricula'] ?? 0)), 2, '.', ''),
+            'cfocantidad_pensiones' => $this->accountingMonthsCount($startMonth, $endMonth),
+            'cfomes_inicio' => $startMonth,
+            'cfomes_fin' => $endMonth,
+            'cfoanio_inicio' => (int) ($_POST['cfoanio_inicio'] ?? date('Y')),
             'cfodia_vencimiento' => (int) ($_POST['cfodia_vencimiento'] ?? 5),
             'cfogenera_mora' => $generatesLateFee,
             'cfomora_tipo' => $generatesLateFee ? mb_strtoupper(trim((string) ($_POST['cfomora_tipo'] ?? 'VALOR_FIJO'))) : null,
@@ -1450,6 +1461,30 @@ class ConfigurationController extends Controller
             'cfoobservacion' => trim((string) ($_POST['cfoobservacion'] ?? '')),
             'usuid_registro' => (int) ($user['usuid'] ?? 0),
         ];
+    }
+
+    private function accountingConfigurationPairData(array $data, AccountingConfigurationModel $model): array
+    {
+        $pensionData = array_merge($data, [
+            'ccoid' => $model->obligationConceptId('PENSION'),
+            'cfotipo' => 'PENSION',
+            'cfovalor_oficial' => $data['cfovalor_pension'],
+        ]);
+
+        $matriculationData = array_merge($data, [
+            'ccoid' => $model->obligationConceptId('MATRICULA'),
+            'cfotipo' => 'MATRICULA',
+            'cfovalor_oficial' => $data['cfovalor_matricula'],
+            'cfocantidad_pensiones' => null,
+            'cfomes_inicio' => null,
+            'cfomes_fin' => null,
+            'cfoanio_inicio' => null,
+            'cfogenera_mora' => false,
+            'cfomora_tipo' => null,
+            'cfomora_valor' => null,
+        ]);
+
+        return [$pensionData, $matriculationData];
     }
 
     private function validateAccountingConfigurationData(array $data, AccountingConfigurationModel $model): void
@@ -1478,10 +1513,6 @@ class ConfigurationController extends Controller
             throw new \RuntimeException('Debe seleccionar un grado.');
         }
 
-        if ($data['cfoalcance'] === 'CURSO' && (int) ($data['curid'] ?? 0) <= 0) {
-            throw new \RuntimeException('Debe seleccionar un curso.');
-        }
-
         if ($data['cfotipo'] === 'PENSION') {
             if ((int) ($data['cfocantidad_pensiones'] ?? 0) <= 0) {
                 throw new \RuntimeException('La cantidad de pensiones debe ser mayor a cero.');
@@ -1489,6 +1520,10 @@ class ConfigurationController extends Controller
 
             if ((int) ($data['cfomes_inicio'] ?? 0) < 1 || (int) ($data['cfomes_inicio'] ?? 0) > 12) {
                 throw new \RuntimeException('El mes inicial debe estar entre 1 y 12.');
+            }
+
+            if ((int) ($data['cfomes_fin'] ?? 0) < 1 || (int) ($data['cfomes_fin'] ?? 0) > 12) {
+                throw new \RuntimeException('El mes final debe estar entre 1 y 12.');
             }
 
             if ((int) ($data['cfoanio_inicio'] ?? 0) < 2000) {
@@ -1506,6 +1541,18 @@ class ConfigurationController extends Controller
     private function accountingConfigurationOld(array|false $editConfiguration): array
     {
         $currentPeriod = currentAcademicPeriod();
+        $peer = false;
+
+        if ($editConfiguration !== false) {
+            $peer = (new AccountingConfigurationModel())->findCombination(
+                $editConfiguration,
+                (string) ($editConfiguration['cfotipo'] === 'PENSION' ? 'MATRICULA' : 'PENSION'),
+                (int) $editConfiguration['cfoid']
+            );
+        }
+
+        $pensionConfiguration = $editConfiguration !== false && (string) ($editConfiguration['cfotipo'] ?? '') === 'PENSION' ? $editConfiguration : $peer;
+        $matriculationConfiguration = $editConfiguration !== false && (string) ($editConfiguration['cfotipo'] ?? '') === 'MATRICULA' ? $editConfiguration : $peer;
 
         return [
             'cfoid' => sessionFlash('old_accounting_config_id') ?? ($editConfiguration !== false ? (string) $editConfiguration['cfoid'] : ''),
@@ -1513,16 +1560,16 @@ class ConfigurationController extends Controller
             'cfoalcance' => sessionFlash('old_accounting_config_scope') ?? ($editConfiguration !== false ? (string) $editConfiguration['cfoalcance'] : 'NIVEL'),
             'nedid' => sessionFlash('old_accounting_config_level') ?? ($editConfiguration !== false ? (string) ($editConfiguration['nedid'] ?? '') : ''),
             'graid' => sessionFlash('old_accounting_config_grade') ?? ($editConfiguration !== false ? (string) ($editConfiguration['graid'] ?? '') : ''),
-            'curid' => sessionFlash('old_accounting_config_course') ?? ($editConfiguration !== false ? (string) ($editConfiguration['curid'] ?? '') : ''),
-            'cfotipo' => sessionFlash('old_accounting_config_type') ?? ($editConfiguration !== false ? (string) $editConfiguration['cfotipo'] : 'PENSION'),
-            'cfovalor_oficial' => sessionFlash('old_accounting_config_value') ?? ($editConfiguration !== false ? (string) $editConfiguration['cfovalor_oficial'] : ''),
-            'cfocantidad_pensiones' => sessionFlash('old_accounting_config_months_count') ?? ($editConfiguration !== false ? (string) ($editConfiguration['cfocantidad_pensiones'] ?? '') : '10'),
-            'cfomes_inicio' => sessionFlash('old_accounting_config_start_month') ?? ($editConfiguration !== false ? (string) ($editConfiguration['cfomes_inicio'] ?? '') : '9'),
-            'cfoanio_inicio' => sessionFlash('old_accounting_config_start_year') ?? ($editConfiguration !== false ? (string) ($editConfiguration['cfoanio_inicio'] ?? '') : date('Y')),
-            'cfodia_vencimiento' => sessionFlash('old_accounting_config_due_day') ?? ($editConfiguration !== false ? (string) $editConfiguration['cfodia_vencimiento'] : '5'),
-            'cfogenera_mora' => sessionFlash('old_accounting_config_late_fee') ?? ($editConfiguration !== false && !empty($editConfiguration['cfogenera_mora']) ? '1' : '0'),
-            'cfomora_tipo' => sessionFlash('old_accounting_config_late_fee_type') ?? ($editConfiguration !== false ? (string) ($editConfiguration['cfomora_tipo'] ?? 'VALOR_FIJO') : 'VALOR_FIJO'),
-            'cfomora_valor' => sessionFlash('old_accounting_config_late_fee_value') ?? ($editConfiguration !== false ? (string) ($editConfiguration['cfomora_valor'] ?? '') : ''),
+            'cfovalor_pension' => sessionFlash('old_accounting_config_pension_value') ?? ($pensionConfiguration !== false ? (string) ($pensionConfiguration['cfovalor_oficial'] ?? '') : ''),
+            'cfovalor_matricula' => sessionFlash('old_accounting_config_matriculation_value') ?? ($matriculationConfiguration !== false ? (string) ($matriculationConfiguration['cfovalor_oficial'] ?? '') : ''),
+            'cfocantidad_pensiones' => sessionFlash('old_accounting_config_months_count') ?? ($pensionConfiguration !== false ? (string) ($pensionConfiguration['cfocantidad_pensiones'] ?? '') : '10'),
+            'cfomes_inicio' => sessionFlash('old_accounting_config_start_month') ?? ($pensionConfiguration !== false ? (string) ($pensionConfiguration['cfomes_inicio'] ?? '') : '9'),
+            'cfomes_fin' => sessionFlash('old_accounting_config_end_month') ?? ($pensionConfiguration !== false ? (string) ($pensionConfiguration['cfomes_fin'] ?? '') : '6'),
+            'cfoanio_inicio' => sessionFlash('old_accounting_config_start_year') ?? ($pensionConfiguration !== false ? (string) ($pensionConfiguration['cfoanio_inicio'] ?? '') : date('Y')),
+            'cfodia_vencimiento' => sessionFlash('old_accounting_config_due_day') ?? ($pensionConfiguration !== false ? (string) $pensionConfiguration['cfodia_vencimiento'] : '5'),
+            'cfogenera_mora' => sessionFlash('old_accounting_config_late_fee') ?? ($pensionConfiguration !== false && !empty($pensionConfiguration['cfogenera_mora']) ? '1' : '0'),
+            'cfomora_tipo' => sessionFlash('old_accounting_config_late_fee_type') ?? ($pensionConfiguration !== false ? (string) ($pensionConfiguration['cfomora_tipo'] ?? 'VALOR_FIJO') : 'VALOR_FIJO'),
+            'cfomora_valor' => sessionFlash('old_accounting_config_late_fee_value') ?? ($pensionConfiguration !== false ? (string) ($pensionConfiguration['cfomora_valor'] ?? '') : ''),
             'cfoestado' => sessionFlash('old_accounting_config_status') ?? ($editConfiguration !== false && empty($editConfiguration['cfoestado']) ? '0' : '1'),
             'cfoobservacion' => sessionFlash('old_accounting_config_note') ?? ($editConfiguration !== false ? (string) ($editConfiguration['cfoobservacion'] ?? '') : ''),
         ];
@@ -1535,11 +1582,11 @@ class ConfigurationController extends Controller
         sessionFlash('old_accounting_config_scope', (string) ($data['cfoalcance'] ?? 'NIVEL'));
         sessionFlash('old_accounting_config_level', (string) ($data['nedid'] ?? ''));
         sessionFlash('old_accounting_config_grade', (string) ($data['graid'] ?? ''));
-        sessionFlash('old_accounting_config_course', (string) ($data['curid'] ?? ''));
-        sessionFlash('old_accounting_config_type', (string) ($data['cfotipo'] ?? 'PENSION'));
-        sessionFlash('old_accounting_config_value', (string) ($data['cfovalor_oficial'] ?? ''));
+        sessionFlash('old_accounting_config_pension_value', (string) ($data['cfovalor_pension'] ?? ''));
+        sessionFlash('old_accounting_config_matriculation_value', (string) ($data['cfovalor_matricula'] ?? ''));
         sessionFlash('old_accounting_config_months_count', (string) ($data['cfocantidad_pensiones'] ?? ''));
         sessionFlash('old_accounting_config_start_month', (string) ($data['cfomes_inicio'] ?? ''));
+        sessionFlash('old_accounting_config_end_month', (string) ($data['cfomes_fin'] ?? ''));
         sessionFlash('old_accounting_config_start_year', (string) ($data['cfoanio_inicio'] ?? ''));
         sessionFlash('old_accounting_config_due_day', (string) ($data['cfodia_vencimiento'] ?? '5'));
         sessionFlash('old_accounting_config_late_fee', !empty($data['cfogenera_mora']) ? '1' : '0');
@@ -1547,6 +1594,19 @@ class ConfigurationController extends Controller
         sessionFlash('old_accounting_config_late_fee_value', (string) ($data['cfomora_valor'] ?? ''));
         sessionFlash('old_accounting_config_status', !empty($data['cfoestado']) ? '1' : '0');
         sessionFlash('old_accounting_config_note', (string) ($data['cfoobservacion'] ?? ''));
+    }
+
+    private function accountingMonthsCount(int $startMonth, int $endMonth): int
+    {
+        if ($startMonth < 1 || $startMonth > 12 || $endMonth < 1 || $endMonth > 12) {
+            return 0;
+        }
+
+        if ($endMonth >= $startMonth) {
+            return $endMonth - $startMonth + 1;
+        }
+
+        return (12 - $startMonth + 1) + $endMonth;
     }
 
     private function flashInstitutionFieldError(string $field, string $message): void

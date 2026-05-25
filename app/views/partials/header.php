@@ -17,15 +17,15 @@ $topModules = [
         'url' => baseUrl('academico'),
         'icon' => 'fa-graduation-cap',
     ],
-    'configuracion' => [
-        'label' => 'Configuracion',
-        'url' => baseUrl('configuracion'),
-        'icon' => 'fa-cogs',
-    ],
     'contabilidad' => [
         'label' => 'Gestion Contable',
         'url' => baseUrl('contabilidad'),
         'icon' => 'fa-usd',
+    ],
+    'configuracion' => [
+        'label' => 'Configuracion',
+        'url' => baseUrl('configuracion'),
+        'icon' => 'fa-cogs',
     ],
     'seguridad' => [
         'label' => 'Seguridad',
@@ -248,12 +248,6 @@ $sidebarModules = [
                                 'icon' => 'fa-check-square',
                             ],
                             [
-                                'key' => 'configuracion_contable',
-                                'label' => 'Configuracion contable',
-                                'url' => baseUrl('configuracion/contable'),
-                                'icon' => 'fa-usd',
-                            ],
-                            [
                                 'key' => 'asistencia_configuracion',
                                 'label' => 'Rango de clases',
                                 'url' => baseUrl('asistencia/configuracion'),
@@ -266,6 +260,12 @@ $sidebarModules = [
                                 'icon' => 'fa-calendar',
                             ],
                         ],
+                    ],
+                    [
+                        'key' => 'configuracion_contable',
+                        'label' => 'Configuracion contable',
+                        'url' => baseUrl('configuracion/contable'),
+                        'icon' => 'fa-usd',
                     ],
                 ],
             ],
@@ -728,7 +728,6 @@ foreach ($logoPatterns as $logoPattern) {
                                         'asistencia_configuracion',
                                         'asistencia_calendario',
                                         'calificaciones',
-                                        'configuracion_contable',
                                     ], true)
                                 );
                             $sidebarChildren = isset($item['children']) && is_array($item['children']) ? $item['children'] : [];

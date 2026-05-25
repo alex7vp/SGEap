@@ -114,9 +114,33 @@ function verifyCsrfRequest(): void
         return;
     }
 
-    http_response_code(403);
-    echo 'La sesion del formulario expiro. Regrese e intente nuevamente.';
-    exit;
+    unset($_SESSION['_csrf_token']);
+    sessionFlash('error', 'La sesion del formulario expiro. Intente nuevamente.');
+    redirect(csrfFailureRedirectPath());
+}
+
+function csrfFailureRedirectPath(): string
+{
+    $referer = (string) ($_SERVER['HTTP_REFERER'] ?? '');
+    $refererPath = parse_url($referer, PHP_URL_PATH);
+    $refererQuery = parse_url($referer, PHP_URL_QUERY);
+
+    if (is_string($refererPath) && $refererPath !== '') {
+        $basePath = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '')), '/');
+
+        if ($basePath !== '' && $basePath !== '/' && str_starts_with($refererPath, $basePath)) {
+            $refererPath = substr($refererPath, strlen($basePath));
+        }
+
+        $path = $refererPath === '' ? '/' : $refererPath;
+        $path .= is_string($refererQuery) && $refererQuery !== '' ? '?' . $refererQuery : '';
+
+        if (preg_match('#^/[a-zA-Z0-9/_?=&.%-]*$#', $path) === 1) {
+            return $path;
+        }
+    }
+
+    return empty($_SESSION['auth']) ? '/login' : '/dashboard';
 }
 
 function sessionFlash(string $key, ?string $value = null): ?string

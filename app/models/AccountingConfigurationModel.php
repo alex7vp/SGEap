@@ -26,16 +26,13 @@ class AccountingConfigurationModel extends Model
                     c.graid,
                     g.granombre,
                     gn.nednombre AS grado_nednombre,
-                    c.curid,
-                    cg.granombre AS curso_granombre,
-                    cn.nednombre AS curso_nednombre,
-                    pr.prlnombre,
                     c.ccoid,
                     co.cconombre,
                     c.cfotipo,
                     c.cfovalor_oficial,
                     c.cfocantidad_pensiones,
                     c.cfomes_inicio,
+                    c.cfomes_fin,
                     c.cfoanio_inicio,
                     c.cfodia_vencimiento,
                     c.cfogenera_mora,
@@ -51,21 +48,15 @@ class AccountingConfigurationModel extends Model
              LEFT JOIN nivel_educativo n ON n.nedid = c.nedid
              LEFT JOIN grado g ON g.graid = c.graid
              LEFT JOIN nivel_educativo gn ON gn.nedid = g.nedid
-             LEFT JOIN curso cu ON cu.curid = c.curid
-             LEFT JOIN grado cg ON cg.graid = cu.graid
-             LEFT JOIN nivel_educativo cn ON cn.nedid = cg.nedid
-             LEFT JOIN paralelo pr ON pr.prlid = cu.prlid
              ORDER BY p.plefechainicio DESC,
                       CASE c.cfoalcance
                           WHEN 'INSTITUCION' THEN 1
                           WHEN 'NIVEL' THEN 2
                           WHEN 'GRADO' THEN 3
-                          WHEN 'CURSO' THEN 4
                           ELSE 5
                       END,
-                      COALESCE(n.nednombre, gn.nednombre, cn.nednombre, ''),
-                      COALESCE(g.granombre, cg.granombre, ''),
-                      COALESCE(pr.prlnombre, ''),
+                      COALESCE(n.nednombre, gn.nednombre, ''),
+                      COALESCE(g.granombre, ''),
                       c.cfotipo"
         );
 
@@ -114,12 +105,12 @@ class AccountingConfigurationModel extends Model
                 cfoalcance,
                 nedid,
                 graid,
-                curid,
                 ccoid,
                 cfotipo,
                 cfovalor_oficial,
                 cfocantidad_pensiones,
                 cfomes_inicio,
+                cfomes_fin,
                 cfoanio_inicio,
                 cfodia_vencimiento,
                 cfogenera_mora,
@@ -133,12 +124,12 @@ class AccountingConfigurationModel extends Model
                 :alcance,
                 :nedid,
                 :graid,
-                :curid,
                 :ccoid,
                 :tipo,
                 :valor_oficial,
                 :cantidad_pensiones,
                 :mes_inicio,
+                :mes_fin,
                 :anio_inicio,
                 :dia_vencimiento,
                 :genera_mora,
@@ -162,12 +153,12 @@ class AccountingConfigurationModel extends Model
                  cfoalcance = :alcance,
                  nedid = :nedid,
                  graid = :graid,
-                 curid = :curid,
                  ccoid = :ccoid,
                  cfotipo = :tipo,
                  cfovalor_oficial = :valor_oficial,
                  cfocantidad_pensiones = :cantidad_pensiones,
                  cfomes_inicio = :mes_inicio,
+                 cfomes_fin = :mes_fin,
                  cfoanio_inicio = :anio_inicio,
                  cfodia_vencimiento = :dia_vencimiento,
                  cfogenera_mora = :genera_mora,
@@ -207,9 +198,6 @@ class AccountingConfigurationModel extends Model
         } elseif ($data['cfoalcance'] === 'GRADO') {
             $conditions[] = 'graid = :target_id';
             $params['target_id'] = (int) $data['graid'];
-        } elseif ($data['cfoalcance'] === 'CURSO') {
-            $conditions[] = 'curid = :target_id';
-            $params['target_id'] = (int) $data['curid'];
         }
 
         $sql = 'SELECT 1 FROM ' . $this->table . ' WHERE ' . implode(' AND ', $conditions);
@@ -226,18 +214,78 @@ class AccountingConfigurationModel extends Model
         return $statement->fetchColumn() !== false;
     }
 
+    public function findCombination(array $data, string $type, ?int $exceptId = null): array|false
+    {
+        $conditions = [
+            'pleid = :pleid',
+            'cfoalcance = :alcance',
+            'cfotipo = :tipo',
+        ];
+        $params = [
+            'pleid' => (int) $data['pleid'],
+            'alcance' => (string) $data['cfoalcance'],
+            'tipo' => mb_strtoupper(trim($type)),
+        ];
+
+        if ($data['cfoalcance'] === 'NIVEL') {
+            $conditions[] = 'nedid = :target_id';
+            $params['target_id'] = (int) $data['nedid'];
+        } elseif ($data['cfoalcance'] === 'GRADO') {
+            $conditions[] = 'graid = :target_id';
+            $params['target_id'] = (int) $data['graid'];
+        }
+
+        if ($exceptId !== null) {
+            $conditions[] = "{$this->primaryKey} <> :id";
+            $params['id'] = $exceptId;
+        }
+
+        $sql = 'SELECT * FROM ' . $this->table . ' WHERE ' . implode(' AND ', $conditions) . " ORDER BY cfoestado DESC, {$this->primaryKey} ASC LIMIT 1";
+        $statement = $this->db->prepare($sql);
+        $statement->execute($params);
+
+        return $statement->fetch();
+    }
+
+    public function saveConfigurationPair(array $pensionData, array $matriculationData, ?int $pensionId = null, ?int $matriculationId = null): void
+    {
+        $this->db->beginTransaction();
+
+        try {
+            if ($pensionId !== null) {
+                $this->updateConfiguration($pensionId, $pensionData);
+            } else {
+                $this->createConfiguration($pensionData);
+            }
+
+            if ($matriculationId !== null) {
+                $this->updateConfiguration($matriculationId, $matriculationData);
+            } else {
+                $this->createConfiguration($matriculationData);
+            }
+
+            $this->db->commit();
+        } catch (\Throwable $exception) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+
+            throw $exception;
+        }
+    }
+
     private function bindConfiguration(\PDOStatement $statement, array $data, bool $bindUser): void
     {
         $statement->bindValue(':pleid', (int) $data['pleid'], PDO::PARAM_INT);
         $statement->bindValue(':alcance', (string) $data['cfoalcance']);
         $this->bindNullableInt($statement, ':nedid', $data['nedid'] ?? null);
         $this->bindNullableInt($statement, ':graid', $data['graid'] ?? null);
-        $this->bindNullableInt($statement, ':curid', $data['curid'] ?? null);
         $statement->bindValue(':ccoid', (int) $data['ccoid'], PDO::PARAM_INT);
         $statement->bindValue(':tipo', (string) $data['cfotipo']);
         $statement->bindValue(':valor_oficial', (string) $data['cfovalor_oficial']);
         $this->bindNullableInt($statement, ':cantidad_pensiones', $data['cfocantidad_pensiones'] ?? null);
         $this->bindNullableInt($statement, ':mes_inicio', $data['cfomes_inicio'] ?? null);
+        $this->bindNullableInt($statement, ':mes_fin', $data['cfomes_fin'] ?? null);
         $this->bindNullableInt($statement, ':anio_inicio', $data['cfoanio_inicio'] ?? null);
         $statement->bindValue(':dia_vencimiento', (int) $data['cfodia_vencimiento'], PDO::PARAM_INT);
         $statement->bindValue(':genera_mora', (bool) $data['cfogenera_mora'], PDO::PARAM_BOOL);
