@@ -38,6 +38,70 @@ class AccountingModel extends Model
         ];
     }
 
+    public function dashboardCharts(int $periodId): array
+    {
+        if ($periodId <= 0) {
+            return [
+                'payment_months' => [],
+                'month_payment_status' => [],
+                'receipts_status' => [],
+                'obligations_status' => [],
+                'payments_monthly' => [],
+                'pending_by_course' => [],
+            ];
+        }
+
+        return [
+            'payment_months' => $this->paymentMonthOptions($periodId),
+            'month_payment_status' => $this->monthPaymentStatusChart($periodId, null),
+            'receipts_status' => $this->receiptStatusChart($periodId),
+            'obligations_status' => $this->obligationStatusChart($periodId),
+            'payments_monthly' => $this->approvedPaymentsMonthlyChart($periodId),
+            'pending_by_course' => $this->pendingByCourseChart($periodId),
+        ];
+    }
+
+    public function monthPaymentStatusChart(int $periodId, ?string $month): array
+    {
+        if ($periodId <= 0) {
+            return [
+                ['label' => 'Pagado', 'value' => 0],
+                ['label' => 'Pendiente', 'value' => 0],
+            ];
+        }
+
+        $month = $this->normalizeChartMonth($month);
+        $whereMonth = '';
+        $params = ['period_id' => $periodId];
+
+        if ($month !== null) {
+            $whereMonth = " AND make_date(o.cobanio, o.cobmes, 1) = to_date(:month, 'YYYY-MM')";
+            $params['month'] = $month;
+        }
+
+        $statement = $this->db->prepare(
+            "SELECT
+                    COALESCE(SUM(o.cobvalor_pagado), 0) AS paid,
+                    COALESCE(SUM(o.cobsaldo_pendiente), 0) AS pending
+             FROM contabilidad_obligacion o
+             INNER JOIN matricula m ON m.matid = o.matid
+             INNER JOIN curso c ON c.curid = m.curid
+             WHERE c.pleid = :period_id
+               AND o.cobestado <> 'ANULADO'
+               AND o.cobtipo = 'PENSION'
+               AND o.cobanio IS NOT NULL
+               AND o.cobmes IS NOT NULL
+               {$whereMonth}"
+        );
+        $statement->execute($params);
+        $row = $statement->fetch() ?: ['paid' => 0, 'pending' => 0];
+
+        return [
+            ['label' => 'Pagado', 'value' => (float) ($row['paid'] ?? 0)],
+            ['label' => 'Pendiente', 'value' => (float) ($row['pending'] ?? 0)],
+        ];
+    }
+
     public function recentPendingReceipts(int $periodId, int $limit = 8): array
     {
         if ($periodId <= 0) {
@@ -496,7 +560,8 @@ class AccountingModel extends Model
                     lp.cpagid,
                     lp.cpagestado,
                     lp.cpagfecha_registro,
-                    lp.cpagmotivo_rechazo
+                    lp.cpagmotivo_rechazo,
+                    COALESCE(ph.comprobantes, '[]'::jsonb) AS comprobantes
              FROM matricula_representante mr
              INNER JOIN matricula m ON m.matid = mr.matid
              INNER JOIN curso c ON c.curid = m.curid
@@ -513,6 +578,25 @@ class AccountingModel extends Model
                  ORDER BY p.cpagfecha_registro DESC, p.cpagid DESC
                  LIMIT 1
              ) lp ON true
+             LEFT JOIN LATERAL (
+                 SELECT jsonb_agg(
+                     jsonb_build_object(
+                         'cpagid', p.cpagid,
+                         'estado', p.cpagestado,
+                         'valor_reportado', p.cpagvalor_reportado,
+                         'valor_aprobado', p.cpagvalor_aprobado,
+                         'fecha_registro', p.cpagfecha_registro,
+                         'fecha_revision', p.cpagfecha_revision,
+                         'archivo_ruta', p.cpagarchivo_ruta,
+                         'archivo_nombre', p.cpagarchivo_nombre,
+                         'motivo_rechazo', p.cpagmotivo_rechazo
+                     )
+                     ORDER BY p.cpagfecha_registro ASC, p.cpagid ASC
+                 ) AS comprobantes
+                 FROM contabilidad_pago p
+                 WHERE p.cobid_sugerido = o.cobid
+                   AND p.cpagorigen = 'REPRESENTANTE'
+             ) ph ON true
              WHERE mr.perid = :representative_person_id
                AND c.pleid = :period_id
                AND o.cobestado <> 'ANULADO'
@@ -605,14 +689,67 @@ class AccountingModel extends Model
         }
     }
 
-    public function receiptsForReview(int $periodId, string $status = 'EN_REVISION'): array
+    public function receiptsForReview(int $periodId, string $status = 'EN_REVISION', array $filters = []): array
+    {
+        return $this->receiptsForReviewPage($periodId, $status, $filters)['rows'];
+    }
+
+    public function receiptsForReviewPage(int $periodId, string $status = 'EN_REVISION', array $filters = [], int $limit = 25, int $page = 1): array
     {
         if ($periodId <= 0) {
-            return [];
+            return [
+                'rows' => [],
+                'total' => 0,
+                'page' => 1,
+                'limit' => max(1, $limit),
+                'pages' => 1,
+            ];
         }
 
         $validStatuses = ['EN_REVISION', 'APROBADO', 'RECHAZADO'];
         $status = in_array($status, $validStatuses, true) ? $status : 'EN_REVISION';
+        $conditions = ['c.pleid = :period_id', 'p.cpagestado = :status'];
+        $params = [
+            'period_id' => $periodId,
+            'status' => $status,
+        ];
+        $search = trim((string) ($filters['q'] ?? ''));
+        $courseId = (int) ($filters['curso'] ?? 0);
+        $limit = min(100, max(10, $limit));
+        $page = max(1, $page);
+
+        if ($search !== '') {
+            $conditions[] = "(lower(pe.pernombres || ' ' || pe.perapellidos) LIKE lower(:search)
+                OR lower(pe.perapellidos || ' ' || pe.pernombres) LIKE lower(:search)
+                OR lower(COALESCE(pe.percedula, '')) LIKE lower(:search)
+                OR lower(COALESCE(o.cobdescripcion, '')) LIKE lower(:search))";
+            $params['search'] = '%' . $search . '%';
+        }
+
+        if ($courseId > 0) {
+            $conditions[] = 'c.curid = :course_id';
+            $params['course_id'] = $courseId;
+        }
+
+        $whereSql = implode(' AND ', $conditions);
+        $countStatement = $this->db->prepare(
+            "SELECT COUNT(*)
+             FROM contabilidad_pago p
+             INNER JOIN matricula m ON m.matid = p.matid
+             INNER JOIN curso c ON c.curid = m.curid
+             INNER JOIN estudiante e ON e.estid = m.estid
+             INNER JOIN persona pe ON pe.perid = e.perid
+             INNER JOIN contabilidad_obligacion o ON o.cobid = p.cobid_sugerido
+             WHERE {$whereSql}"
+        );
+        foreach ($params as $key => $value) {
+            $countStatement->bindValue(':' . $key, $value, is_int($value) ? PDO::PARAM_INT : PDO::PARAM_STR);
+        }
+        $countStatement->execute();
+        $total = (int) $countStatement->fetchColumn();
+        $pages = max(1, (int) ceil($total / $limit));
+        $page = min($page, $pages);
+        $offset = ($page - 1) * $limit;
 
         $statement = $this->db->prepare(
             "SELECT
@@ -638,6 +775,7 @@ class AccountingModel extends Model
                     pe.pernombres,
                     pe.perapellidos,
                     pe.percedula,
+                    c.curid,
                     g.granombre,
                     pr.prlnombre,
                     dup.cpagid AS duplicado_cpagid
@@ -659,16 +797,24 @@ class AccountingModel extends Model
                  ORDER BY pd.cpagfecha_registro DESC, pd.cpagid DESC
                  LIMIT 1
              ) dup ON true
-             WHERE c.pleid = :period_id
-               AND p.cpagestado = :status
-             ORDER BY p.cpagfecha_registro DESC, p.cpagid DESC"
+             WHERE {$whereSql}
+             ORDER BY p.cpagfecha_registro DESC, p.cpagid DESC
+             LIMIT :limit OFFSET :offset"
         );
-        $statement->execute([
-            'period_id' => $periodId,
-            'status' => $status,
-        ]);
+        foreach ($params as $key => $value) {
+            $statement->bindValue(':' . $key, $value, is_int($value) ? PDO::PARAM_INT : PDO::PARAM_STR);
+        }
+        $statement->bindValue(':limit', $limit, PDO::PARAM_INT);
+        $statement->bindValue(':offset', max(0, $offset), PDO::PARAM_INT);
+        $statement->execute();
 
-        return $statement->fetchAll();
+        return [
+            'rows' => $statement->fetchAll(),
+            'total' => $total,
+            'page' => $page,
+            'limit' => $limit,
+            'pages' => $pages,
+        ];
     }
 
     public function approveReceipt(int $paymentId, int $periodId, int $userId, float $approvedValue, string $observation = '', string $externalNumber = '', bool $allowDuplicate = false): void
@@ -860,6 +1006,118 @@ class AccountingModel extends Model
                AND p.cpagestado = 'EN_REVISION'",
             $periodId
         );
+    }
+
+    private function paymentMonthOptions(int $periodId): array
+    {
+        $statement = $this->db->prepare(
+            "SELECT DISTINCT
+                    to_char(make_date(o.cobanio, o.cobmes, 1), 'YYYY-MM') AS value,
+                    to_char(make_date(o.cobanio, o.cobmes, 1), 'TMMonth YYYY') AS label
+             FROM contabilidad_obligacion o
+             INNER JOIN matricula m ON m.matid = o.matid
+             INNER JOIN curso c ON c.curid = m.curid
+             WHERE c.pleid = :period_id
+               AND o.cobtipo = 'PENSION'
+               AND o.cobanio IS NOT NULL
+               AND o.cobmes IS NOT NULL
+               AND o.cobestado <> 'ANULADO'
+             ORDER BY value"
+        );
+        $statement->execute(['period_id' => $periodId]);
+
+        return $statement->fetchAll();
+    }
+
+    private function normalizeChartMonth(?string $month): ?string
+    {
+        $month = trim((string) ($month ?? ''));
+
+        if (preg_match('/^\d{4}-\d{2}$/', $month) !== 1) {
+            return null;
+        }
+
+        return $month;
+    }
+
+    private function receiptStatusChart(int $periodId): array
+    {
+        $statement = $this->db->prepare(
+            "SELECT p.cpagestado AS label, COUNT(*) AS value
+             FROM contabilidad_pago p
+             INNER JOIN matricula m ON m.matid = p.matid
+             INNER JOIN curso c ON c.curid = m.curid
+             WHERE c.pleid = :period_id
+             GROUP BY p.cpagestado
+             ORDER BY p.cpagestado"
+        );
+        $statement->execute(['period_id' => $periodId]);
+
+        return $statement->fetchAll();
+    }
+
+    private function obligationStatusChart(int $periodId): array
+    {
+        $statement = $this->db->prepare(
+            "SELECT
+                    o.cobestado AS label,
+                    COUNT(*) AS value,
+                    COALESCE(SUM(o.cobsaldo_pendiente), 0) AS amount
+             FROM contabilidad_obligacion o
+             INNER JOIN matricula m ON m.matid = o.matid
+             INNER JOIN curso c ON c.curid = m.curid
+             WHERE c.pleid = :period_id
+               AND o.cobestado <> 'ANULADO'
+             GROUP BY o.cobestado
+             ORDER BY o.cobestado"
+        );
+        $statement->execute(['period_id' => $periodId]);
+
+        return $statement->fetchAll();
+    }
+
+    private function approvedPaymentsMonthlyChart(int $periodId): array
+    {
+        $statement = $this->db->prepare(
+            "SELECT
+                    to_char(date_trunc('month', p.cpagfecha_revision), 'YYYY-MM') AS label,
+                    COALESCE(SUM(p.cpagvalor_aprobado), 0) AS value
+             FROM contabilidad_pago p
+             INNER JOIN matricula m ON m.matid = p.matid
+             INNER JOIN curso c ON c.curid = m.curid
+             WHERE c.pleid = :period_id
+               AND p.cpagestado = 'APROBADO'
+               AND p.cpagfecha_revision IS NOT NULL
+               AND p.cpagfecha_revision >= date_trunc('month', CURRENT_DATE) - interval '5 months'
+             GROUP BY date_trunc('month', p.cpagfecha_revision)
+             ORDER BY date_trunc('month', p.cpagfecha_revision)"
+        );
+        $statement->execute(['period_id' => $periodId]);
+
+        return $statement->fetchAll();
+    }
+
+    private function pendingByCourseChart(int $periodId): array
+    {
+        $statement = $this->db->prepare(
+            "SELECT
+                    trim(g.granombre || ' ' || pr.prlnombre) AS label,
+                    COALESCE(SUM(o.cobsaldo_pendiente), 0) AS value
+             FROM contabilidad_obligacion o
+             INNER JOIN matricula m ON m.matid = o.matid
+             INNER JOIN curso c ON c.curid = m.curid
+             INNER JOIN grado g ON g.graid = c.graid
+             INNER JOIN paralelo pr ON pr.prlid = c.prlid
+             WHERE c.pleid = :period_id
+               AND o.cobestado IN ('PENDIENTE', 'EN_REVISION', 'PAGO_PARCIAL', 'VENCIDO')
+               AND o.cobsaldo_pendiente > 0
+             GROUP BY g.graid, g.granombre, pr.prlid, pr.prlnombre
+             ORDER BY SUM(o.cobsaldo_pendiente) DESC
+             LIMIT 8"
+        );
+        $statement->execute(['period_id' => $periodId]);
+
+        return $statement->fetchAll();
     }
 
     private function obligationFilterWhere(int $periodId, array $filters): array

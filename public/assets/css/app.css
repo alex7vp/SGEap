@@ -1417,6 +1417,15 @@ input::placeholder {
     gap: 6px;
 }
 
+.accounting-upload-form {
+    gap: 3px;
+    justify-content: center;
+    align-items: center;
+    min-height: 22px;
+    margin: 0;
+    line-height: 1;
+}
+
 .accounting-review-actions {
     align-items: flex-start;
     flex-direction: column;
@@ -1455,10 +1464,277 @@ input::placeholder {
     flex: 1 1 180px;
 }
 
-.file-inline-control input {
-    width: 190px;
-    max-width: 100%;
+.accounting-receipts-toolbar {
+    justify-content: flex-start;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.accounting-receipts-toolbar .table-status {
+    margin-left: auto;
+}
+
+.accounting-dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+    margin-bottom: 18px;
+}
+
+.accounting-chart-card {
+    min-width: 0;
+    padding: 16px;
+    border: 1px solid #d8e4ee;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fbfe 100%);
+    box-shadow: 0 10px 26px rgba(15, 40, 70, 0.06);
+}
+
+.accounting-chart-card header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.accounting-chart-card header > div {
+    min-width: 0;
+}
+
+.accounting-chart-card h3 {
+    margin: 0;
+    color: #16324a;
+    font-size: 1rem;
+}
+
+.accounting-chart-card span {
+    color: #64748b;
     font-size: 0.78rem;
+}
+
+.accounting-chart-select {
+    width: auto;
+    min-width: 150px;
+    height: 30px;
+    border: 1px solid #c7d6e5;
+    background: #ffffff;
+    color: var(--text);
+    font-size: 0.84rem;
+}
+
+.accounting-chart-wrap {
+    position: relative;
+    min-height: 240px;
+    padding: 8px;
+    border: 1px solid #edf3f8;
+    background: #ffffff;
+}
+
+.accounting-chart-wrap canvas {
+    width: 100% !important;
+    height: 240px !important;
+}
+
+.accounting-pagination {
+    justify-content: center;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.accounting-pagination .btn-secondary {
+    min-height: 30px;
+    border-color: #c7d6e5;
+    background: #ffffff;
+    color: var(--primary);
+    font-weight: 700;
+}
+
+.accounting-pagination .btn-secondary:hover:not(:disabled) {
+    background: #e7f2fb;
+    border-color: #8eb8d8;
+    color: #0d4f86;
+}
+
+.accounting-pagination .btn-secondary:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.accounting-pagination .table-status {
+    display: inline-flex;
+    align-items: center;
+    min-height: 30px;
+    padding: 0 10px;
+    border: 1px solid #d6e2ec;
+    background: #f7fbff;
+    color: var(--muted);
+}
+
+.accounting-receipt-detail-modal {
+    width: min(780px, 100%);
+}
+
+.accounting-representative-receipts-modal {
+    width: min(720px, 100%);
+}
+
+.accounting-detail-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px 14px;
+    margin: 0 0 14px;
+}
+
+.accounting-detail-list div {
+    min-width: 0;
+}
+
+.accounting-detail-list dt {
+    color: var(--muted);
+    font-size: 0.76rem;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.accounting-detail-list dd {
+    margin: 2px 0 0;
+    color: var(--text);
+    font-size: 0.9rem;
+}
+
+.accounting-detail-file {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 14px;
+}
+
+.accounting-detail-file span {
+    color: var(--muted);
+    font-size: 0.84rem;
+}
+
+.accounting-review-modal-form {
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+}
+
+.segmented-options {
+    display: inline-flex;
+    gap: 0;
+    margin-bottom: 12px;
+    border: 1px solid #c7d6e5;
+    background: #ffffff;
+}
+
+.segmented-options label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+    padding: 6px 10px;
+    border-right: 1px solid #c7d6e5;
+    color: var(--text);
+    cursor: pointer;
+}
+
+.segmented-options label:last-child {
+    border-right: 0;
+}
+
+.segmented-options label:has(input:checked) {
+    background: #e7f2fb;
+    color: var(--primary);
+    font-weight: 700;
+}
+
+.accounting-representative-table th,
+.accounting-representative-table td {
+    padding-top: 0;
+    padding-bottom: 0;
+    vertical-align: middle;
+}
+
+.accounting-representative-table th:last-child,
+.accounting-representative-table td:last-child {
+    text-align: center;
+}
+
+.accounting-file-note {
+    margin: 8px 0 0;
+    color: var(--muted);
+    font-size: 0.84rem;
+}
+
+.icon-button.accounting-receipt-save-button {
+    align-self: center;
+    width: 22px;
+    height: 22px;
+    min-width: 22px;
+    padding: 0;
+    border: 0;
+    background: var(--primary);
+    color: #ffffff;
+    font-size: 0.82rem;
+    line-height: 1;
+    box-shadow: none;
+    transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+.icon-button.accounting-receipt-save-button:hover {
+    background: #d4e4f1;
+    color: var(--primary);
+    transform: translateY(-1px);
+}
+
+.icon-button.accounting-receipt-save-button:focus-visible {
+    outline: 2px solid rgba(13, 79, 134, 0.24);
+    outline-offset: 2px;
+}
+
+.file-inline-control {
+    display: inline-flex;
+    align-items: center;
+    align-self: center;
+    min-width: 210px;
+    max-width: 260px;
+    height: 22px;
+    line-height: 1;
+    border: 1px solid #c7d6e5;
+    background: #ffffff;
+    color: var(--text);
+    cursor: pointer;
+}
+
+.file-inline-control input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.file-inline-button {
+    display: inline-flex;
+    align-items: center;
+    height: 100%;
+    padding: 0 7px;
+    border-right: 1px solid #c7d6e5;
+    background: #edf4fb;
+    color: #0d4f86;
+    font-size: 0.78rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.file-inline-name {
+    min-width: 0;
+    padding: 0 6px;
+    overflow: hidden;
+    color: var(--muted);
+    font-size: 0.78rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .checkbox-inline {
@@ -4490,6 +4766,10 @@ thead .role-user-sticky {
 }
 
 @media (max-width: 960px) {
+    .accounting-dashboard-grid {
+        grid-template-columns: 1fr;
+    }
+
     .topbar-inner {
         flex-wrap: wrap;
         align-items: flex-start;

@@ -184,7 +184,7 @@ $referenceValue = static function (array $reference, string $key, string $labelK
             </tbody>
         </table>
         <div class="empty-state" data-accounting-obligation-empty <?= $students === [] ? '' : 'hidden'; ?>>No se encontraron estudiantes con los filtros aplicados.</div>
-        <div class="actions-row" data-accounting-obligation-pagination>
+        <div class="actions-row accounting-pagination" data-accounting-obligation-pagination>
             <button class="btn-secondary btn-auto" type="button" data-accounting-page-prev <?= (int) ($pagination['page'] ?? 1) <= 1 ? 'disabled' : ''; ?>>
                 <i class="fa fa-chevron-left" aria-hidden="true"></i>
                 Anterior

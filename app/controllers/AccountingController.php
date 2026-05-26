@@ -18,6 +18,14 @@ class AccountingController extends Controller
         $periodId = $period !== null ? (int) ($period['pleid'] ?? 0) : 0;
         $accountingModel = new AccountingModel();
 
+        if ((string) ($_GET['chart'] ?? '') === 'month-payment-status') {
+            header('Content-Type: application/json; charset=UTF-8');
+            echo json_encode([
+                'rows' => $accountingModel->monthPaymentStatusChart($periodId, (string) ($_GET['month'] ?? '')),
+            ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            return;
+        }
+
         $this->view('contabilidad.index', [
             'appName' => config('app')['name'] ?? 'SGEap',
             'pageTitle' => 'Gestion Contable',
@@ -26,6 +34,7 @@ class AccountingController extends Controller
             'user' => $user,
             'currentPeriod' => $period,
             'summary' => $accountingModel->dashboardSummary($periodId),
+            'charts' => $accountingModel->dashboardCharts($periodId),
             'pendingReceipts' => $accountingModel->recentPendingReceipts($periodId),
             'success' => sessionFlash('success'),
             'error' => sessionFlash('error'),
@@ -176,6 +185,24 @@ class AccountingController extends Controller
         $period = currentAcademicPeriod();
         $periodId = $period !== null ? (int) ($period['pleid'] ?? 0) : 0;
         $status = (string) ($_GET['estado'] ?? 'EN_REVISION');
+        $filters = $this->receiptFilters();
+        $page = max(1, (int) ($_GET['page'] ?? 1));
+        $limit = max(10, min(100, (int) ($_GET['limit'] ?? 25)));
+        $accountingModel = new AccountingModel();
+        $pagination = $accountingModel->receiptsForReviewPage($periodId, $status, $filters, $limit, $page);
+
+        if ((string) ($_GET['ajax'] ?? '') === '1') {
+            header('Content-Type: application/json; charset=UTF-8');
+            echo json_encode([
+                'rows' => $pagination['rows'],
+                'total' => $pagination['total'],
+                'page' => $pagination['page'],
+                'limit' => $pagination['limit'],
+                'pages' => $pagination['pages'],
+                'status' => $status,
+            ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            return;
+        }
 
         $this->view('contabilidad.comprobantes', [
             'appName' => config('app')['name'] ?? 'SGEap',
@@ -185,7 +212,10 @@ class AccountingController extends Controller
             'user' => $user,
             'currentPeriod' => $period,
             'status' => $status,
-            'receipts' => (new AccountingModel())->receiptsForReview($periodId, $status),
+            'filters' => $filters,
+            'courses' => $periodId > 0 ? (new CourseModel())->allByPeriod($periodId) : [],
+            'receipts' => $pagination['rows'],
+            'pagination' => $pagination,
             'success' => sessionFlash('success'),
             'error' => sessionFlash('error'),
         ]);
@@ -277,6 +307,14 @@ class AccountingController extends Controller
         return [
             'q' => trim((string) ($_GET['q'] ?? '')),
             'nivel' => (int) ($_GET['nivel'] ?? 0),
+            'curso' => (int) ($_GET['curso'] ?? 0),
+        ];
+    }
+
+    private function receiptFilters(): array
+    {
+        return [
+            'q' => trim((string) ($_GET['q'] ?? '')),
             'curso' => (int) ($_GET['curso'] ?? 0),
         ];
     }
