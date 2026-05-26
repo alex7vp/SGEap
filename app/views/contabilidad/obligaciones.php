@@ -163,13 +163,15 @@ $referenceValue = static function (array $reference, string $key, string $labelK
                             <form class="accounting-actions-inline" id="<?= $h($formId); ?>" method="POST" action="<?= $h(baseUrl('contabilidad/obligaciones/generar')); ?>">
                                 <?= csrfField(); ?>
                                 <input type="hidden" name="matid" value="<?= $h($student['matid'] ?? ''); ?>">
-                                <?php if ($status === 'Asignado'): ?>
+                                <?php if ($status !== 'Sin configuracion'): ?>
                                     <button class="icon-button icon-button-edit" type="button" title="Editar valores" aria-label="Editar valores" data-obligation-row-edit>
                                         <i class="fa fa-pencil" aria-hidden="true"></i>
                                     </button>
                                     <button class="icon-button icon-button-cancel" type="button" title="Cancelar edicion" aria-label="Cancelar edicion" data-obligation-row-cancel hidden>
                                         <i class="fa fa-times" aria-hidden="true"></i>
                                     </button>
+                                <?php endif; ?>
+                                <?php if ($status === 'Asignado'): ?>
                                     <button class="icon-button icon-button-view" type="button" title="Ver obligaciones" aria-label="Ver obligaciones" data-obligation-detail data-matid="<?= $h($student['matid'] ?? ''); ?>">
                                         <i class="fa fa-search" aria-hidden="true"></i>
                                     </button>
@@ -444,13 +446,15 @@ document.addEventListener('DOMContentLoaded', function () {
             const courseName = `${row.granombre || ''} ${row.prlnombre || ''}`.trim();
             const formId = `accounting-obligation-form-${row.matid || ''}`;
             const basePension = Number(row.pension_valor || 0).toFixed(2);
-            const assignedActions = assigned ? `
+            const editActions = status !== 'Sin configuracion' ? `
                             <button class="icon-button icon-button-edit" type="button" title="Editar valores" aria-label="Editar valores" data-obligation-row-edit>
                                 <i class="fa fa-pencil" aria-hidden="true"></i>
                             </button>
                             <button class="icon-button icon-button-cancel" type="button" title="Cancelar edicion" aria-label="Cancelar edicion" data-obligation-row-cancel hidden>
                                 <i class="fa fa-times" aria-hidden="true"></i>
                             </button>
+            ` : '';
+            const viewAction = assigned ? `
                             <button class="icon-button icon-button-view" type="button" title="Ver obligaciones" aria-label="Ver obligaciones" data-obligation-detail data-matid="${escapeHtml(row.matid || '')}">
                                 <i class="fa fa-search" aria-hidden="true"></i>
                             </button>
@@ -473,7 +477,8 @@ document.addEventListener('DOMContentLoaded', function () {
                         <form class="accounting-actions-inline" id="${escapeHtml(formId)}" method="POST" action="${escapeHtml(generateEndpoint)}">
                             <input type="hidden" name="_csrf_token" value="${escapeHtml(csrf)}">
                             <input type="hidden" name="matid" value="${escapeHtml(row.matid || '')}">
-                            ${assignedActions}
+                            ${editActions}
+                            ${viewAction}
                             <button class="icon-button icon-button-save" type="submit" title="${escapeHtml(assignTitle)}" aria-label="${escapeHtml(assignTitle)}" ${disabled} data-obligation-row-assign>
                                 <i class="fa ${escapeHtml(assignIcon)}" aria-hidden="true"></i>
                             </button>

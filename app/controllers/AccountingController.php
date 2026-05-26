@@ -302,6 +302,126 @@ class AccountingController extends Controller
         $this->redirect('/contabilidad/obligaciones');
     }
 
+    public function additionalItems(): void
+    {
+        $user = $this->requireAuth();
+        $period = currentAcademicPeriod();
+        $periodId = $period !== null ? (int) ($period['pleid'] ?? 0) : 0;
+        $accountingModel = new AccountingModel();
+        $selectedItemId = (int) ($_GET['rubro'] ?? 0);
+
+        $this->view('contabilidad.rubros', [
+            'appName' => config('app')['name'] ?? 'SGEap',
+            'pageTitle' => 'Rubros adicionales',
+            'currentModule' => 'contabilidad',
+            'currentSection' => 'contabilidad_rubros',
+            'user' => $user,
+            'currentPeriod' => $period,
+            'concepts' => $accountingModel->activeAdditionalItemConcepts(),
+            'allConcepts' => $accountingModel->additionalItemConcepts(),
+            'methods' => $accountingModel->paymentMethods(),
+            'levels' => (new GradeModel())->allLevels(),
+            'courses' => $periodId > 0 ? (new CourseModel())->allByPeriod($periodId) : [],
+            'students' => $accountingModel->additionalItemStudents($periodId),
+            'items' => $accountingModel->additionalItems($periodId),
+            'selectedItemId' => $selectedItemId,
+            'assignments' => $selectedItemId > 0 ? $accountingModel->additionalItemAssignments($selectedItemId, $periodId) : [],
+            'success' => sessionFlash('success'),
+            'error' => sessionFlash('error'),
+        ]);
+    }
+
+    public function storeAdditionalItem(): void
+    {
+        $user = $this->requireAuth();
+        $period = currentAcademicPeriod();
+        $periodId = $period !== null ? (int) ($period['pleid'] ?? 0) : 0;
+
+        try {
+            $itemId = (new AccountingModel())->createAdditionalItem($periodId, (int) ($user['usuid'] ?? 0), $_POST);
+            sessionFlash('success', 'Rubro adicional creado y asignado correctamente.');
+            $this->redirect('/contabilidad/rubros?rubro=' . $itemId);
+        } catch (\Throwable $exception) {
+            sessionFlash('error', $exception->getMessage());
+            $this->redirect('/contabilidad/rubros');
+        }
+    }
+
+    public function closeAdditionalItem(): void
+    {
+        $user = $this->requireAuth();
+        $period = currentAcademicPeriod();
+        $periodId = $period !== null ? (int) ($period['pleid'] ?? 0) : 0;
+        $itemId = (int) ($_POST['cruid'] ?? 0);
+
+        try {
+            (new AccountingModel())->closeAdditionalItemAssignment(
+                (int) ($_POST['creid'] ?? 0),
+                $periodId,
+                (int) ($user['usuid'] ?? 0),
+                (string) ($_POST['estado'] ?? ''),
+                (int) ($_POST['cmpid'] ?? 0),
+                (string) ($_POST['referencia'] ?? ''),
+                (string) ($_POST['observacion'] ?? '')
+            );
+            sessionFlash('success', 'Rubro actualizado correctamente.');
+        } catch (\Throwable $exception) {
+            sessionFlash('error', $exception->getMessage());
+        }
+
+        $this->redirect('/contabilidad/rubros' . ($itemId > 0 ? '?rubro=' . $itemId : ''));
+    }
+
+    public function storeAdditionalItemConcept(): void
+    {
+        $this->requireAuth();
+
+        try {
+            (new AccountingModel())->createAdditionalItemConcept(
+                (string) ($_POST['cconombre'] ?? ''),
+                (string) ($_POST['ccodescripcion'] ?? '')
+            );
+            sessionFlash('success', 'Concepto agregado correctamente.');
+        } catch (\Throwable $exception) {
+            sessionFlash('error', $exception->getMessage());
+        }
+
+        $this->redirect('/contabilidad/rubros?panel=concepts');
+    }
+
+    public function updateAdditionalItemConcept(): void
+    {
+        $this->requireAuth();
+
+        try {
+            (new AccountingModel())->updateAdditionalItemConcept(
+                (int) ($_POST['ccoid'] ?? 0),
+                (string) ($_POST['cconombre'] ?? ''),
+                (string) ($_POST['ccodescripcion'] ?? ''),
+                !empty($_POST['ccoestado'])
+            );
+            sessionFlash('success', 'Concepto actualizado correctamente.');
+        } catch (\Throwable $exception) {
+            sessionFlash('error', $exception->getMessage());
+        }
+
+        $this->redirect('/contabilidad/rubros?panel=concepts');
+    }
+
+    public function deleteAdditionalItemConcept(): void
+    {
+        $this->requireAuth();
+
+        try {
+            (new AccountingModel())->deleteAdditionalItemConcept((int) ($_POST['ccoid'] ?? 0));
+            sessionFlash('success', 'Concepto eliminado o desactivado correctamente.');
+        } catch (\Throwable $exception) {
+            sessionFlash('error', $exception->getMessage());
+        }
+
+        $this->redirect('/contabilidad/rubros?panel=concepts');
+    }
+
     private function obligationFilters(): array
     {
         return [

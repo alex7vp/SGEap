@@ -54,6 +54,7 @@ return static function (Router $router): void {
     $router->get('/contabilidad/obligaciones', [AccountingController::class, 'obligations']);
     $router->get('/contabilidad/obligaciones/detalle', [AccountingController::class, 'obligationDetail']);
     $router->get('/contabilidad/comprobantes', [AccountingController::class, 'receipts']);
+    $router->get('/contabilidad/rubros', [AccountingController::class, 'additionalItems']);
     $router->get('/seguridad', [ModuleController::class, 'security']);
     $router->post('/logout', [AuthController::class, 'logout']);
 
@@ -94,6 +95,11 @@ return static function (Router $router): void {
     $router->post('/representante/contabilidad/comprobante', [AccountingController::class, 'storeRepresentativeReceipt']);
     $router->post('/contabilidad/comprobantes/aprobar', [AccountingController::class, 'approveReceipt']);
     $router->post('/contabilidad/comprobantes/rechazar', [AccountingController::class, 'rejectReceipt']);
+    $router->post('/contabilidad/rubros', [AccountingController::class, 'storeAdditionalItem']);
+    $router->post('/contabilidad/rubros/cerrar', [AccountingController::class, 'closeAdditionalItem']);
+    $router->post('/contabilidad/rubros/conceptos', [AccountingController::class, 'storeAdditionalItemConcept']);
+    $router->post('/contabilidad/rubros/conceptos/actualizar', [AccountingController::class, 'updateAdditionalItemConcept']);
+    $router->post('/contabilidad/rubros/conceptos/eliminar', [AccountingController::class, 'deleteAdditionalItemConcept']);
     $router->post('/configuracion/academica/areas', [AttendanceController::class, 'storeArea']);
     $router->post('/configuracion/academica/areas/actualizar', [AttendanceController::class, 'updateArea']);
     $router->post('/configuracion/academica/areas/estado', [AttendanceController::class, 'toggleArea']);

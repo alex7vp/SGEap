@@ -1051,6 +1051,16 @@ input::placeholder {
     transition: background 0.2s ease, box-shadow 0.2s ease;
 }
 
+.switch-control-xsmall {
+    width: 22px;
+    height: 12px;
+}
+
+.switch-slider-xsmall {
+    width: 22px;
+    height: 12px;
+}
+
 .switch-slider::after {
     content: "";
     position: absolute;
@@ -1064,19 +1074,144 @@ input::placeholder {
     transition: transform 0.2s ease;
 }
 
+.switch-slider-xsmall::after {
+    top: 2px;
+    left: 2px;
+    width: 8px;
+    height: 8px;
+}
+
 .resource-option-switch input[type="checkbox"]:checked + .switch-slider,
-.switch-card input[type="checkbox"]:checked + .switch-slider {
+.switch-card input[type="checkbox"]:checked + .switch-slider,
+.concept-status-switch input[type="checkbox"]:checked + .switch-slider {
     background: #1f6aa5;
 }
 
 .resource-option-switch input[type="checkbox"]:checked + .switch-slider::after,
-.switch-card input[type="checkbox"]:checked + .switch-slider::after {
+.switch-card input[type="checkbox"]:checked + .switch-slider::after,
+.concept-status-switch input[type="checkbox"]:checked + .switch-slider::after {
     transform: translateX(16px);
 }
 
+.concept-status-switch input[type="checkbox"]:checked + .switch-slider-xsmall::after {
+    transform: translateX(10px);
+}
+
 .resource-option-switch input[type="checkbox"]:focus-visible + .switch-slider,
-.switch-card input[type="checkbox"]:focus-visible + .switch-slider {
+.switch-card input[type="checkbox"]:focus-visible + .switch-slider,
+.concept-status-switch input[type="checkbox"]:focus-visible + .switch-slider {
     box-shadow: 0 0 0 4px rgba(15, 76, 129, 0.12);
+}
+
+.concept-status-switch {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 18px;
+    color: var(--muted);
+    font-size: .78rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.concept-status-switch input[type="checkbox"] {
+    position: absolute;
+    opacity: 0;
+    width: 1px;
+    height: 1px;
+    pointer-events: none;
+}
+
+.compact-data-form {
+    padding: 0;
+}
+
+.compact-data-form .form-grid {
+    gap: 8px;
+}
+
+.compact-data-form .form-group {
+    margin: 0;
+}
+
+.compact-data-form .input-group {
+    min-height: 30px;
+}
+
+.compact-data-form .input-addon {
+    min-width: auto;
+    padding: 4px 8px;
+    font-size: .72rem;
+}
+
+.compact-data-form input,
+.compact-data-form select,
+.compact-data-form textarea {
+    min-height: 30px;
+    padding: 4px 8px;
+    font-size: .82rem;
+}
+
+.compact-data-form textarea {
+    min-height: 34px;
+}
+
+.compact-data-form .actions-row {
+    margin-top: 8px;
+}
+
+.compact-data-form .btn-inline {
+    min-height: 30px;
+    padding: 5px 10px;
+    font-size: .82rem;
+}
+
+.compact-data-form-narrow .form-grid {
+    grid-template-columns: minmax(180px, 260px) minmax(240px, 1fr);
+}
+
+.compact-data-table th,
+.compact-data-table td {
+    padding-top: 0;
+    padding-bottom: 0;
+    line-height: 1;
+}
+
+.compact-data-table .accounting-actions-inline {
+    gap: 2px;
+    min-height: 16px;
+    margin: 0;
+    vertical-align: middle;
+}
+
+.compact-data-table form.accounting-actions-inline {
+    line-height: 0;
+}
+
+.compact-data-table .icon-button {
+    width: 18px;
+    min-width: 18px;
+    height: 18px;
+    font-size: .72rem;
+}
+
+.compact-data-table .table-input {
+    min-height: 18px;
+    padding-top: 0;
+    padding-bottom: 0;
+    font-size: .78rem;
+    line-height: 1.05;
+}
+
+.compact-data-table .concept-status-switch {
+    min-height: 12px;
+    font-size: .66rem;
+    gap: 3px;
+}
+
+.compact-data-table .cell-subtitle {
+    margin-top: 0;
+    font-size: .68rem;
 }
 
 .switch-card {
@@ -2373,6 +2508,7 @@ a.btn-primary.btn-icon-only.btn-icon-small:hover {
     text-decoration: none;
     cursor: pointer;
     font-size: 0.95rem;
+    transition: background 0.16s ease, border-color 0.16s ease, color 0.16s ease, transform 0.16s ease;
 }
 
 .icon-button-edit:hover {
@@ -3106,13 +3242,17 @@ a.btn-primary.btn-icon-only.btn-icon-small:hover {
 }
 
 .icon-button-save:hover {
-    background: var(--success-bg);
-    color: var(--success);
+    background: var(--success);
+    border-color: var(--success);
+    color: #ffffff;
+    transform: translateY(-1px);
 }
 
 .icon-button-cancel:hover {
-    background: #f4f6f8;
-    color: var(--muted);
+    background: var(--danger);
+    border-color: var(--danger);
+    color: #ffffff;
+    transform: translateY(-1px);
 }
 
 .summary-card {

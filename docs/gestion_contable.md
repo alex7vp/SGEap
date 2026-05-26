@@ -259,7 +259,7 @@ Valor aprobado: 50.00
 Saldo pendiente: 10.00
 ```
 
-Si se aprueba un valor mayor que la obligacion, el excedente puede quedar como saldo interno a favor. Ese saldo solo lo ve Secretaria/Contabilidad y puede aplicarse a obligaciones futuras.
+Si se aprueba un valor mayor que la obligacion seleccionada, el excedente se abona automaticamente a la siguiente obligacion pendiente del estudiante, respetando el orden cronologico. Si despues de cubrir obligaciones futuras todavia queda excedente, ese valor queda como saldo interno a favor. Ese saldo solo lo ve Secretaria/Contabilidad y puede aplicarse a obligaciones futuras.
 
 Los rubros adicionales no manejan pagos parciales ni saldo a favor.
 

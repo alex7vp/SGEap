@@ -305,7 +305,7 @@ $sidebarModules = [
                     [
                         'key' => 'contabilidad_rubros',
                         'label' => 'Rubros adicionales',
-                        'url' => '#',
+                        'url' => baseUrl('contabilidad/rubros'),
                         'icon' => 'fa-plus-square',
                     ],
                 ],

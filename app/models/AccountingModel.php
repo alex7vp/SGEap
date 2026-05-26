@@ -535,6 +535,367 @@ class AccountingModel extends Model
         ]);
     }
 
+    public function additionalItemConcepts(): array
+    {
+        $statement = $this->db->query(
+            "SELECT ccoid, ccocodigo, cconombre, ccodescripcion, ccoestado
+             FROM contabilidad_concepto
+             WHERE ccocategoria = 'RUBRO'
+             ORDER BY cconombre ASC"
+        );
+
+        return $statement->fetchAll();
+    }
+
+    public function activeAdditionalItemConcepts(): array
+    {
+        return array_values(array_filter($this->additionalItemConcepts(), static fn (array $concept): bool => !empty($concept['ccoestado'])));
+    }
+
+    public function createAdditionalItemConcept(string $name, string $description = ''): void
+    {
+        $name = trim($name);
+        $description = trim($description);
+
+        if ($name === '') {
+            throw new RuntimeException('Ingrese el nombre del concepto.');
+        }
+
+        $code = $this->conceptCodeFromName($name);
+        $statement = $this->db->prepare(
+            "INSERT INTO contabilidad_concepto (ccocodigo, cconombre, ccocategoria, ccodescripcion, ccoestado)
+             VALUES (:code, :name, 'RUBRO', :description, true)
+             ON CONFLICT (ccocodigo) DO UPDATE
+             SET cconombre = EXCLUDED.cconombre,
+                 ccodescripcion = EXCLUDED.ccodescripcion,
+                 ccoestado = true,
+                 ccofecha_modificacion = CURRENT_TIMESTAMP"
+        );
+        $statement->execute([
+            'code' => $code,
+            'name' => $name,
+            'description' => $description !== '' ? $description : null,
+        ]);
+    }
+
+    public function updateAdditionalItemConcept(int $conceptId, string $name, string $description = '', bool $active = true): void
+    {
+        $name = trim($name);
+        $description = trim($description);
+
+        if ($conceptId <= 0 || $name === '') {
+            throw new RuntimeException('Complete los datos del concepto.');
+        }
+
+        $statement = $this->db->prepare(
+            "UPDATE contabilidad_concepto
+             SET ccocodigo = :code,
+                 cconombre = :name,
+                 ccodescripcion = :description,
+                 ccoestado = :active,
+                 ccofecha_modificacion = CURRENT_TIMESTAMP
+             WHERE ccoid = :id
+               AND ccocategoria = 'RUBRO'"
+        );
+        $statement->bindValue(':code', $this->conceptCodeFromName($name));
+        $statement->bindValue(':name', $name);
+        $this->bindNullableString($statement, ':description', $description);
+        $statement->bindValue(':active', $active, PDO::PARAM_BOOL);
+        $statement->bindValue(':id', $conceptId, PDO::PARAM_INT);
+        $statement->execute();
+    }
+
+    public function deleteAdditionalItemConcept(int $conceptId): void
+    {
+        if ($conceptId <= 0) {
+            throw new RuntimeException('Seleccione un concepto valido.');
+        }
+
+        $used = $this->db->prepare(
+            "SELECT 1
+             FROM contabilidad_rubro
+             WHERE ccoid = :id
+             LIMIT 1"
+        );
+        $used->execute(['id' => $conceptId]);
+
+        if ($used->fetchColumn() !== false) {
+            $this->updateAdditionalItemConceptStatus($conceptId, false);
+            return;
+        }
+
+        $statement = $this->db->prepare(
+            "DELETE FROM contabilidad_concepto
+             WHERE ccoid = :id
+               AND ccocategoria = 'RUBRO'"
+        );
+        $statement->execute(['id' => $conceptId]);
+    }
+
+    public function paymentMethods(): array
+    {
+        $statement = $this->db->query(
+            "SELECT cmpid, cmpcodigo, cmpnombre
+             FROM contabilidad_metodo_pago
+             WHERE cmpestado = true
+             ORDER BY cmpnombre ASC"
+        );
+
+        return $statement->fetchAll();
+    }
+
+    public function additionalItemStudents(int $periodId): array
+    {
+        if ($periodId <= 0) {
+            return [];
+        }
+
+        $statement = $this->db->prepare(
+            "SELECT
+                    m.matid,
+                    pe.percedula,
+                    pe.pernombres,
+                    pe.perapellidos,
+                    g.granombre,
+                    pr.prlnombre
+             FROM matricula m
+             INNER JOIN curso c ON c.curid = m.curid
+             INNER JOIN grado g ON g.graid = c.graid
+             INNER JOIN paralelo pr ON pr.prlid = c.prlid
+             INNER JOIN estudiante e ON e.estid = m.estid
+             INNER JOIN persona pe ON pe.perid = e.perid
+             WHERE c.pleid = :period_id
+             ORDER BY pe.perapellidos, pe.pernombres"
+        );
+        $statement->execute(['period_id' => $periodId]);
+
+        return $statement->fetchAll();
+    }
+
+    public function additionalItems(int $periodId): array
+    {
+        if ($periodId <= 0) {
+            return [];
+        }
+
+        $statement = $this->db->prepare(
+            "SELECT
+                    r.cruid,
+                    r.crunombre,
+                    r.crudescripcion,
+                    r.cruvalor,
+                    r.crufecha_limite,
+                    r.cruestado,
+                    co.cconombre,
+                    a.craalcance,
+                    n.nednombre,
+                    g.granombre,
+                    pr.prlnombre,
+                    pe.pernombres,
+                    pe.perapellidos,
+                    COUNT(re.creid) AS total_asignados,
+                    COUNT(re.creid) FILTER (WHERE re.creestado IN ('PENDIENTE', 'VENCIDO')) AS total_pendientes,
+                    COUNT(re.creid) FILTER (WHERE re.creestado = 'PAGADO') AS total_pagados,
+                    COALESCE(SUM(re.crevalor) FILTER (WHERE re.creestado IN ('PENDIENTE', 'VENCIDO')), 0) AS valor_pendiente
+             FROM contabilidad_rubro r
+             INNER JOIN contabilidad_concepto co ON co.ccoid = r.ccoid
+             LEFT JOIN contabilidad_rubro_asignacion a ON a.cruid = r.cruid
+             LEFT JOIN nivel_educativo n ON n.nedid = a.nedid
+             LEFT JOIN curso c ON c.curid = a.curid
+             LEFT JOIN grado g ON g.graid = c.graid
+             LEFT JOIN paralelo pr ON pr.prlid = c.prlid
+             LEFT JOIN matricula m ON m.matid = a.matid
+             LEFT JOIN estudiante e ON e.estid = m.estid
+             LEFT JOIN persona pe ON pe.perid = e.perid
+             LEFT JOIN contabilidad_rubro_estudiante re ON re.cruid = r.cruid
+             WHERE r.pleid = :period_id
+             GROUP BY r.cruid, co.cconombre, a.craalcance, n.nednombre, g.granombre, pr.prlnombre, pe.pernombres, pe.perapellidos
+             ORDER BY r.crufecha_creacion DESC, r.cruid DESC"
+        );
+        $statement->execute(['period_id' => $periodId]);
+
+        return $statement->fetchAll();
+    }
+
+    public function additionalItemAssignments(int $additionalItemId, int $periodId): array
+    {
+        if ($additionalItemId <= 0 || $periodId <= 0) {
+            return [];
+        }
+
+        $statement = $this->db->prepare(
+            "SELECT
+                    re.creid,
+                    re.crevalor,
+                    re.crefecha_limite,
+                    re.creestado,
+                    re.creobservacion_interna,
+                    pe.percedula,
+                    pe.pernombres,
+                    pe.perapellidos,
+                    g.granombre,
+                    pr.prlnombre,
+                    pay.cpagid,
+                    pay.cpagreferencia
+             FROM contabilidad_rubro_estudiante re
+             INNER JOIN contabilidad_rubro r ON r.cruid = re.cruid
+             INNER JOIN matricula m ON m.matid = re.matid
+             INNER JOIN curso c ON c.curid = m.curid
+             INNER JOIN grado g ON g.graid = c.graid
+             INNER JOIN paralelo pr ON pr.prlid = c.prlid
+             INNER JOIN estudiante e ON e.estid = m.estid
+             INNER JOIN persona pe ON pe.perid = e.perid
+             LEFT JOIN LATERAL (
+                 SELECT p.cpagid, p.cpagreferencia
+                 FROM contabilidad_pago_rubro prb
+                 INNER JOIN contabilidad_pago p ON p.cpagid = prb.cpagid
+                 WHERE prb.creid = re.creid
+                   AND prb.cprestado = 'ACTIVO'
+                   AND p.cpagestado = 'APROBADO'
+                 ORDER BY p.cpagfecha_registro DESC, p.cpagid DESC
+                 LIMIT 1
+             ) pay ON true
+             WHERE r.cruid = :item_id
+               AND r.pleid = :period_id
+             ORDER BY pe.perapellidos, pe.pernombres"
+        );
+        $statement->execute([
+            'item_id' => $additionalItemId,
+            'period_id' => $periodId,
+        ]);
+
+        return $statement->fetchAll();
+    }
+
+    public function createAdditionalItem(int $periodId, int $userId, array $data): int
+    {
+        $conceptId = (int) ($data['ccoid'] ?? 0);
+        $name = trim((string) ($data['crunombre'] ?? ''));
+        $description = trim((string) ($data['crudescripcion'] ?? ''));
+        $value = round((float) ($data['cruvalor'] ?? 0), 2);
+        $deadline = trim((string) ($data['crufecha_limite'] ?? ''));
+        $scope = strtoupper(trim((string) ($data['craalcance'] ?? '')));
+        $levelId = (int) ($data['nedid'] ?? 0);
+        $courseId = (int) ($data['curid'] ?? 0);
+        $matriculationId = (int) ($data['matid'] ?? 0);
+
+        if ($periodId <= 0) {
+            throw new RuntimeException('Seleccione un periodo lectivo para crear rubros.');
+        }
+
+        if ($conceptId <= 0 || $name === '' || $value <= 0) {
+            throw new RuntimeException('Complete concepto, nombre y valor del rubro.');
+        }
+
+        if (!in_array($scope, ['TODOS', 'NIVEL', 'CURSO', 'ESTUDIANTE'], true)) {
+            throw new RuntimeException('Seleccione un alcance valido para el rubro.');
+        }
+
+        if (($scope === 'NIVEL' && $levelId <= 0) || ($scope === 'CURSO' && $courseId <= 0) || ($scope === 'ESTUDIANTE' && $matriculationId <= 0)) {
+            throw new RuntimeException('Seleccione el destino del rubro.');
+        }
+
+        $this->db->beginTransaction();
+
+        try {
+            $statement = $this->db->prepare(
+                "INSERT INTO contabilidad_rubro (
+                    pleid, ccoid, crunombre, crudescripcion, cruvalor, crufecha_limite, usuid_registro
+                 ) VALUES (
+                    :period_id, :concept_id, :name, :description, :value, :deadline, :user_id
+                 )
+                 RETURNING cruid"
+            );
+            $statement->bindValue(':period_id', $periodId, PDO::PARAM_INT);
+            $statement->bindValue(':concept_id', $conceptId, PDO::PARAM_INT);
+            $statement->bindValue(':name', $name);
+            $this->bindNullableString($statement, ':description', $description);
+            $statement->bindValue(':value', number_format($value, 2, '.', ''));
+            $this->bindNullableString($statement, ':deadline', $deadline);
+            $statement->bindValue(':user_id', $userId, PDO::PARAM_INT);
+            $statement->execute();
+            $itemId = (int) $statement->fetchColumn();
+
+            $assignment = $this->db->prepare(
+                "INSERT INTO contabilidad_rubro_asignacion (cruid, craalcance, pleid, nedid, curid, matid)
+                 VALUES (:item_id, :scope, :period_id, :level_id, :course_id, :matriculation_id)"
+            );
+            $assignment->bindValue(':item_id', $itemId, PDO::PARAM_INT);
+            $assignment->bindValue(':scope', $scope);
+            $assignment->bindValue(':period_id', $periodId, PDO::PARAM_INT);
+            $this->bindNullableInt($assignment, ':level_id', $scope === 'NIVEL' ? $levelId : null);
+            $this->bindNullableInt($assignment, ':course_id', $scope === 'CURSO' ? $courseId : null);
+            $this->bindNullableInt($assignment, ':matriculation_id', $scope === 'ESTUDIANTE' ? $matriculationId : null);
+            $assignment->execute();
+
+            $this->materializeAdditionalItemAssignments($itemId, $periodId, $scope, $levelId, $courseId, $matriculationId, $value, $deadline, $userId);
+            $this->db->commit();
+
+            return $itemId;
+        } catch (\Throwable $exception) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+
+            throw $exception;
+        }
+    }
+
+    public function closeAdditionalItemAssignment(int $assignmentId, int $periodId, int $userId, string $status, int $paymentMethodId = 0, string $reference = '', string $observation = ''): void
+    {
+        $status = strtoupper(trim($status));
+        $reference = trim($reference);
+        $observation = trim($observation);
+
+        if (!in_array($status, ['PAGADO', 'EXONERADO', 'NO_APLICA', 'ANULADO'], true)) {
+            throw new RuntimeException('Seleccione una accion valida para el rubro.');
+        }
+
+        $this->db->beginTransaction();
+
+        try {
+            $assignment = $this->findAdditionalItemAssignmentForUpdate($assignmentId, $periodId);
+
+            if ($assignment === false) {
+                throw new RuntimeException('La asignacion del rubro no existe.');
+            }
+
+            if (!in_array((string) $assignment['creestado'], ['PENDIENTE', 'VENCIDO'], true)) {
+                throw new RuntimeException('El rubro seleccionado ya fue cerrado.');
+            }
+
+            if ($status === 'PAGADO') {
+                $this->registerAdditionalItemPayment($assignment, $userId, $paymentMethodId, $reference, $observation);
+            }
+
+            $statement = $this->db->prepare(
+                "UPDATE contabilidad_rubro_estudiante
+                 SET creestado = :status,
+                     creobservacion_interna = :observation,
+                     usuid_cierre = :user_id,
+                     crefecha_cierre = CURRENT_TIMESTAMP,
+                     cremotivo_cierre = :reason,
+                     crefecha_modificacion = CURRENT_TIMESTAMP
+                 WHERE creid = :assignment_id"
+            );
+            $statement->execute([
+                'status' => $status,
+                'observation' => $observation !== '' ? $observation : null,
+                'user_id' => $userId,
+                'reason' => $observation !== '' ? $observation : $status,
+                'assignment_id' => $assignmentId,
+            ]);
+
+            $this->db->commit();
+        } catch (\Throwable $exception) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+
+            throw $exception;
+        }
+    }
+
     public function representativeObligations(int $representativePersonId, int $periodId): array
     {
         if ($representativePersonId <= 0 || $periodId <= 0) {
@@ -850,9 +1211,7 @@ class AccountingModel extends Model
                 throw new RuntimeException('Debe ingresar una observacion para aprobar un comprobante marcado como duplicado.');
             }
 
-            $pending = max(0.0, (float) ($payment['cobsaldo_pendiente'] ?? 0));
-            $applied = min($approvedValue, $pending);
-            $excess = round($approvedValue - $applied, 2);
+            $remaining = $approvedValue;
 
             $updatePayment = $this->db->prepare(
                 "UPDATE contabilidad_pago
@@ -874,36 +1233,19 @@ class AccountingModel extends Model
                 'payment_id' => $paymentId,
             ]);
 
-            if ($applied > 0) {
-                $this->db->prepare(
-                    "INSERT INTO contabilidad_pago_obligacion (cpagid, cobid, cpovalor_aplicado)
-                     VALUES (:payment_id, :obligation_id, :applied_value)"
-                )->execute([
-                    'payment_id' => $paymentId,
-                    'obligation_id' => (int) $payment['cobid_sugerido'],
-                    'applied_value' => number_format($applied, 2, '.', ''),
-                ]);
+            $remaining = $this->applyPaymentToObligation($paymentId, $payment, $remaining);
 
-                $newPaid = round((float) $payment['cobvalor_pagado'] + $applied, 2);
-                $newBalance = max(0.0, round((float) $payment['cobvalor_final'] - $newPaid, 2));
-                $newStatus = $newBalance <= 0.0 ? 'PAGADO' : 'PAGO_PARCIAL';
+            if ($remaining > 0.0) {
+                foreach ($this->nextPendingObligationsForPayment((int) $payment['matid'], $periodId, (int) $payment['cobid_sugerido']) as $nextObligation) {
+                    $remaining = $this->applyPaymentToObligation($paymentId, $nextObligation, $remaining);
 
-                $this->db->prepare(
-                    "UPDATE contabilidad_obligacion
-                     SET cobvalor_pagado = :paid_value,
-                         cobsaldo_pendiente = :balance,
-                         cobestado = :status,
-                         cobfecha_modificacion = CURRENT_TIMESTAMP
-                     WHERE cobid = :obligation_id"
-                )->execute([
-                    'paid_value' => number_format($newPaid, 2, '.', ''),
-                    'balance' => number_format($newBalance, 2, '.', ''),
-                    'status' => $newStatus,
-                    'obligation_id' => (int) $payment['cobid_sugerido'],
-                ]);
+                    if ($remaining <= 0.0) {
+                        break;
+                    }
+                }
             }
 
-            if ($excess > 0) {
+            if ($remaining > 0.0) {
                 $this->db->prepare(
                     "INSERT INTO contabilidad_saldo_favor (
                         matid,
@@ -921,8 +1263,8 @@ class AccountingModel extends Model
                 )->execute([
                     'matid' => (int) $payment['matid'],
                     'payment_id' => $paymentId,
-                    'value' => number_format($excess, 2, '.', ''),
-                    'observation' => $observation !== '' ? $observation : 'Saldo a favor generado por comprobante aprobado.',
+                    'value' => number_format($remaining, 2, '.', ''),
+                    'observation' => $observation !== '' ? $observation : 'Saldo a favor generado despues de abonar obligaciones futuras.',
                 ]);
             }
 
@@ -1352,11 +1694,180 @@ class AccountingModel extends Model
         return $statement->fetchColumn() !== false;
     }
 
+    private function materializeAdditionalItemAssignments(int $itemId, int $periodId, string $scope, int $levelId, int $courseId, int $matriculationId, float $value, string $deadline, int $userId): void
+    {
+        $conditions = ['c.pleid = :period_id'];
+        $params = [
+            'item_id' => $itemId,
+            'period_id' => $periodId,
+            'value' => number_format($value, 2, '.', ''),
+            'deadline' => $deadline !== '' ? $deadline : null,
+            'user_id' => $userId,
+        ];
+
+        if ($scope === 'NIVEL') {
+            $conditions[] = 'g.nedid = :level_id';
+            $params['level_id'] = $levelId;
+        } elseif ($scope === 'CURSO') {
+            $conditions[] = 'c.curid = :course_id';
+            $params['course_id'] = $courseId;
+        } elseif ($scope === 'ESTUDIANTE') {
+            $conditions[] = 'm.matid = :matriculation_id';
+            $params['matriculation_id'] = $matriculationId;
+        }
+
+        $sql = "INSERT INTO contabilidad_rubro_estudiante (
+                    cruid,
+                    matid,
+                    crevalor,
+                    crefecha_limite,
+                    usuid_registro
+                )
+                SELECT
+                    :item_id,
+                    m.matid,
+                    :value,
+                    :deadline,
+                    :user_id
+                FROM matricula m
+                INNER JOIN curso c ON c.curid = m.curid
+                INNER JOIN grado g ON g.graid = c.graid
+                WHERE " . implode(' AND ', $conditions) . "
+                ON CONFLICT (cruid, matid) DO NOTHING";
+
+        $statement = $this->db->prepare($sql);
+        foreach ($params as $key => $paramValue) {
+            if (is_int($paramValue)) {
+                $statement->bindValue(':' . $key, $paramValue, PDO::PARAM_INT);
+            } elseif ($paramValue === null) {
+                $statement->bindValue(':' . $key, null, PDO::PARAM_NULL);
+            } else {
+                $statement->bindValue(':' . $key, $paramValue);
+            }
+        }
+        $statement->execute();
+
+        if ($statement->rowCount() === 0) {
+            throw new RuntimeException('El alcance seleccionado no encontro estudiantes para asignar.');
+        }
+    }
+
+    private function updateAdditionalItemConceptStatus(int $conceptId, bool $active): void
+    {
+        $statement = $this->db->prepare(
+            "UPDATE contabilidad_concepto
+             SET ccoestado = :active,
+                 ccofecha_modificacion = CURRENT_TIMESTAMP
+             WHERE ccoid = :id
+               AND ccocategoria = 'RUBRO'"
+        );
+        $statement->bindValue(':active', $active, PDO::PARAM_BOOL);
+        $statement->bindValue(':id', $conceptId, PDO::PARAM_INT);
+        $statement->execute();
+    }
+
+    private function conceptCodeFromName(string $name): string
+    {
+        $normalized = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $name);
+        $normalized = strtoupper((string) $normalized);
+        $normalized = preg_replace('/[^A-Z0-9]+/', '_', $normalized) ?? '';
+        $normalized = trim($normalized, '_');
+
+        return $normalized !== '' ? substr($normalized, 0, 40) : 'RUBRO_' . date('YmdHis');
+    }
+
+    private function findAdditionalItemAssignmentForUpdate(int $assignmentId, int $periodId): array|false
+    {
+        $statement = $this->db->prepare(
+            "SELECT
+                    re.creid,
+                    re.cruid,
+                    re.matid,
+                    re.crevalor,
+                    re.creestado,
+                    r.pleid
+             FROM contabilidad_rubro_estudiante re
+             INNER JOIN contabilidad_rubro r ON r.cruid = re.cruid
+             WHERE re.creid = :assignment_id
+               AND r.pleid = :period_id
+             LIMIT 1
+             FOR UPDATE OF re"
+        );
+        $statement->execute([
+            'assignment_id' => $assignmentId,
+            'period_id' => $periodId,
+        ]);
+
+        return $statement->fetch();
+    }
+
+    private function registerAdditionalItemPayment(array $assignment, int $userId, int $paymentMethodId, string $reference, string $observation): void
+    {
+        $value = round((float) ($assignment['crevalor'] ?? 0), 2);
+
+        if ($value <= 0.0) {
+            throw new RuntimeException('El valor del rubro no permite registrar pago.');
+        }
+
+        $payment = $this->db->prepare(
+            "INSERT INTO contabilidad_pago (
+                matid,
+                creid_sugerido,
+                cpagorigen,
+                cpagestado,
+                cpagvalor_reportado,
+                cpagvalor_aprobado,
+                cmpid,
+                cpagreferencia,
+                cpagobservacion_interna,
+                usuid_registro,
+                usuid_revision,
+                cpagfecha_revision
+             ) VALUES (
+                :matid,
+                :assignment_id,
+                'INTERNO',
+                'APROBADO',
+                :value,
+                :value,
+                :method_id,
+                :reference,
+                :observation,
+                :user_id,
+                :user_id,
+                CURRENT_TIMESTAMP
+             )
+             RETURNING cpagid"
+        );
+        $payment->bindValue(':matid', (int) $assignment['matid'], PDO::PARAM_INT);
+        $payment->bindValue(':assignment_id', (int) $assignment['creid'], PDO::PARAM_INT);
+        $payment->bindValue(':value', number_format($value, 2, '.', ''));
+        $this->bindNullableInt($payment, ':method_id', $paymentMethodId > 0 ? $paymentMethodId : null);
+        $this->bindNullableString($payment, ':reference', $reference);
+        $this->bindNullableString($payment, ':observation', $observation);
+        $payment->bindValue(':user_id', $userId, PDO::PARAM_INT);
+        $payment->execute();
+        $paymentId = (int) $payment->fetchColumn();
+
+        $this->db->prepare(
+            "INSERT INTO contabilidad_pago_rubro (cpagid, creid, cprvalor_aplicado)
+             VALUES (:payment_id, :assignment_id, :value)"
+        )->execute([
+            'payment_id' => $paymentId,
+            'assignment_id' => (int) $assignment['creid'],
+            'value' => number_format($value, 2, '.', ''),
+        ]);
+    }
+
     private function findPeriodPaymentForUpdate(int $paymentId, int $periodId): array|false
     {
         $statement = $this->db->prepare(
             "SELECT
                     p.*,
+                    o.cobid,
+                    o.coborden,
+                    o.cobanio,
+                    o.cobmes,
                     o.cobvalor_final,
                     o.cobvalor_pagado,
                     o.cobsaldo_pendiente
@@ -1375,6 +1886,90 @@ class AccountingModel extends Model
         ]);
 
         return $statement->fetch();
+    }
+
+    private function applyPaymentToObligation(int $paymentId, array $obligation, float $availableValue): float
+    {
+        $availableValue = round(max(0.0, $availableValue), 2);
+        $pending = max(0.0, (float) ($obligation['cobsaldo_pendiente'] ?? 0));
+        $applied = min($availableValue, $pending);
+
+        if ($applied <= 0.0) {
+            return $availableValue;
+        }
+
+        $this->db->prepare(
+            "INSERT INTO contabilidad_pago_obligacion (cpagid, cobid, cpovalor_aplicado)
+             VALUES (:payment_id, :obligation_id, :applied_value)"
+        )->execute([
+            'payment_id' => $paymentId,
+            'obligation_id' => (int) $obligation['cobid'],
+            'applied_value' => number_format($applied, 2, '.', ''),
+        ]);
+
+        $newPaid = round((float) $obligation['cobvalor_pagado'] + $applied, 2);
+        $newBalance = max(0.0, round((float) $obligation['cobvalor_final'] - $newPaid, 2));
+        $newStatus = $newBalance <= 0.0 ? 'PAGADO' : 'PAGO_PARCIAL';
+
+        $this->db->prepare(
+            "UPDATE contabilidad_obligacion
+             SET cobvalor_pagado = :paid_value,
+                 cobsaldo_pendiente = :balance,
+                 cobestado = :status,
+                 cobfecha_modificacion = CURRENT_TIMESTAMP
+             WHERE cobid = :obligation_id"
+        )->execute([
+            'paid_value' => number_format($newPaid, 2, '.', ''),
+            'balance' => number_format($newBalance, 2, '.', ''),
+            'status' => $newStatus,
+            'obligation_id' => (int) $obligation['cobid'],
+        ]);
+
+        return round($availableValue - $applied, 2);
+    }
+
+    private function nextPendingObligationsForPayment(int $matriculationId, int $periodId, int $currentObligationId): array
+    {
+        $statement = $this->db->prepare(
+            "WITH actual AS (
+                SELECT
+                    coborden,
+                    COALESCE(cobanio, 0) AS cobanio,
+                    COALESCE(cobmes, 0) AS cobmes,
+                    cobid
+                FROM contabilidad_obligacion
+                WHERE cobid = :obligation_id
+                  AND matid = :matid
+                LIMIT 1
+             )
+             SELECT
+                    o.cobid,
+                    o.coborden,
+                    o.cobanio,
+                    o.cobmes,
+                    o.cobvalor_final,
+                    o.cobvalor_pagado,
+                    o.cobsaldo_pendiente
+             FROM contabilidad_obligacion o
+             INNER JOIN matricula m ON m.matid = o.matid
+             INNER JOIN curso c ON c.curid = m.curid
+             CROSS JOIN actual a
+             WHERE o.matid = :matid
+               AND c.pleid = :period_id
+               AND o.cobestado NOT IN ('EN_REVISION', 'PAGADO', 'ANULADO')
+               AND o.cobsaldo_pendiente > 0
+               AND (o.coborden, COALESCE(o.cobanio, 0), COALESCE(o.cobmes, 0), o.cobid)
+                   > (a.coborden, a.cobanio, a.cobmes, a.cobid)
+             ORDER BY o.coborden ASC, o.cobanio NULLS FIRST, o.cobmes NULLS FIRST, o.cobid ASC
+             FOR UPDATE OF o"
+        );
+        $statement->execute([
+            'obligation_id' => $currentObligationId,
+            'matid' => $matriculationId,
+            'period_id' => $periodId,
+        ]);
+
+        return $statement->fetchAll();
     }
 
     private function duplicatePaymentIdByHash(int $paymentId, string $hash): int
