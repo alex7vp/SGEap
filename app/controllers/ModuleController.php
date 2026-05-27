@@ -155,6 +155,13 @@ class ModuleController extends Controller
                     'icon' => 'fa-usd',
                     'permission' => 'contabilidad.configurar',
                 ],
+                [
+                    'label' => 'Backups',
+                    'description' => 'Genera, descarga y administra respaldos de la base de datos y archivos cargados.',
+                    'url' => baseUrl('configuracion/backups'),
+                    'icon' => 'fa-database',
+                    'permission' => 'backups.gestionar|configuracion.gestionar',
+                ],
             ]
         );
     }

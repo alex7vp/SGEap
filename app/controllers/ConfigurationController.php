@@ -192,6 +192,7 @@ class ConfigurationController extends Controller
             'levels' => $gradeModel->allLevels(),
             'grades' => $gradeModel->allOrdered(),
             'settings' => $model->allConfigurations(),
+            'moduleSettings' => $model->moduleSettingsByPeriod(),
             'feedback' => $this->accountingConfigurationFeedback(),
             'old' => $this->accountingConfigurationOld($editConfiguration),
         ]);
@@ -836,6 +837,26 @@ class ConfigurationController extends Controller
             $this->flashAccountingConfigurationFeedback('error', $exception->getMessage());
             $this->redirect('/configuracion/contable?edit=' . $configurationId);
         }
+    }
+
+    public function saveAccountingModuleSettings(): void
+    {
+        $user = $this->requireAuth();
+        $periodId = (int) ($_POST['pleid'] ?? 0);
+        $representativeAdditionalItemsVisible = (string) ($_POST['representante_rubros_visible'] ?? '0') === '1';
+
+        try {
+            (new AccountingConfigurationModel())->saveModuleSettings(
+                $periodId,
+                $representativeAdditionalItemsVisible,
+                (int) ($user['usuid'] ?? 0)
+            );
+            $this->flashAccountingConfigurationFeedback('success', 'Configuracion de servicios contables actualizada correctamente.');
+        } catch (\Throwable $exception) {
+            $this->flashAccountingConfigurationFeedback('error', $exception->getMessage());
+        }
+
+        $this->redirect('/configuracion/contable?panel=services#servicios-contables');
     }
 
     public function updateMatriculationSetting(): void

@@ -63,6 +63,84 @@ class AccountingConfigurationModel extends Model
         return $statement->fetchAll();
     }
 
+    public function moduleSettingsByPeriod(): array
+    {
+        $statement = $this->db->query(
+            "SELECT
+                    p.pleid,
+                    p.pledescripcion,
+                    COALESCE(m.ccmrepresentante_rubros_visible, false) AS representante_rubros_visible
+             FROM periodo_lectivo p
+             LEFT JOIN contabilidad_configuracion_modulo m ON m.pleid = p.pleid
+             ORDER BY p.plefechainicio DESC, p.pleid DESC"
+        );
+
+        return $statement->fetchAll();
+    }
+
+    public function moduleSettingsForPeriod(int $periodId): array
+    {
+        if ($periodId <= 0) {
+            return [
+                'representante_rubros_visible' => false,
+            ];
+        }
+
+        $statement = $this->db->prepare(
+            "SELECT ccmrepresentante_rubros_visible
+             FROM contabilidad_configuracion_modulo
+             WHERE pleid = :period_id
+             LIMIT 1"
+        );
+        $statement->execute(['period_id' => $periodId]);
+        $row = $statement->fetch();
+
+        return [
+            'representante_rubros_visible' => $row !== false && !empty($row['ccmrepresentante_rubros_visible']),
+        ];
+    }
+
+    public function saveModuleSettings(int $periodId, bool $representativeAdditionalItemsVisible, int $userId): void
+    {
+        if ($periodId <= 0) {
+            throw new RuntimeException('Seleccione un periodo lectivo valido.');
+        }
+
+        $previous = $this->moduleSettingsForPeriod($periodId);
+
+        $statement = $this->db->prepare(
+            "INSERT INTO contabilidad_configuracion_modulo (
+                pleid,
+                ccmrepresentante_rubros_visible,
+                usuid_registro
+             ) VALUES (
+                :period_id,
+                :visible,
+                :user_id
+             )
+             ON CONFLICT (pleid) DO UPDATE
+             SET ccmrepresentante_rubros_visible = EXCLUDED.ccmrepresentante_rubros_visible,
+                 usuid_registro = EXCLUDED.usuid_registro,
+                 ccmfecha_modificacion = CURRENT_TIMESTAMP
+             RETURNING ccmid"
+        );
+        $statement->bindValue(':period_id', $periodId, PDO::PARAM_INT);
+        $statement->bindValue(':visible', $representativeAdditionalItemsVisible, PDO::PARAM_BOOL);
+        $statement->bindValue(':user_id', $userId, PDO::PARAM_INT);
+        $statement->execute();
+        $settingId = (int) $statement->fetchColumn();
+
+        $this->audit(
+            'contabilidad_configuracion_modulo',
+            $settingId,
+            'EDITAR',
+            $previous,
+            ['representante_rubros_visible' => $representativeAdditionalItemsVisible],
+            $userId,
+            'Actualizacion de servicios contables'
+        );
+    }
+
     public function findConfiguration(int $configurationId): array|false
     {
         $statement = $this->db->prepare(
@@ -97,7 +175,7 @@ class AccountingConfigurationModel extends Model
         return (int) $conceptId;
     }
 
-    public function createConfiguration(array $data): void
+    public function createConfiguration(array $data): int
     {
         $statement = $this->db->prepare(
             "INSERT INTO {$this->table} (
@@ -138,15 +216,30 @@ class AccountingConfigurationModel extends Model
                 :estado,
                 :observacion,
                 :usuario
-             )"
+             )
+             RETURNING {$this->primaryKey}"
         );
 
         $this->bindConfiguration($statement, $data, true);
         $statement->execute();
+        $configurationId = (int) $statement->fetchColumn();
+
+        $this->audit(
+            $this->table,
+            $configurationId,
+            'CREAR',
+            null,
+            $data,
+            (int) ($data['usuid_registro'] ?? 0),
+            'Creacion de configuracion contable'
+        );
+
+        return $configurationId;
     }
 
     public function updateConfiguration(int $configurationId, array $data): void
     {
+        $previous = $this->findConfiguration($configurationId);
         $statement = $this->db->prepare(
             "UPDATE {$this->table}
              SET pleid = :pleid,
@@ -172,6 +265,16 @@ class AccountingConfigurationModel extends Model
         $statement->bindValue(':id', $configurationId, PDO::PARAM_INT);
         $this->bindConfiguration($statement, $data, false);
         $statement->execute();
+
+        $this->audit(
+            $this->table,
+            $configurationId,
+            'EDITAR',
+            $previous !== false ? $previous : null,
+            $data,
+            (int) ($data['usuid_registro'] ?? 0),
+            'Actualizacion de configuracion contable'
+        );
     }
 
     public function existsActiveCombination(array $data, ?int $exceptId = null): bool
@@ -318,5 +421,41 @@ class AccountingConfigurationModel extends Model
         }
 
         $statement->bindValue($parameter, $value);
+    }
+
+    private function audit(string $table, int $recordId, string $action, mixed $before, mixed $after, int $userId, string $observation = ''): void
+    {
+        if ($recordId <= 0 || $userId <= 0) {
+            return;
+        }
+
+        $statement = $this->db->prepare(
+            "INSERT INTO contabilidad_auditoria (
+                cautabla,
+                cauregistro_id,
+                cauaccion,
+                cauvalor_anterior,
+                cauvalor_nuevo,
+                cauobservacion,
+                usuid
+             ) VALUES (
+                :table_name,
+                :record_id,
+                :action,
+                :before_value,
+                :after_value,
+                :observation,
+                :user_id
+             )"
+        );
+        $statement->execute([
+            'table_name' => $table,
+            'record_id' => $recordId,
+            'action' => $action,
+            'before_value' => $before === null ? null : json_encode($before, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+            'after_value' => $after === null ? null : json_encode($after, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+            'observation' => $observation !== '' ? mb_substr($observation, 0, 250) : null,
+            'user_id' => $userId,
+        ]);
     }
 }

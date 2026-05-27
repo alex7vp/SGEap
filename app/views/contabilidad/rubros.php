@@ -6,9 +6,13 @@ $additionalItems = is_array($items ?? null) ? $items : [];
 $allConcepts = is_array($allConcepts ?? null) ? $allConcepts : [];
 $selectedItemId = (int) ($selectedItemId ?? 0);
 $requestedPanel = (string) ($_GET['panel'] ?? '');
+$canCreateAdditionalItems = !empty($canCreateAdditionalItems);
+$canEditAdditionalItems = !empty($canEditAdditionalItems);
+$canRegisterAdditionalItemPayments = !empty($canRegisterAdditionalItemPayments);
+$canManageAdditionalItemConcepts = $canCreateAdditionalItems || $canEditAdditionalItems;
 $selectedRubrosMode = $selectedItemId > 0
     ? 'detail'
-    : ($requestedPanel === 'concepts' ? 'concepts' : ($additionalItems === [] ? 'form' : ($requestedPanel === 'form' ? 'form' : 'list')));
+    : ($requestedPanel === 'concepts' && $canManageAdditionalItemConcepts ? 'concepts' : ($additionalItems === [] && $canCreateAdditionalItems ? 'form' : ($requestedPanel === 'form' && $canCreateAdditionalItems ? 'form' : 'list')));
 $selectedConceptMode = $allConcepts === [] ? 'form' : 'list';
 
 require BASE_PATH . '/app/views/partials/header.php';
@@ -21,6 +25,17 @@ $levels = is_array($levels ?? null) ? $levels : [];
 $courses = is_array($courses ?? null) ? $courses : [];
 $students = is_array($students ?? null) ? $students : [];
 $assignments = is_array($assignments ?? null) ? $assignments : [];
+$assignmentFilters = is_array($assignmentFilters ?? null) ? $assignmentFilters : [];
+$assignmentPagination = is_array($assignmentPagination ?? null) ? $assignmentPagination : ['page' => 1, 'pages' => 1, 'total' => count($assignments), 'limit' => 25];
+$assignmentStatuses = [
+    '' => 'Todos los estados',
+    'PENDIENTE' => 'Pendiente',
+    'PAGADO' => 'Pagado',
+    'VENCIDO' => 'Vencido',
+    'EXONERADO' => 'Exonerado',
+    'NO_APLICA' => 'No aplica',
+    'ANULADO' => 'Anulado',
+];
 $scopeLabel = static function (array $item): string {
     $scope = (string) ($item['craalcance'] ?? '');
 
@@ -73,18 +88,22 @@ $statusClass = static function (string $status): string {
     <section class="grade-config-view-stack">
     <section class="security-assignment-block grade-profile-creation-block" data-option-view-mode>
         <div class="grade-profile-mode-selector" role="radiogroup" aria-label="Vista de rubros adicionales">
-            <label class="grade-profile-mode-option">
-                <input type="radio" name="rubro_view_mode" value="form" <?= $selectedRubrosMode === 'form' ? 'checked' : ''; ?> data-option-view-radio>
-                <span>Nuevo rubro</span>
-            </label>
+            <?php if ($canCreateAdditionalItems): ?>
+                <label class="grade-profile-mode-option">
+                    <input type="radio" name="rubro_view_mode" value="form" <?= $selectedRubrosMode === 'form' ? 'checked' : ''; ?> data-option-view-radio>
+                    <span>Nuevo rubro</span>
+                </label>
+            <?php endif; ?>
             <label class="grade-profile-mode-option">
                 <input type="radio" name="rubro_view_mode" value="list" <?= $selectedRubrosMode === 'list' ? 'checked' : ''; ?> data-option-view-radio>
                 <span>Rubros registrados</span>
             </label>
-            <label class="grade-profile-mode-option">
-                <input type="radio" name="rubro_view_mode" value="concepts" <?= $selectedRubrosMode === 'concepts' ? 'checked' : ''; ?> data-option-view-radio>
-                <span>Conceptos</span>
-            </label>
+            <?php if ($canManageAdditionalItemConcepts): ?>
+                <label class="grade-profile-mode-option">
+                    <input type="radio" name="rubro_view_mode" value="concepts" <?= $selectedRubrosMode === 'concepts' ? 'checked' : ''; ?> data-option-view-radio>
+                    <span>Conceptos</span>
+                </label>
+            <?php endif; ?>
             <?php if ($selectedItemId > 0): ?>
                 <label class="grade-profile-mode-option">
                     <input type="radio" name="rubro_view_mode" value="detail" <?= $selectedRubrosMode === 'detail' ? 'checked' : ''; ?> data-option-view-radio>
@@ -94,6 +113,7 @@ $statusClass = static function (string $status): string {
         </div>
     </section>
 
+    <?php if ($canCreateAdditionalItems): ?>
     <section class="security-assignment-block" data-option-view-panel="form" <?= $selectedRubrosMode === 'form' ? '' : 'hidden'; ?>>
         <header class="security-assignment-header">
             <div>
@@ -150,7 +170,9 @@ $statusClass = static function (string $status): string {
             </div>
         </form>
     </section>
+    <?php endif; ?>
 
+    <?php if ($canManageAdditionalItemConcepts): ?>
     <section class="security-assignment-block" data-option-view-panel="concepts" <?= $selectedRubrosMode === 'concepts' ? '' : 'hidden'; ?>>
         <header class="security-assignment-header">
             <div>
@@ -249,6 +271,7 @@ $statusClass = static function (string $status): string {
         </section>
         </section>
     </section>
+    <?php endif; ?>
 
     <section class="security-assignment-block" data-option-view-panel="list" <?= $selectedRubrosMode === 'list' ? '' : 'hidden'; ?>>
         <header class="security-assignment-header">
@@ -310,8 +333,40 @@ $statusClass = static function (string $status): string {
                 </div>
             </header>
 
+            <form class="toolbar toolbar-filter accounting-receipts-toolbar" method="GET" action="<?= $h(baseUrl('contabilidad/rubros')); ?>">
+                <input type="hidden" name="rubro" value="<?= $h($selectedItemId); ?>">
+                <div class="filter-box">
+                    <label class="sr-only" for="rubro-assignment-search">Buscar estudiante</label>
+                    <input id="rubro-assignment-search" type="search" name="q" value="<?= $h($assignmentFilters['q'] ?? ''); ?>" placeholder="Buscar estudiante">
+                </div>
+                <div class="filter-box filter-box-compact">
+                    <label class="sr-only" for="rubro-assignment-status">Estado</label>
+                    <select id="rubro-assignment-status" name="estado">
+                        <?php foreach ($assignmentStatuses as $statusValue => $statusLabel): ?>
+                            <option value="<?= $h($statusValue); ?>" <?= (string) ($assignmentFilters['estado'] ?? '') === $statusValue ? 'selected' : ''; ?>><?= $h($statusLabel); ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="filter-box filter-box-compact">
+                    <label class="sr-only" for="rubro-assignment-course">Curso</label>
+                    <select id="rubro-assignment-course" name="curso">
+                        <option value="0">Todos los cursos</option>
+                        <?php foreach ($courses as $course): ?>
+                            <option value="<?= $h($course['curid'] ?? ''); ?>" <?= (int) ($assignmentFilters['curso'] ?? 0) === (int) ($course['curid'] ?? 0) ? 'selected' : ''; ?>>
+                                <?= $h(trim((string) (($course['nednombre'] ?? '') . ' | ' . ($course['granombre'] ?? '') . ' ' . ($course['prlnombre'] ?? '')))); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <button class="btn-secondary btn-auto" type="submit">
+                    <i class="fa fa-filter" aria-hidden="true"></i>
+                    Filtrar
+                </button>
+                <span class="table-status"><?= count($assignments); ?> de <?= $h($assignmentPagination['total'] ?? count($assignments)); ?> registro(s)</span>
+            </form>
+
             <?php if ($assignments === []): ?>
-                <div class="empty-state">No hay estudiantes asignados para este rubro.</div>
+                <div class="empty-state">No hay estudiantes asignados con los filtros seleccionados.</div>
             <?php else: ?>
                 <div class="table-wrap">
                 <table class="data-table compact-data-table">
@@ -338,16 +393,21 @@ $statusClass = static function (string $status): string {
                                 <td><span class="state-pill <?= $h($statusClass($status)); ?>"><?= $h($status); ?></span></td>
                                 <td><?= $h($assignment['cpagreferencia'] ?? ''); ?></td>
                                 <td>
-                                    <?php if (in_array($status, ['PENDIENTE', 'VENCIDO'], true)): ?>
-                                        <form class="accounting-actions-inline" method="POST" action="<?= $h(baseUrl('contabilidad/rubros/cerrar')); ?>">
+                                    <?php if (in_array($status, ['PENDIENTE', 'VENCIDO'], true) && ($canRegisterAdditionalItemPayments || $canEditAdditionalItems)): ?>
+                                        <form class="accounting-actions-inline" method="POST" action="<?= $h(baseUrl('contabilidad/rubros/cerrar')); ?>" data-rubro-close-form>
                                             <?= csrfField(); ?>
                                             <input type="hidden" name="cruid" value="<?= $h($selectedItemId); ?>">
                                             <input type="hidden" name="creid" value="<?= $h($assignment['creid'] ?? ''); ?>">
+                                            <input type="hidden" name="return_query" value="<?= $h($_SERVER['QUERY_STRING'] ?? ''); ?>">
                                             <select class="table-input" name="estado" data-rubro-close-status>
-                                                <option value="PAGADO">Pagado</option>
-                                                <option value="EXONERADO">Exonerado</option>
-                                                <option value="NO_APLICA">No aplica</option>
-                                                <option value="ANULADO">Anulado</option>
+                                                <?php if ($canRegisterAdditionalItemPayments || $canEditAdditionalItems): ?>
+                                                    <option value="PAGADO">Pagado</option>
+                                                <?php endif; ?>
+                                                <?php if ($canEditAdditionalItems): ?>
+                                                    <option value="EXONERADO">Exonerado</option>
+                                                    <option value="NO_APLICA">No aplica</option>
+                                                    <option value="ANULADO">Anulado</option>
+                                                <?php endif; ?>
                                             </select>
                                             <select class="table-input" name="cmpid" data-rubro-payment-field>
                                                 <option value="0">Metodo</option>
@@ -369,6 +429,30 @@ $statusClass = static function (string $status): string {
                         <?php endforeach; ?>
                     </tbody>
                 </table>
+                </div>
+                <?php
+                    $currentAssignmentPage = (int) ($assignmentPagination['page'] ?? 1);
+                    $assignmentPages = (int) ($assignmentPagination['pages'] ?? 1);
+                    $assignmentQuery = [
+                        'rubro' => $selectedItemId,
+                        'q' => (string) ($assignmentFilters['q'] ?? ''),
+                        'estado' => (string) ($assignmentFilters['estado'] ?? ''),
+                        'curso' => (int) ($assignmentFilters['curso'] ?? 0),
+                        'limit' => (int) ($assignmentPagination['limit'] ?? 25),
+                    ];
+                    $previousAssignmentUrl = baseUrl('contabilidad/rubros?' . http_build_query($assignmentQuery + ['page' => max(1, $currentAssignmentPage - 1)]));
+                    $nextAssignmentUrl = baseUrl('contabilidad/rubros?' . http_build_query($assignmentQuery + ['page' => min($assignmentPages, $currentAssignmentPage + 1)]));
+                ?>
+                <div class="actions-row accounting-pagination">
+                    <a class="btn-secondary btn-auto <?= $currentAssignmentPage <= 1 ? 'is-disabled' : ''; ?>" href="<?= $h($previousAssignmentUrl); ?>">
+                        <i class="fa fa-chevron-left" aria-hidden="true"></i>
+                        Anterior
+                    </a>
+                    <span class="table-status">Pagina <?= $h($currentAssignmentPage); ?> de <?= $h($assignmentPages); ?></span>
+                    <a class="btn-secondary btn-auto <?= $currentAssignmentPage >= $assignmentPages ? 'is-disabled' : ''; ?>" href="<?= $h($nextAssignmentUrl); ?>">
+                        Siguiente
+                        <i class="fa fa-chevron-right" aria-hidden="true"></i>
+                    </a>
                 </div>
             <?php endif; ?>
         </section>
@@ -404,6 +488,23 @@ document.addEventListener('DOMContentLoaded', function () {
 
         select.addEventListener('change', syncFields);
         syncFields();
+    });
+
+    document.querySelectorAll('[data-rubro-close-form]').forEach(function (form) {
+        form.addEventListener('submit', function (event) {
+            const status = form.querySelector('[name="estado"]');
+            const selectedStatus = status ? status.value : '';
+            const messages = {
+                PAGADO: 'Confirma que desea registrar este rubro como pagado?',
+                EXONERADO: 'Confirma que desea exonerar este rubro?',
+                NO_APLICA: 'Confirma que este rubro no aplica para el estudiante?',
+                ANULADO: 'Confirma que desea anular este rubro?'
+            };
+
+            if (!window.confirm(messages[selectedStatus] || 'Confirma que desea actualizar este rubro?')) {
+                event.preventDefault();
+            }
+        });
     });
 
     document.querySelectorAll('[data-concept-row]').forEach(function (row) {

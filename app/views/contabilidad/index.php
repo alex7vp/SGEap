@@ -119,31 +119,21 @@ $metricCards = [
         <?php endforeach; ?>
     </section>
 
-    <section class="module-home-grid">
-        <article class="module-home-card is-disabled">
-            <span class="module-home-card-icon"><i class="fa fa-sliders" aria-hidden="true"></i></span>
-            <strong>Configuracion de valores</strong>
-            <p>Matricula, pensiones, descuentos, vencimientos y reglas por nivel educativo.</p>
-            <span class="cell-subtitle">Siguiente fase</span>
-        </article>
-        <a class="module-home-card" href="<?= $h(baseUrl('contabilidad/obligaciones')); ?>">
-            <span class="module-home-card-icon"><i class="fa fa-list-alt" aria-hidden="true"></i></span>
-            <strong>Obligaciones</strong>
-            <p>Generacion y administracion de matricula y pensiones del periodo.</p>
-            <span class="cell-subtitle">Asignar y revisar</span>
-        </a>
-        <a class="module-home-card" href="<?= $h(baseUrl('contabilidad/comprobantes')); ?>">
-            <span class="module-home-card-icon"><i class="fa fa-file-text-o" aria-hidden="true"></i></span>
-            <strong>Comprobantes</strong>
-            <p>Revision, aprobacion, rechazo y aplicacion de comprobantes.</p>
-            <span class="cell-subtitle">Revisar pendientes</span>
-        </a>
-        <article class="module-home-card is-disabled">
-            <span class="module-home-card-icon"><i class="fa fa-plus-square" aria-hidden="true"></i></span>
-            <strong>Rubros adicionales</strong>
-            <p>Salidas pedagogicas, carnet, materiales, eventos y reposiciones.</p>
-            <span class="cell-subtitle">Siguiente fase</span>
-        </article>
+    <section class="security-assignment-block">
+        <div class="actions-row">
+            <a class="btn-secondary btn-auto" href="<?= $h(baseUrl('contabilidad/exportar?tipo=obligaciones-pendientes')); ?>">
+                <i class="fa fa-download" aria-hidden="true"></i>
+                Obligaciones pendientes CSV
+            </a>
+            <a class="btn-secondary btn-auto" href="<?= $h(baseUrl('contabilidad/exportar?tipo=pagos')); ?>">
+                <i class="fa fa-download" aria-hidden="true"></i>
+                Pagos CSV
+            </a>
+            <a class="btn-secondary btn-auto" href="<?= $h(baseUrl('contabilidad/exportar?tipo=rubros')); ?>">
+                <i class="fa fa-download" aria-hidden="true"></i>
+                Rubros CSV
+            </a>
+        </div>
     </section>
 
     <section class="security-assignment-block">

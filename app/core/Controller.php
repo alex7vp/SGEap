@@ -73,7 +73,7 @@ abstract class Controller
             '/mi-matricula' => 'estudiante.mi_matricula',
             '/representante/estudiante' => 'representante.estudiantes',
             '/representante/estudiante/modulo' => 'representante.estudiantes',
-            '/representante/contabilidad' => 'contabilidad.representante.obligaciones.ver|contabilidad.representante.pagos.ver|contabilidad.representante.comprobantes.subir',
+            '/representante/contabilidad' => 'contabilidad.representante.obligaciones.ver|contabilidad.representante.pagos.ver|contabilidad.representante.comprobantes.subir|contabilidad.representante.rubros.ver',
             '/academico' => 'estudiantes.gestionar|personas.gestionar|matriculas.gestionar|asistencia.calendario.gestionar|asistencia.registrar|asistencia.supervisar|justificaciones.gestionar|asistencia.ver_propia|asistencia.representante.ver|novedades.registrar|novedades.supervisar|novedades.ver_propia|novedades.representante.ver|calificaciones.registrar|calificaciones.editar|calificaciones.configurar|calificaciones.validar|calificaciones.publicar|calificaciones.auditoria.ver',
             '/calificaciones/registro' => 'asistencia.registrar|calificaciones.registrar|calificaciones.editar|calificaciones.configurar|calificaciones.validar|calificaciones.publicar|calificaciones.auditoria.ver',
             '/calificaciones/actividad' => 'asistencia.registrar|calificaciones.registrar|calificaciones.editar|calificaciones.configurar',
@@ -89,11 +89,16 @@ abstract class Controller
             '/configuracion' => 'configuracion.gestionar|catalogos.gestionar|cursos.gestionar|matriculas.documentos|asistencia.calendario.gestionar|calificaciones.configurar|calificaciones.plantillas.gestionar',
             '/configuracion/academica' => 'configuracion.gestionar|catalogos.gestionar|cursos.gestionar|matriculas.documentos|asistencia.calendario.gestionar|calificaciones.configurar|calificaciones.plantillas.gestionar',
             '/configuracion/contable' => 'contabilidad.configurar',
+            '/configuracion/contable/servicios' => 'contabilidad.configurar',
+            '/configuracion/backups' => 'backups.gestionar|configuracion.gestionar',
+            '/configuracion/backups/descargar' => 'backups.gestionar|configuracion.gestionar',
+            '/configuracion/backups/eliminar' => 'backups.gestionar|configuracion.gestionar',
             '/reportes' => 'dashboard.ver|asistencia.supervisar|calificaciones.validar|calificaciones.configurar|calificaciones.registrar|calificaciones.editar|calificaciones.publicar',
             '/reportes/asistencia' => 'asistencia.supervisar',
             '/reportes/libreta' => 'calificaciones.validar|calificaciones.configurar|calificaciones.registrar|calificaciones.editar|calificaciones.publicar',
             '/reportes/cuadro-final' => 'calificaciones.validar|calificaciones.configurar|calificaciones.registrar|calificaciones.editar',
             '/contabilidad' => 'contabilidad.ver',
+            '/contabilidad/exportar' => 'contabilidad.reportes.exportar',
             '/contabilidad/obligaciones' => 'contabilidad.obligaciones.ver',
             '/contabilidad/obligaciones/detalle' => 'contabilidad.obligaciones.ver',
             '/contabilidad/obligaciones/generar' => 'contabilidad.obligaciones.generar',
@@ -102,6 +107,7 @@ abstract class Controller
             '/contabilidad/comprobantes' => 'contabilidad.comprobantes.revisar',
             '/contabilidad/comprobantes/aprobar' => 'contabilidad.comprobantes.aprobar',
             '/contabilidad/comprobantes/rechazar' => 'contabilidad.comprobantes.rechazar',
+            '/contabilidad/pagos/reversar' => 'contabilidad.pagos.reversar',
             '/contabilidad/rubros' => 'contabilidad.rubros.ver|contabilidad.rubros.crear|contabilidad.rubros.editar',
             '/contabilidad/rubros/cerrar' => 'contabilidad.rubros.editar|contabilidad.pagos.registrar',
             '/contabilidad/rubros/conceptos' => 'contabilidad.rubros.crear|contabilidad.rubros.editar',
@@ -170,6 +176,7 @@ abstract class Controller
             '/configuracion/matricula/documentos' => 'matriculas.documentos',
             '/configuracion/matricula' => 'configuracion.gestionar',
             '/configuracion/contable/' => 'contabilidad.configurar',
+            '/configuracion/backups/' => 'backups.gestionar|configuracion.gestionar',
             '/contabilidad/obligaciones/' => 'contabilidad.obligaciones.ver|contabilidad.obligaciones.generar|contabilidad.obligaciones.editar',
             '/contabilidad/comprobantes/' => 'contabilidad.comprobantes.revisar|contabilidad.comprobantes.aprobar|contabilidad.comprobantes.rechazar',
             '/seguridad/usuarios/clave' => 'seguridad.usuarios',
@@ -187,7 +194,7 @@ abstract class Controller
         return null;
     }
 
-    private function denyAccess(): void
+    protected function denyAccess(): void
     {
         http_response_code(403);
         $this->view('errors.forbidden', [

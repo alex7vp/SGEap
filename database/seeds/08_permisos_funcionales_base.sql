@@ -48,7 +48,8 @@ VALUES
     ('Gestion Contable - representante obligaciones ver', 'contabilidad.representante.obligaciones.ver', 'Consulta de obligaciones por el representante', true),
     ('Gestion Contable - representante comprobantes subir', 'contabilidad.representante.comprobantes.subir', 'Carga de comprobantes de matricula y pensiones por el representante', true),
     ('Gestion Contable - representante pagos ver', 'contabilidad.representante.pagos.ver', 'Consulta de historial de pagos por el representante', true),
-    ('Gestion Contable - representante rubros ver', 'contabilidad.representante.rubros.ver', 'Consulta de rubros adicionales por el representante', true)
+    ('Gestion Contable - representante rubros ver', 'contabilidad.representante.rubros.ver', 'Consulta de rubros adicionales por el representante', true),
+    ('Backups - gestionar', 'backups.gestionar', 'Generacion, descarga y eliminacion de respaldos del sistema', true)
 ON CONFLICT (prmcodigo) DO UPDATE
 SET prmnombre = EXCLUDED.prmnombre,
     prmdescripcion = EXCLUDED.prmdescripcion,
@@ -103,7 +104,8 @@ INNER JOIN permiso p ON p.prmcodigo IN (
     'contabilidad.representante.obligaciones.ver',
     'contabilidad.representante.comprobantes.subir',
     'contabilidad.representante.pagos.ver',
-    'contabilidad.representante.rubros.ver'
+    'contabilidad.representante.rubros.ver',
+    'backups.gestionar'
 )
 WHERE r.rolnombre = 'Administrador'
 ON CONFLICT (rolid, prmid) DO UPDATE

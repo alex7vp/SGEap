@@ -5,6 +5,8 @@ declare(strict_types=1);
 $h = static fn (mixed $value): string => htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
 $money = static fn (mixed $value): string => '$' . number_format((float) $value, 2, '.', ',');
 $obligations = is_array($obligations ?? null) ? $obligations : [];
+$additionalItems = is_array($additionalItems ?? null) ? $additionalItems : [];
+$additionalItemsVisible = !empty($additionalItemsVisible);
 $payableStatuses = ['PENDIENTE', 'PAGO_PARCIAL', 'VENCIDO'];
 $receiptStatusLabels = [
     'EN_REVISION' => 'En revision',
@@ -39,8 +41,26 @@ foreach ($obligations as $row) {
     $groups[$groupKey]['rows'][] = $row;
 }
 
-if (count($groups) === 1) {
-    $firstGroup = reset($groups);
+$additionalGroups = [];
+
+foreach ($additionalItems as $row) {
+    $studentName = trim((string) (($row['perapellidos'] ?? '') . ' ' . ($row['pernombres'] ?? '')));
+    $courseName = trim((string) (($row['granombre'] ?? '') . ' ' . ($row['prlnombre'] ?? '')));
+    $groupKey = (string) ($row['matid'] ?? $studentName . '|' . $courseName);
+
+    if (!isset($additionalGroups[$groupKey])) {
+        $additionalGroups[$groupKey] = [
+            'student' => $studentName !== '' ? $studentName : 'Estudiante',
+            'course' => $courseName,
+            'rows' => [],
+        ];
+    }
+
+    $additionalGroups[$groupKey]['rows'][] = $row;
+}
+
+if (count($groups) === 1 || ($groups === [] && count($additionalGroups) === 1)) {
+    $firstGroup = $groups !== [] ? reset($groups) : reset($additionalGroups);
     $pageTitle = 'Mis pagos - ' . (string) ($firstGroup['student'] ?? 'Estudiante');
 }
 
@@ -137,6 +157,59 @@ require BASE_PATH . '/app/views/partials/header.php';
                 <p class="accounting-file-note">Adjunte el comprobante en PDF, JPG o PNG. Tamano maximo 2 MB.</p>
             </section>
         <?php endforeach; ?>
+    <?php endif; ?>
+
+    <?php if ($additionalItemsVisible): ?>
+        <section class="security-assignment-block">
+            <header class="security-assignment-header">
+                <div>
+                    <h3>Rubros adicionales</h3>
+                    <p>Consulta cobros eventuales registrados por la institucion.</p>
+                </div>
+            </header>
+
+            <?php if ($additionalGroups === []): ?>
+                <div class="empty-state">No existen rubros adicionales asignados para los estudiantes vinculados.</div>
+            <?php else: ?>
+                <?php foreach ($additionalGroups as $group): ?>
+                    <div class="table-wrap">
+                    <table class="data-table compact-data-table">
+                        <thead>
+                            <tr>
+                                <th>Estudiante</th>
+                                <th>Rubro</th>
+                                <th>Concepto</th>
+                                <th>Valor</th>
+                                <th>Fecha limite</th>
+                                <th>Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($group['rows'] as $row): ?>
+                                <?php $status = (string) ($row['creestado'] ?? ''); ?>
+                                <tr>
+                                    <td>
+                                        <strong><?= $h($group['student']); ?></strong>
+                                        <span class="cell-subtitle"><?= $h($group['course']); ?></span>
+                                    </td>
+                                    <td>
+                                        <?= $h($row['crunombre'] ?? ''); ?>
+                                        <?php if (!empty($row['crudescripcion'])): ?>
+                                            <span class="cell-subtitle"><?= $h($row['crudescripcion']); ?></span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td><?= $h($row['cconombre'] ?? ''); ?></td>
+                                    <td><?= $h($money($row['crevalor'] ?? 0)); ?></td>
+                                    <td><?= $h($row['crefecha_limite'] ?? 'Sin fecha'); ?></td>
+                                    <td><span class="state-pill <?= $status === 'PAGADO' || $status === 'EXONERADO' ? 'state-pill-active' : 'state-pill-inactive'; ?>"><?= $h($status); ?></span></td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                    </div>
+                <?php endforeach; ?>
+            <?php endif; ?>
+        </section>
     <?php endif; ?>
 <?php endif; ?>
 

@@ -412,6 +412,20 @@ class AccountingModel extends Model
             $created['matricula'] = $this->insertMatriculationObligationIfMissing($matriculationId, $matriculationConfig, $userId);
             $created['pensiones'] = $this->insertPensionObligationsIfMissing($matriculationId, $pensionConfig, $userId, $discount);
             $this->updateExistingPensionValues($matriculationId, $pensionConfig, $discount);
+            $this->audit(
+                'matricula',
+                $matriculationId,
+                ((int) $created['matricula'] + (int) $created['pensiones']) > 0 ? 'CREAR' : 'EDITAR',
+                null,
+                [
+                    'matricula_creada' => $created['matricula'],
+                    'pensiones_creadas' => $created['pensiones'],
+                    'beca_porcentaje' => $scholarshipPercent,
+                    'beca_valor' => $scholarshipAmount,
+                ],
+                $userId,
+                'Generacion o actualizacion de obligaciones'
+            );
             $this->db->commit();
         } catch (\Throwable $exception) {
             if ($this->db->inTransaction()) {
@@ -459,7 +473,7 @@ class AccountingModel extends Model
         return $statement->fetchAll();
     }
 
-    public function updateObligationFinalValue(int $obligationId, int $periodId, float $finalValue): void
+    public function updateObligationFinalValue(int $obligationId, int $periodId, float $finalValue, int $userId = 0): void
     {
         $obligation = $this->findPeriodObligation($obligationId, $periodId);
 
@@ -496,6 +510,18 @@ class AccountingModel extends Model
         $statement->bindValue(':final_value', number_format($finalValue, 2, '.', ''));
         $statement->bindValue(':id', $obligationId, PDO::PARAM_INT);
         $statement->execute();
+
+        if ($userId > 0) {
+            $this->audit(
+                'contabilidad_obligacion',
+                $obligationId,
+                'EDITAR',
+                $obligation,
+                ['cobvalor_final' => number_format($finalValue, 2, '.', ''), 'cobvalor_descuento' => number_format($discount, 2, '.', '')],
+                $userId,
+                'Actualizacion de valor final de obligacion'
+            );
+        }
     }
 
     public function annulObligation(int $obligationId, int $periodId, int $userId, string $reason): void
@@ -533,6 +559,16 @@ class AccountingModel extends Model
             'reason' => $reason,
             'id' => $obligationId,
         ]);
+
+        $this->audit(
+            'contabilidad_obligacion',
+            $obligationId,
+            'ANULAR',
+            $obligation,
+            ['cobestado' => 'ANULADO', 'motivo' => $reason],
+            $userId,
+            $reason
+        );
     }
 
     public function additionalItemConcepts(): array
@@ -565,7 +601,7 @@ class AccountingModel extends Model
         $statement = $this->db->prepare(
             "INSERT INTO contabilidad_concepto (ccocodigo, cconombre, ccocategoria, ccodescripcion, ccoestado)
              VALUES (:code, :name, 'RUBRO', :description, true)
-             ON CONFLICT (ccocodigo) DO UPDATE
+             ON CONFLICT (ccocategoria, ccocodigo) DO UPDATE
              SET cconombre = EXCLUDED.cconombre,
                  ccodescripcion = EXCLUDED.ccodescripcion,
                  ccoestado = true,
@@ -719,9 +755,70 @@ class AccountingModel extends Model
 
     public function additionalItemAssignments(int $additionalItemId, int $periodId): array
     {
+        return $this->additionalItemAssignmentsPage($additionalItemId, $periodId)['rows'];
+    }
+
+    public function additionalItemAssignmentsPage(int $additionalItemId, int $periodId, array $filters = [], int $limit = 25, int $page = 1): array
+    {
         if ($additionalItemId <= 0 || $periodId <= 0) {
-            return [];
+            return [
+                'rows' => [],
+                'total' => 0,
+                'page' => 1,
+                'limit' => max(1, $limit),
+                'pages' => 1,
+            ];
         }
+
+        $conditions = ['r.cruid = :item_id', 'r.pleid = :period_id'];
+        $params = [
+            'item_id' => $additionalItemId,
+            'period_id' => $periodId,
+        ];
+        $search = trim((string) ($filters['q'] ?? ''));
+        $status = strtoupper(trim((string) ($filters['estado'] ?? '')));
+        $courseId = (int) ($filters['curso'] ?? 0);
+        $validStatuses = ['PENDIENTE', 'PAGADO', 'VENCIDO', 'EXONERADO', 'NO_APLICA', 'ANULADO'];
+
+        if ($search !== '') {
+            $conditions[] = "(lower(pe.pernombres || ' ' || pe.perapellidos) LIKE lower(:search)
+                OR lower(pe.perapellidos || ' ' || pe.pernombres) LIKE lower(:search)
+                OR lower(COALESCE(pe.percedula, '')) LIKE lower(:search))";
+            $params['search'] = '%' . $search . '%';
+        }
+
+        if (in_array($status, $validStatuses, true)) {
+            $conditions[] = 're.creestado = :status';
+            $params['status'] = $status;
+        }
+
+        if ($courseId > 0) {
+            $conditions[] = 'c.curid = :course_id';
+            $params['course_id'] = $courseId;
+        }
+
+        $limit = min(100, max(10, $limit));
+        $page = max(1, $page);
+        $whereSql = implode(' AND ', $conditions);
+
+        $countStatement = $this->db->prepare(
+            "SELECT COUNT(*)
+             FROM contabilidad_rubro_estudiante re
+             INNER JOIN contabilidad_rubro r ON r.cruid = re.cruid
+             INNER JOIN matricula m ON m.matid = re.matid
+             INNER JOIN curso c ON c.curid = m.curid
+             INNER JOIN estudiante e ON e.estid = m.estid
+             INNER JOIN persona pe ON pe.perid = e.perid
+             WHERE {$whereSql}"
+        );
+        foreach ($params as $key => $value) {
+            $countStatement->bindValue(':' . $key, $value, is_int($value) ? PDO::PARAM_INT : PDO::PARAM_STR);
+        }
+        $countStatement->execute();
+        $total = (int) $countStatement->fetchColumn();
+        $pages = max(1, (int) ceil($total / $limit));
+        $page = min($page, $pages);
+        $offset = ($page - 1) * $limit;
 
         $statement = $this->db->prepare(
             "SELECT
@@ -733,6 +830,7 @@ class AccountingModel extends Model
                     pe.percedula,
                     pe.pernombres,
                     pe.perapellidos,
+                    c.curid,
                     g.granombre,
                     pr.prlnombre,
                     pay.cpagid,
@@ -755,16 +853,24 @@ class AccountingModel extends Model
                  ORDER BY p.cpagfecha_registro DESC, p.cpagid DESC
                  LIMIT 1
              ) pay ON true
-             WHERE r.cruid = :item_id
-               AND r.pleid = :period_id
+             WHERE {$whereSql}
              ORDER BY pe.perapellidos, pe.pernombres"
+            . " LIMIT :limit OFFSET :offset"
         );
-        $statement->execute([
-            'item_id' => $additionalItemId,
-            'period_id' => $periodId,
-        ]);
+        foreach ($params as $key => $value) {
+            $statement->bindValue(':' . $key, $value, is_int($value) ? PDO::PARAM_INT : PDO::PARAM_STR);
+        }
+        $statement->bindValue(':limit', $limit, PDO::PARAM_INT);
+        $statement->bindValue(':offset', max(0, $offset), PDO::PARAM_INT);
+        $statement->execute();
 
-        return $statement->fetchAll();
+        return [
+            'rows' => $statement->fetchAll(),
+            'total' => $total,
+            'page' => $page,
+            'limit' => $limit,
+            'pages' => $pages,
+        ];
     }
 
     public function createAdditionalItem(int $periodId, int $userId, array $data): int
@@ -782,6 +888,8 @@ class AccountingModel extends Model
         if ($periodId <= 0) {
             throw new RuntimeException('Seleccione un periodo lectivo para crear rubros.');
         }
+
+        $this->assertAdditionalItemConcept($conceptId);
 
         if ($conceptId <= 0 || $name === '' || $value <= 0) {
             throw new RuntimeException('Complete concepto, nombre y valor del rubro.');
@@ -829,6 +937,24 @@ class AccountingModel extends Model
             $assignment->execute();
 
             $this->materializeAdditionalItemAssignments($itemId, $periodId, $scope, $levelId, $courseId, $matriculationId, $value, $deadline, $userId);
+            $this->audit(
+                'contabilidad_rubro',
+                $itemId,
+                'CREAR',
+                null,
+                [
+                    'ccoid' => $conceptId,
+                    'crunombre' => $name,
+                    'cruvalor' => number_format($value, 2, '.', ''),
+                    'crufecha_limite' => $deadline,
+                    'craalcance' => $scope,
+                    'nedid' => $scope === 'NIVEL' ? $levelId : null,
+                    'curid' => $scope === 'CURSO' ? $courseId : null,
+                    'matid' => $scope === 'ESTUDIANTE' ? $matriculationId : null,
+                ],
+                $userId,
+                'Creacion y asignacion de rubro adicional'
+            );
             $this->db->commit();
 
             return $itemId;
@@ -885,6 +1011,21 @@ class AccountingModel extends Model
                 'reason' => $observation !== '' ? $observation : $status,
                 'assignment_id' => $assignmentId,
             ]);
+
+            $this->audit(
+                'contabilidad_rubro_estudiante',
+                $assignmentId,
+                $status === 'ANULADO' ? 'ANULAR' : 'EDITAR',
+                $assignment,
+                [
+                    'creestado' => $status,
+                    'cmpid' => $paymentMethodId > 0 ? $paymentMethodId : null,
+                    'referencia' => $reference,
+                    'observacion' => $observation,
+                ],
+                $userId,
+                $observation !== '' ? $observation : $status
+            );
 
             $this->db->commit();
         } catch (\Throwable $exception) {
@@ -962,6 +1103,203 @@ class AccountingModel extends Model
                AND c.pleid = :period_id
                AND o.cobestado <> 'ANULADO'
              ORDER BY pe.perapellidos, pe.pernombres, o.coborden, o.cobid"
+        );
+        $statement->execute([
+            'representative_person_id' => $representativePersonId,
+            'period_id' => $periodId,
+        ]);
+
+        return $statement->fetchAll();
+    }
+
+    public function exportPendingObligations(int $periodId): array
+    {
+        if ($periodId <= 0) {
+            return [];
+        }
+
+        $statement = $this->db->prepare(
+            "SELECT
+                    pe.percedula,
+                    pe.perapellidos,
+                    pe.pernombres,
+                    n.nednombre,
+                    g.granombre,
+                    pr.prlnombre,
+                    o.cobtipo,
+                    o.cobdescripcion,
+                    o.cobfecha_vencimiento,
+                    o.cobvalor_final,
+                    o.cobvalor_pagado,
+                    o.cobsaldo_pendiente,
+                    o.cobestado
+             FROM contabilidad_obligacion o
+             INNER JOIN matricula m ON m.matid = o.matid
+             INNER JOIN curso c ON c.curid = m.curid
+             INNER JOIN grado g ON g.graid = c.graid
+             INNER JOIN nivel_educativo n ON n.nedid = g.nedid
+             INNER JOIN paralelo pr ON pr.prlid = c.prlid
+             INNER JOIN estudiante e ON e.estid = m.estid
+             INNER JOIN persona pe ON pe.perid = e.perid
+             WHERE c.pleid = :period_id
+               AND o.cobestado <> 'ANULADO'
+               AND o.cobsaldo_pendiente > 0
+             ORDER BY pe.perapellidos, pe.pernombres, o.coborden, o.cobid"
+        );
+        $statement->execute(['period_id' => $periodId]);
+
+        return $statement->fetchAll();
+    }
+
+    public function exportReviewedPayments(int $periodId): array
+    {
+        if ($periodId <= 0) {
+            return [];
+        }
+
+        $statement = $this->db->prepare(
+            "SELECT
+                    p.cpagid,
+                    p.cpagestado,
+                    p.cpagorigen,
+                    p.cpagvalor_reportado,
+                    p.cpagvalor_aprobado,
+                    p.cpagfecha_registro,
+                    p.cpagfecha_revision,
+                    p.cpagfecha_reverso,
+                    p.cpagreferencia,
+                    p.cpagdocumento_externo_numero,
+                    p.cpagmotivo_rechazo,
+                    p.cpagmotivo_reverso,
+                    mp.cmpnombre,
+                    pe.percedula,
+                    pe.perapellidos,
+                    pe.pernombres,
+                    g.granombre,
+                    pr.prlnombre,
+                    COALESCE(o.cobdescripcion, r.crunombre) AS concepto,
+                    CASE WHEN o.cobid IS NOT NULL THEN 'OBLIGACION' ELSE 'RUBRO' END AS tipo_concepto
+             FROM contabilidad_pago p
+             INNER JOIN matricula m ON m.matid = p.matid
+             INNER JOIN curso c ON c.curid = m.curid
+             INNER JOIN grado g ON g.graid = c.graid
+             INNER JOIN paralelo pr ON pr.prlid = c.prlid
+             INNER JOIN estudiante e ON e.estid = m.estid
+             INNER JOIN persona pe ON pe.perid = e.perid
+             LEFT JOIN contabilidad_metodo_pago mp ON mp.cmpid = p.cmpid
+             LEFT JOIN contabilidad_obligacion o ON o.cobid = p.cobid_sugerido
+             LEFT JOIN contabilidad_rubro_estudiante re ON re.creid = p.creid_sugerido
+             LEFT JOIN contabilidad_rubro r ON r.cruid = re.cruid
+             WHERE c.pleid = :period_id
+               AND p.cpagestado IN ('APROBADO', 'RECHAZADO', 'REVERSADO')
+             ORDER BY p.cpagfecha_registro DESC, p.cpagid DESC"
+        );
+        $statement->execute(['period_id' => $periodId]);
+
+        return $statement->fetchAll();
+    }
+
+    public function exportAdditionalItems(int $periodId): array
+    {
+        if ($periodId <= 0) {
+            return [];
+        }
+
+        $statement = $this->db->prepare(
+            "SELECT
+                    r.crunombre,
+                    co.cconombre,
+                    r.cruvalor,
+                    r.crufecha_limite,
+                    pe.percedula,
+                    pe.perapellidos,
+                    pe.pernombres,
+                    n.nednombre,
+                    g.granombre,
+                    pr.prlnombre,
+                    re.crevalor,
+                    re.crefecha_limite,
+                    re.creestado,
+                    re.creobservacion_interna,
+                    pay.cpagreferencia,
+                    pay.cpagfecha_revision
+             FROM contabilidad_rubro_estudiante re
+             INNER JOIN contabilidad_rubro r ON r.cruid = re.cruid
+             INNER JOIN contabilidad_concepto co ON co.ccoid = r.ccoid
+             INNER JOIN matricula m ON m.matid = re.matid
+             INNER JOIN curso c ON c.curid = m.curid
+             INNER JOIN grado g ON g.graid = c.graid
+             INNER JOIN nivel_educativo n ON n.nedid = g.nedid
+             INNER JOIN paralelo pr ON pr.prlid = c.prlid
+             INNER JOIN estudiante e ON e.estid = m.estid
+             INNER JOIN persona pe ON pe.perid = e.perid
+             LEFT JOIN LATERAL (
+                 SELECT p.cpagreferencia, p.cpagfecha_revision
+                 FROM contabilidad_pago_rubro prb
+                 INNER JOIN contabilidad_pago p ON p.cpagid = prb.cpagid
+                 WHERE prb.creid = re.creid
+                   AND prb.cprestado = 'ACTIVO'
+                   AND p.cpagestado = 'APROBADO'
+                 ORDER BY p.cpagfecha_revision DESC NULLS LAST, p.cpagid DESC
+                 LIMIT 1
+             ) pay ON true
+             WHERE r.pleid = :period_id
+               AND c.pleid = :period_id
+             ORDER BY r.crunombre, pe.perapellidos, pe.pernombres"
+        );
+        $statement->execute(['period_id' => $periodId]);
+
+        return $statement->fetchAll();
+    }
+
+    public function representativeAdditionalItems(int $representativePersonId, int $periodId): array
+    {
+        if ($representativePersonId <= 0 || $periodId <= 0) {
+            return [];
+        }
+
+        $statement = $this->db->prepare(
+            "SELECT
+                    re.creid,
+                    re.matid,
+                    re.crevalor,
+                    re.crefecha_limite,
+                    re.creestado,
+                    r.crunombre,
+                    r.crudescripcion,
+                    co.cconombre,
+                    pe.pernombres,
+                    pe.perapellidos,
+                    pe.percedula,
+                    g.granombre,
+                    pr.prlnombre,
+                    pay.cpagreferencia,
+                    pay.cpagfecha_revision
+             FROM matricula_representante mr
+             INNER JOIN matricula m ON m.matid = mr.matid
+             INNER JOIN curso c ON c.curid = m.curid
+             INNER JOIN grado g ON g.graid = c.graid
+             INNER JOIN paralelo pr ON pr.prlid = c.prlid
+             INNER JOIN estudiante e ON e.estid = m.estid
+             INNER JOIN persona pe ON pe.perid = e.perid
+             INNER JOIN contabilidad_rubro_estudiante re ON re.matid = m.matid
+             INNER JOIN contabilidad_rubro r ON r.cruid = re.cruid
+             INNER JOIN contabilidad_concepto co ON co.ccoid = r.ccoid
+             LEFT JOIN LATERAL (
+                 SELECT p.cpagreferencia, p.cpagfecha_revision
+                 FROM contabilidad_pago_rubro prb
+                 INNER JOIN contabilidad_pago p ON p.cpagid = prb.cpagid
+                 WHERE prb.creid = re.creid
+                   AND prb.cprestado = 'ACTIVO'
+                   AND p.cpagestado = 'APROBADO'
+                 ORDER BY p.cpagfecha_revision DESC NULLS LAST, p.cpagid DESC
+                 LIMIT 1
+             ) pay ON true
+             WHERE mr.perid = :representative_person_id
+               AND c.pleid = :period_id
+               AND r.pleid = :period_id
+               AND re.creestado <> 'ANULADO'
+             ORDER BY pe.perapellidos, pe.pernombres, re.crefecha_limite NULLS LAST, r.crunombre"
         );
         $statement->execute([
             'representative_person_id' => $representativePersonId,
@@ -1067,7 +1405,7 @@ class AccountingModel extends Model
             ];
         }
 
-        $validStatuses = ['EN_REVISION', 'APROBADO', 'RECHAZADO'];
+        $validStatuses = ['EN_REVISION', 'APROBADO', 'RECHAZADO', 'REVERSADO'];
         $status = in_array($status, $validStatuses, true) ? $status : 'EN_REVISION';
         $conditions = ['c.pleid = :period_id', 'p.cpagestado = :status'];
         $params = [
@@ -1126,6 +1464,8 @@ class AccountingModel extends Model
                     p.cpagarchivo_hash,
                     p.cpagobservacion_interna,
                     p.cpagmotivo_rechazo,
+                    p.cpagmotivo_reverso,
+                    p.cpagfecha_reverso,
                     p.cpagdocumento_externo_numero,
                     o.cobid,
                     o.cobdescripcion,
@@ -1268,6 +1608,33 @@ class AccountingModel extends Model
                 ]);
             }
 
+            $this->audit(
+                'contabilidad_pago',
+                $paymentId,
+                'APROBAR',
+                ['cpagestado' => $payment['cpagestado'] ?? null, 'cobsaldo_pendiente' => $payment['cobsaldo_pendiente'] ?? null],
+                [
+                    'cpagestado' => 'APROBADO',
+                    'cpagvalor_aprobado' => number_format($approvedValue, 2, '.', ''),
+                    'saldo_favor_generado' => $remaining > 0.0 ? number_format($remaining, 2, '.', '') : null,
+                    'documento_externo_numero' => $externalNumber !== '' ? $externalNumber : null,
+                ],
+                $userId,
+                $observation
+            );
+
+            if ($duplicateId > 0 && $allowDuplicate) {
+                $this->audit(
+                    'contabilidad_pago',
+                    $paymentId,
+                    'DUPLICADO_ACEPTADO',
+                    ['duplicado_cpagid' => $duplicateId],
+                    ['observacion' => $observation],
+                    $userId,
+                    $observation
+                );
+            }
+
             $this->db->commit();
         } catch (\Throwable $exception) {
             if ($this->db->inTransaction()) {
@@ -1326,6 +1693,74 @@ class AccountingModel extends Model
                 'status' => $status,
                 'obligation_id' => (int) $payment['cobid_sugerido'],
             ]);
+
+            $this->audit(
+                'contabilidad_pago',
+                $paymentId,
+                'RECHAZAR',
+                ['cpagestado' => $payment['cpagestado'] ?? null],
+                ['cpagestado' => 'RECHAZADO', 'motivo' => $reason],
+                $userId,
+                $reason
+            );
+
+            $this->db->commit();
+        } catch (\Throwable $exception) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+
+            throw $exception;
+        }
+    }
+
+    public function reversePayment(int $paymentId, int $periodId, int $userId, string $reason): void
+    {
+        $reason = trim($reason);
+
+        if ($reason === '') {
+            throw new RuntimeException('Debe ingresar el motivo del reverso.');
+        }
+
+        $this->db->beginTransaction();
+
+        try {
+            $payment = $this->findPaymentForReverse($paymentId, $periodId);
+
+            if ($payment === false) {
+                throw new RuntimeException('El pago seleccionado no existe.');
+            }
+
+            if ((string) $payment['cpagestado'] !== 'APROBADO') {
+                throw new RuntimeException('Solo se pueden reversar pagos aprobados.');
+            }
+
+            $this->reversePaymentBalances($paymentId);
+            $this->reversePaymentObligations($paymentId);
+            $this->reversePaymentAdditionalItems($paymentId);
+
+            $this->db->prepare(
+                "UPDATE contabilidad_pago
+                 SET cpagestado = 'REVERSADO',
+                     usuid_reverso = :user_id,
+                     cpagfecha_reverso = CURRENT_TIMESTAMP,
+                     cpagmotivo_reverso = :reason
+                 WHERE cpagid = :payment_id"
+            )->execute([
+                'user_id' => $userId,
+                'reason' => $reason,
+                'payment_id' => $paymentId,
+            ]);
+
+            $this->audit(
+                'contabilidad_pago',
+                $paymentId,
+                'REVERSAR',
+                ['cpagestado' => $payment['cpagestado'] ?? null],
+                ['cpagestado' => 'REVERSADO', 'motivo' => $reason],
+                $userId,
+                $reason
+            );
 
             $this->db->commit();
         } catch (\Throwable $exception) {
@@ -1766,6 +2201,27 @@ class AccountingModel extends Model
         $statement->execute();
     }
 
+    private function assertAdditionalItemConcept(int $conceptId): void
+    {
+        if ($conceptId <= 0) {
+            throw new RuntimeException('Seleccione un concepto valido para el rubro.');
+        }
+
+        $statement = $this->db->prepare(
+            "SELECT 1
+             FROM contabilidad_concepto
+             WHERE ccoid = :id
+               AND ccocategoria = 'RUBRO'
+               AND ccoestado = true
+             LIMIT 1"
+        );
+        $statement->execute(['id' => $conceptId]);
+
+        if ($statement->fetchColumn() === false) {
+            throw new RuntimeException('Seleccione un concepto activo de rubro.');
+        }
+    }
+
     private function conceptCodeFromName(string $name): string
     {
         $normalized = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $name);
@@ -1857,6 +2313,162 @@ class AccountingModel extends Model
             'assignment_id' => (int) $assignment['creid'],
             'value' => number_format($value, 2, '.', ''),
         ]);
+    }
+
+    private function findPaymentForReverse(int $paymentId, int $periodId): array|false
+    {
+        $statement = $this->db->prepare(
+            "SELECT p.*
+             FROM contabilidad_pago p
+             INNER JOIN matricula m ON m.matid = p.matid
+             INNER JOIN curso c ON c.curid = m.curid
+             WHERE p.cpagid = :payment_id
+               AND c.pleid = :period_id
+             LIMIT 1
+             FOR UPDATE OF p"
+        );
+        $statement->execute([
+            'payment_id' => $paymentId,
+            'period_id' => $periodId,
+        ]);
+
+        return $statement->fetch();
+    }
+
+    private function reversePaymentBalances(int $paymentId): void
+    {
+        $statement = $this->db->prepare(
+            "SELECT csfid, csfvalor_inicial, csfvalor_disponible
+             FROM contabilidad_saldo_favor
+             WHERE cpagid_origen = :payment_id
+               AND csfestado = 'ACTIVO'
+             FOR UPDATE"
+        );
+        $statement->execute(['payment_id' => $paymentId]);
+
+        foreach ($statement->fetchAll() as $balance) {
+            if (round((float) $balance['csfvalor_inicial'], 2) !== round((float) $balance['csfvalor_disponible'], 2)) {
+                throw new RuntimeException('No se puede reversar el pago porque el saldo a favor ya fue aplicado.');
+            }
+
+            $this->db->prepare(
+                "UPDATE contabilidad_saldo_favor
+                 SET csfestado = 'REVERSADO',
+                     csffecha_modificacion = CURRENT_TIMESTAMP
+                 WHERE csfid = :balance_id"
+            )->execute(['balance_id' => (int) $balance['csfid']]);
+        }
+    }
+
+    private function reversePaymentObligations(int $paymentId): void
+    {
+        $statement = $this->db->prepare(
+            "SELECT cobid
+             FROM contabilidad_pago_obligacion
+             WHERE cpagid = :payment_id
+               AND cpoestado = 'ACTIVO'
+             FOR UPDATE"
+        );
+        $statement->execute(['payment_id' => $paymentId]);
+        $obligationIds = array_values(array_unique(array_map('intval', array_column($statement->fetchAll(), 'cobid'))));
+
+        if ($obligationIds === []) {
+            return;
+        }
+
+        $this->db->prepare(
+            "UPDATE contabilidad_pago_obligacion
+             SET cpoestado = 'REVERSADO'
+             WHERE cpagid = :payment_id
+               AND cpoestado = 'ACTIVO'"
+        )->execute(['payment_id' => $paymentId]);
+
+        foreach ($obligationIds as $obligationId) {
+            $this->recalculateObligationPaymentState($obligationId);
+        }
+    }
+
+    private function recalculateObligationPaymentState(int $obligationId): void
+    {
+        $statement = $this->db->prepare(
+            "SELECT cobvalor_final, cobestado
+             FROM contabilidad_obligacion
+             WHERE cobid = :obligation_id
+             FOR UPDATE"
+        );
+        $statement->execute(['obligation_id' => $obligationId]);
+        $obligation = $statement->fetch();
+
+        if ($obligation === false || (string) $obligation['cobestado'] === 'ANULADO') {
+            return;
+        }
+
+        $paidStatement = $this->db->prepare(
+            "SELECT COALESCE(SUM(cpovalor_aplicado), 0)
+             FROM contabilidad_pago_obligacion
+             WHERE cobid = :obligation_id
+               AND cpoestado = 'ACTIVO'"
+        );
+        $paidStatement->execute(['obligation_id' => $obligationId]);
+
+        $paid = round((float) $paidStatement->fetchColumn(), 2);
+        $finalValue = round((float) $obligation['cobvalor_final'], 2);
+        $balance = max(0.0, round($finalValue - $paid, 2));
+        $status = $paid <= 0.0 ? 'PENDIENTE' : ($balance <= 0.0 ? 'PAGADO' : 'PAGO_PARCIAL');
+
+        $this->db->prepare(
+            "UPDATE contabilidad_obligacion
+             SET cobvalor_pagado = :paid,
+                 cobsaldo_pendiente = :balance,
+                 cobestado = :status,
+                 cobfecha_modificacion = CURRENT_TIMESTAMP
+             WHERE cobid = :obligation_id"
+        )->execute([
+            'paid' => number_format($paid, 2, '.', ''),
+            'balance' => number_format($balance, 2, '.', ''),
+            'status' => $status,
+            'obligation_id' => $obligationId,
+        ]);
+    }
+
+    private function reversePaymentAdditionalItems(int $paymentId): void
+    {
+        $statement = $this->db->prepare(
+            "SELECT creid
+             FROM contabilidad_pago_rubro
+             WHERE cpagid = :payment_id
+               AND cprestado = 'ACTIVO'
+             FOR UPDATE"
+        );
+        $statement->execute(['payment_id' => $paymentId]);
+        $assignmentIds = array_map('intval', array_column($statement->fetchAll(), 'creid'));
+
+        if ($assignmentIds === []) {
+            return;
+        }
+
+        $this->db->prepare(
+            "UPDATE contabilidad_pago_rubro
+             SET cprestado = 'REVERSADO'
+             WHERE cpagid = :payment_id
+               AND cprestado = 'ACTIVO'"
+        )->execute(['payment_id' => $paymentId]);
+
+        foreach ($assignmentIds as $assignmentId) {
+            $this->db->prepare(
+                "UPDATE contabilidad_rubro_estudiante
+                 SET creestado = CASE
+                         WHEN crefecha_limite IS NOT NULL AND crefecha_limite < CURRENT_DATE THEN 'VENCIDO'
+                         ELSE 'PENDIENTE'
+                     END,
+                     usuid_cierre = NULL,
+                     crefecha_cierre = NULL,
+                     cremotivo_cierre = NULL,
+                     crefecha_modificacion = CURRENT_TIMESTAMP
+                 WHERE creid = :assignment_id
+                   AND creestado = 'PAGADO'"
+            )->execute(['assignment_id' => $assignmentId]);
+        }
     }
 
     private function findPeriodPaymentForUpdate(int $paymentId, int $periodId): array|false
@@ -1960,6 +2572,16 @@ class AccountingModel extends Model
                AND o.cobsaldo_pendiente > 0
                AND (o.coborden, COALESCE(o.cobanio, 0), COALESCE(o.cobmes, 0), o.cobid)
                    > (a.coborden, a.cobanio, a.cobmes, a.cobid)
+               AND NOT EXISTS (
+                   SELECT 1
+                   FROM contabilidad_obligacion blocker
+                   WHERE blocker.matid = o.matid
+                     AND blocker.cobestado = 'EN_REVISION'
+                     AND (blocker.coborden, COALESCE(blocker.cobanio, 0), COALESCE(blocker.cobmes, 0), blocker.cobid)
+                         > (a.coborden, a.cobanio, a.cobmes, a.cobid)
+                     AND (blocker.coborden, COALESCE(blocker.cobanio, 0), COALESCE(blocker.cobmes, 0), blocker.cobid)
+                         <= (o.coborden, COALESCE(o.cobanio, 0), COALESCE(o.cobmes, 0), o.cobid)
+               )
              ORDER BY o.coborden ASC, o.cobanio NULLS FIRST, o.cobmes NULLS FIRST, o.cobid ASC
              FOR UPDATE OF o"
         );
@@ -2291,5 +2913,41 @@ class AccountingModel extends Model
         }
 
         $statement->bindValue($parameter, $value);
+    }
+
+    private function audit(string $table, int $recordId, string $action, mixed $before, mixed $after, int $userId, string $observation = ''): void
+    {
+        if ($recordId <= 0 || $userId <= 0) {
+            return;
+        }
+
+        $statement = $this->db->prepare(
+            "INSERT INTO contabilidad_auditoria (
+                cautabla,
+                cauregistro_id,
+                cauaccion,
+                cauvalor_anterior,
+                cauvalor_nuevo,
+                cauobservacion,
+                usuid
+             ) VALUES (
+                :table_name,
+                :record_id,
+                :action,
+                :before_value,
+                :after_value,
+                :observation,
+                :user_id
+             )"
+        );
+        $statement->execute([
+            'table_name' => $table,
+            'record_id' => $recordId,
+            'action' => $action,
+            'before_value' => $before === null ? null : json_encode($before, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+            'after_value' => $after === null ? null : json_encode($after, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+            'observation' => $observation !== '' ? mb_substr($observation, 0, 250) : null,
+            'user_id' => $userId,
+        ]);
     }
 }

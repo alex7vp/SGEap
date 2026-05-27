@@ -24,6 +24,8 @@ Para bases ya instaladas antes de los ultimos ajustes de configuracion contable,
 
 1. `database/scripts/25_configuracion_contable_alcance.sql`
 2. `database/scripts/26_configuracion_contable_mes_final.sql`
+3. `database/scripts/27_gestion_contable_conceptos_categoria.sql`
+4. `database/scripts/28_gestion_contable_configuracion_modulo.sql`
 
 No hace falta en instalaciones limpias porque el consolidado y `24_gestion_contable.sql` ya incluyen ese estado.
 

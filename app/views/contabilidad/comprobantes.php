@@ -11,16 +11,19 @@ $courses = is_array($courses ?? null) ? $courses : [];
 $filters = is_array($filters ?? null) ? $filters : [];
 $pagination = is_array($pagination ?? null) ? $pagination : ['page' => 1, 'pages' => 1, 'total' => count($receipts), 'limit' => 25];
 $csrf = csrfToken();
-$status = in_array((string) ($status ?? 'EN_REVISION'), ['EN_REVISION', 'APROBADO', 'RECHAZADO'], true) ? (string) $status : 'EN_REVISION';
+$canReversePayments = !empty($canReversePayments);
+$status = in_array((string) ($status ?? 'EN_REVISION'), ['EN_REVISION', 'APROBADO', 'RECHAZADO', 'REVERSADO'], true) ? (string) $status : 'EN_REVISION';
 $statusLabels = [
     'EN_REVISION' => 'En revision',
     'APROBADO' => 'Aprobado',
     'RECHAZADO' => 'Rechazado',
+    'REVERSADO' => 'Reversado',
 ];
 $statusFilterLabels = [
     'EN_REVISION' => 'En revision',
     'APROBADO' => 'Aprobados',
     'RECHAZADO' => 'Rechazados',
+    'REVERSADO' => 'Reversados',
 ];
 $receiptPayload = static function (array $receipt) use ($statusLabels): string {
     $receipt['archivo_url'] = !empty($receipt['cpagarchivo_ruta']) ? asset((string) $receipt['cpagarchivo_ruta']) : '';
@@ -176,10 +179,22 @@ $receiptPayload = static function (array $receipt) use ($statusLabels): string {
                 </div>
             </form>
 
+            <form method="POST" action="<?= $h(baseUrl('contabilidad/pagos/reversar')); ?>" data-receipt-reverse-form class="accounting-review-modal-form" hidden>
+                <?= csrfField(); ?>
+                <input type="hidden" name="cpagid" data-receipt-reverse-id>
+                <div class="form-grid">
+                    <label class="form-group-full">
+                        <span>Motivo de reverso</span>
+                        <input type="text" name="motivo_reverso" maxlength="250" required data-receipt-reverse-reason>
+                    </label>
+                </div>
+            </form>
+
             <div class="empty-state" data-receipt-readonly-note hidden></div>
         </div>
         <div class="modal-actions">
             <button class="btn-secondary btn-auto" type="button" data-receipt-detail-close>Cancelar</button>
+            <button class="btn-secondary btn-auto" type="submit" form="" data-receipt-reverse-save hidden>Reversar</button>
             <button class="btn-primary btn-auto" type="submit" form="" data-receipt-review-save>Guardar</button>
         </div>
     </div>
@@ -215,9 +230,14 @@ document.addEventListener('DOMContentLoaded', function () {
     const rejectReason = document.querySelector('[data-receipt-reject-reason]');
     const readonlyNote = document.querySelector('[data-receipt-readonly-note]');
     const saveButton = document.querySelector('[data-receipt-review-save]');
+    const reverseForm = document.querySelector('[data-receipt-reverse-form]');
+    const reverseId = document.querySelector('[data-receipt-reverse-id]');
+    const reverseReason = document.querySelector('[data-receipt-reverse-reason]');
+    const reverseButton = document.querySelector('[data-receipt-reverse-save]');
     const endpoint = <?= json_encode(baseUrl('contabilidad/comprobantes'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
     const approveEndpoint = <?= json_encode(baseUrl('contabilidad/comprobantes/aprobar'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
     const rejectEndpoint = <?= json_encode(baseUrl('contabilidad/comprobantes/rechazar'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
+    const canReversePayments = <?= $canReversePayments ? 'true' : 'false'; ?>;
     const assetBase = <?= json_encode(rtrim(asset(''), '/') . '/', JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
     const statusLabels = <?= json_encode($statusLabels, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
     const pageLimit = <?= (int) ($pagination['limit'] ?? 25); ?>;
@@ -369,6 +389,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const course = `${receipt.granombre || ''} ${receipt.prlnombre || ''}`.trim();
         const duplicateId = parseInt(receipt.duplicado_cpagid || '0', 10);
         const inReview = receipt.cpagestado === 'EN_REVISION';
+        const canReverseThisReceipt = canReversePayments && receipt.cpagestado === 'APROBADO';
 
         if (detailSummary) {
             detailSummary.innerHTML = `
@@ -383,6 +404,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 ${receipt.cpagdocumento_externo_numero ? `<div><dt>Factura</dt><dd>${escapeHtml(receipt.cpagdocumento_externo_numero)}</dd></div>` : ''}
                 ${receipt.cpagobservacion_interna ? `<div><dt>Observacion</dt><dd>${escapeHtml(receipt.cpagobservacion_interna)}</dd></div>` : ''}
                 ${receipt.cpagmotivo_rechazo ? `<div><dt>Motivo rechazo</dt><dd>${escapeHtml(receipt.cpagmotivo_rechazo)}</dd></div>` : ''}
+                ${receipt.cpagmotivo_reverso ? `<div><dt>Motivo reverso</dt><dd>${escapeHtml(receipt.cpagmotivo_reverso)}</dd></div>` : ''}
                 ${duplicateId > 0 ? `<div><dt>Duplicado</dt><dd>Posible duplicado #${escapeHtml(duplicateId)}</dd></div>` : ''}
             `;
         }
@@ -400,6 +422,18 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (reviewId) {
             reviewId.value = receipt.cpagid || '';
+        }
+
+        if (reverseForm) {
+            reverseForm.hidden = !canReverseThisReceipt;
+        }
+
+        if (reverseId) {
+            reverseId.value = receipt.cpagid || '';
+        }
+
+        if (reverseReason) {
+            reverseReason.value = '';
         }
 
         if (approvedValue) {
@@ -431,8 +465,8 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         if (readonlyNote) {
-            readonlyNote.hidden = inReview;
-            readonlyNote.textContent = inReview ? '' : 'Este comprobante ya fue revisado y no puede modificarse desde esta ventana.';
+            readonlyNote.hidden = inReview || canReverseThisReceipt;
+            readonlyNote.textContent = inReview || canReverseThisReceipt ? '' : 'Este comprobante ya fue revisado y no puede modificarse desde esta ventana.';
         }
 
         if (saveButton) {
@@ -440,8 +474,17 @@ document.addEventListener('DOMContentLoaded', function () {
             saveButton.setAttribute('form', reviewForm ? reviewForm.id || 'receipt-review-form' : '');
         }
 
+        if (reverseButton) {
+            reverseButton.hidden = !canReverseThisReceipt;
+            reverseButton.setAttribute('form', reverseForm ? reverseForm.id || 'receipt-reverse-form' : '');
+        }
+
         if (reviewForm && !reviewForm.id) {
             reviewForm.id = 'receipt-review-form';
+        }
+
+        if (reverseForm && !reverseForm.id) {
+            reverseForm.id = 'receipt-reverse-form';
         }
 
         showReviewFields();
@@ -509,6 +552,14 @@ document.addEventListener('DOMContentLoaded', function () {
         reviewForm.addEventListener('submit', function () {
             const state = String(new FormData(reviewForm).get('revision_estado') || 'APROBADO');
             reviewForm.action = state === 'RECHAZADO' ? rejectEndpoint : approveEndpoint;
+        });
+    }
+
+    if (reverseForm) {
+        reverseForm.addEventListener('submit', function (event) {
+            if (!window.confirm('Confirma que desea reversar este pago aprobado?')) {
+                event.preventDefault();
+            }
         });
     }
 

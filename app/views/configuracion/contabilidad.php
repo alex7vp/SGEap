@@ -7,11 +7,15 @@ require BASE_PATH . '/app/views/partials/header.php';
 $h = static fn (mixed $value): string => htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
 $old = is_array($old ?? null) ? $old : [];
 $settings = is_array($settings ?? null) ? $settings : [];
+$moduleSettings = is_array($moduleSettings ?? null) ? $moduleSettings : [];
 $periods = is_array($periods ?? null) ? $periods : [];
 $levels = is_array($levels ?? null) ? $levels : [];
 $grades = is_array($grades ?? null) ? $grades : [];
 $editingId = (int) ($old['cfoid'] ?? 0);
-$selectedMode = $editingId > 0 || !empty($feedback) || $settings === [] ? 'form' : ((string) ($_GET['panel'] ?? '') === 'list' ? 'list' : 'form');
+$requestedPanel = (string) ($_GET['panel'] ?? '');
+$selectedMode = $editingId > 0 || (!empty($feedback) && $requestedPanel !== 'services') || $settings === []
+    ? 'form'
+    : ($requestedPanel === 'services' ? 'services' : ($requestedPanel === 'list' ? 'list' : 'form'));
 $monthNames = [
     1 => 'Enero',
     2 => 'Febrero',
@@ -45,8 +49,6 @@ $scopeLabel = static function (array $row): string {
 };
 ?>
 
-<p class="module-note">Administra los valores oficiales y reglas base que luego usara Gestion Contable para asignar valores a estudiantes y generar obligaciones.</p>
-
 <?php if (!empty($feedback)): ?>
     <div class="alert <?= ($feedback['type'] ?? '') === 'error' ? 'alert-error' : 'alert-success'; ?> alert-dismissible" data-alert>
         <span><?= $h($feedback['message'] ?? ''); ?></span>
@@ -67,17 +69,14 @@ $scopeLabel = static function (array $row): string {
                 <input type="radio" name="accounting_config_mode" value="list" <?= $selectedMode === 'list' ? 'checked' : ''; ?> data-option-view-radio>
                 <span>Configuraciones registradas</span>
             </label>
+            <label class="grade-profile-mode-option">
+                <input type="radio" name="accounting_config_mode" value="services" <?= $selectedMode === 'services' ? 'checked' : ''; ?> data-option-view-radio>
+                <span>Servicios</span>
+            </label>
         </div>
     </section>
 
     <section class="security-assignment-block" data-option-view-panel="form" <?= $selectedMode === 'form' ? '' : 'hidden'; ?>>
-        <header class="security-assignment-header">
-            <div>
-                <h3><?= $editingId > 0 ? 'Editar configuracion contable' : 'Nueva configuracion contable'; ?></h3>
-                <p>Define el valor oficial y las reglas base por institucion, nivel, grado o curso.</p>
-            </div>
-        </header>
-
         <?php if ($periods === []): ?>
             <div class="empty-state">Debe registrar al menos un periodo lectivo antes de configurar valores contables.</div>
         <?php else: ?>
@@ -202,17 +201,17 @@ $scopeLabel = static function (array $row): string {
                         </div>
                     </div>
 
-                    <div class="form-group">
+                    <div class="form-group" data-accounting-late-fee-field>
                         <div class="input-group">
                             <span class="input-addon">Mora</span>
-                            <select name="cfogenera_mora">
+                            <select name="cfogenera_mora" data-accounting-late-fee>
                                 <option value="0" <?= (string) ($old['cfogenera_mora'] ?? '0') === '0' ? 'selected' : ''; ?>>No genera</option>
                                 <option value="1" <?= (string) ($old['cfogenera_mora'] ?? '') === '1' ? 'selected' : ''; ?>>Genera</option>
                             </select>
                         </div>
                     </div>
 
-                    <div class="form-group">
+                    <div class="form-group" data-accounting-late-fee-field>
                         <div class="input-group">
                             <span class="input-addon">Tipo mora</span>
                             <select name="cfomora_tipo">
@@ -222,7 +221,7 @@ $scopeLabel = static function (array $row): string {
                         </div>
                     </div>
 
-                    <div class="form-group">
+                    <div class="form-group" data-accounting-late-fee-field>
                         <div class="input-group">
                             <span class="input-addon">Valor mora</span>
                             <input type="number" name="cfomora_valor" step="0.01" min="0" value="<?= $h($old['cfomora_valor'] ?? ''); ?>">
@@ -257,14 +256,46 @@ $scopeLabel = static function (array $row): string {
         <?php endif; ?>
     </section>
 
-    <section class="security-assignment-block" id="configuraciones-contables" data-option-view-panel="list" <?= $selectedMode === 'list' ? '' : 'hidden'; ?>>
-        <header class="security-assignment-header">
-            <div>
-                <h3>Configuraciones registradas</h3>
-                <p>Valores base que se aplicaran como referencia antes de asignar valores individuales.</p>
+    <section class="security-assignment-block" id="servicios-contables" data-option-view-panel="services" <?= $selectedMode === 'services' ? '' : 'hidden'; ?>>
+        <?php if ($moduleSettings === []): ?>
+            <div class="empty-state">Debe registrar al menos un periodo lectivo antes de configurar servicios contables.</div>
+        <?php else: ?>
+            <div class="table-wrap">
+            <table class="data-table compact-data-table">
+                <thead>
+                    <tr>
+                        <th>Periodo</th>
+                        <th>Rubros adicionales para representantes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($moduleSettings as $moduleSetting): ?>
+                        <tr>
+                            <td><strong><?= $h($moduleSetting['pledescripcion'] ?? ''); ?></strong></td>
+                            <td>
+                                <form class="accounting-actions-inline" id="module-setting-<?= $h($moduleSetting['pleid'] ?? ''); ?>" method="POST" action="<?= $h(baseUrl('configuracion/contable/servicios')); ?>">
+                                    <?= csrfField(); ?>
+                                    <input type="hidden" name="pleid" value="<?= $h($moduleSetting['pleid'] ?? ''); ?>">
+                                    <input type="hidden" name="representante_rubros_visible" value="0">
+                                    <label class="concept-status-switch accounting-service-switch">
+                                        <span data-accounting-service-label><?= !empty($moduleSetting['representante_rubros_visible']) ? 'Activado' : 'Desactivado'; ?></span>
+                                        <span class="switch-control switch-control-xsmall">
+                                            <input type="checkbox" name="representante_rubros_visible" value="1" <?= !empty($moduleSetting['representante_rubros_visible']) ? 'checked' : ''; ?> data-accounting-service-switch>
+                                            <span class="switch-slider switch-slider-xsmall" aria-hidden="true"></span>
+                                        </span>
+                                    </label>
+                                </form>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
             </div>
-        </header>
+            <p class="module-note">El permiso del rol controla quien puede entrar. Esta opcion controla si el servicio se publica para representantes en el periodo seleccionado.</p>
+        <?php endif; ?>
+    </section>
 
+    <section class="security-assignment-block" id="configuraciones-contables" data-option-view-panel="list" <?= $selectedMode === 'list' ? '' : 'hidden'; ?>>
         <?php if ($settings === []): ?>
             <div class="empty-state">Todavia no existen configuraciones contables registradas.</div>
         <?php else: ?>
@@ -324,6 +355,8 @@ document.addEventListener('DOMContentLoaded', function () {
     const startMonthSelect = document.querySelector('[data-accounting-start-month]');
     const endMonthSelect = document.querySelector('[data-accounting-end-month]');
     const monthsCountInput = document.querySelector('[data-accounting-months-count]');
+    const lateFeeSelect = document.querySelector('[data-accounting-late-fee]');
+    const lateFeeFields = document.querySelectorAll('[data-accounting-late-fee-field]');
 
     const updateScopeFields = function () {
         if (!scopeSelect || scopeFields.length === 0) {
@@ -364,6 +397,34 @@ document.addEventListener('DOMContentLoaded', function () {
             : (12 - startMonth + 1) + endMonth;
     };
 
+    const updateLateFeeFields = function () {
+        if (!lateFeeSelect || lateFeeFields.length === 0) {
+            return;
+        }
+
+        const generatesLateFee = lateFeeSelect.value === '1';
+
+        lateFeeFields.forEach(function (field) {
+            const isControlField = field.contains(lateFeeSelect);
+            const inputs = field.querySelectorAll('select, input, textarea');
+
+            if (!isControlField) {
+                field.hidden = !generatesLateFee;
+            }
+
+            inputs.forEach(function (input) {
+                if (input === lateFeeSelect) {
+                    return;
+                }
+
+                input.disabled = !generatesLateFee;
+                if (!generatesLateFee) {
+                    input.value = '';
+                }
+            });
+        });
+    };
+
     if (scopeSelect) {
         scopeSelect.addEventListener('change', updateScopeFields);
     }
@@ -376,8 +437,32 @@ document.addEventListener('DOMContentLoaded', function () {
         endMonthSelect.addEventListener('change', updateMonthsCount);
     }
 
+    if (lateFeeSelect) {
+        lateFeeSelect.addEventListener('change', updateLateFeeFields);
+    }
+
+    document.querySelectorAll('[data-accounting-service-switch]').forEach(function (switchInput) {
+        const label = switchInput.closest('.accounting-service-switch')?.querySelector('[data-accounting-service-label]');
+        const syncLabel = function () {
+            if (label) {
+                label.textContent = switchInput.checked ? 'Activado' : 'Desactivado';
+            }
+        };
+
+        switchInput.addEventListener('change', syncLabel);
+        switchInput.addEventListener('change', function () {
+            const form = switchInput.form;
+
+            if (form) {
+                form.submit();
+            }
+        });
+        syncLabel();
+    });
+
     updateScopeFields();
     updateMonthsCount();
+    updateLateFeeFields();
 });
 </script>
 

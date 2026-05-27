@@ -1203,6 +1203,13 @@ input::placeholder {
     line-height: 1.05;
 }
 
+.compact-data-table .accounting-service-switch {
+    min-width: 92px;
+    min-height: 18px;
+    margin: 0;
+    justify-content: flex-start;
+}
+
 .compact-data-table .concept-status-switch {
     min-height: 12px;
     font-size: .66rem;

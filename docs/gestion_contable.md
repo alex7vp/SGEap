@@ -140,7 +140,7 @@ Reglas:
 - Pueden marcarse como vencidos.
 - El representante no sube comprobantes para rubros adicionales.
 - Secretaria/Contabilidad registra los pagos recibidos por la institucion.
-- La visualizacion de rubros por representantes depende del permiso `contabilidad.representante.rubros.ver`.
+- La visualizacion de rubros por representantes depende de dos condiciones: el permiso `contabilidad.representante.rubros.ver` y la activacion del servicio en Configuracion contable para el periodo lectivo.
 
 Los rubros adicionales deben poder asignarse a:
 
@@ -224,6 +224,7 @@ Secretaria/Contabilidad puede:
 - Registrar numero de referencia/transaccion si aplica.
 - Registrar o editar posteriormente el numero de factura/documento externo.
 - Reversar o anular pagos aprobados con permiso especial y motivo obligatorio.
+- Al reversar un pago aprobado se deben reversar sus aplicaciones activas sobre obligaciones, rubros adicionales y saldos internos asociados.
 
 Campos administrativos:
 
@@ -259,7 +260,7 @@ Valor aprobado: 50.00
 Saldo pendiente: 10.00
 ```
 
-Si se aprueba un valor mayor que la obligacion seleccionada, el excedente se abona automaticamente a la siguiente obligacion pendiente del estudiante, respetando el orden cronologico. Si despues de cubrir obligaciones futuras todavia queda excedente, ese valor queda como saldo interno a favor. Ese saldo solo lo ve Secretaria/Contabilidad y puede aplicarse a obligaciones futuras.
+Si se aprueba un valor mayor que la obligacion seleccionada, el excedente se abona automaticamente a la siguiente obligacion pendiente del estudiante, respetando el orden cronologico. El sistema no debe saltar una obligacion que tenga comprobante en revision; en ese caso detiene la aplicacion automatica y conserva el excedente como saldo interno. Si despues de cubrir obligaciones futuras todavia queda excedente, ese valor queda como saldo interno a favor. Ese saldo solo lo ve Secretaria/Contabilidad y puede aplicarse a obligaciones futuras.
 
 Los rubros adicionales no manejan pagos parciales ni saldo a favor.
 
@@ -351,10 +352,11 @@ Debe existir un dashboard de Gestion Contable con indicadores:
 - Rubros adicionales vencidos.
 - Pagos rechazados recientes.
 
-Reportes exportables iniciales:
+Reportes exportables iniciales en CSV:
 
 - Obligaciones pendientes.
-- Pagos aprobados.
+- Pagos contables aprobados, rechazados y reversados.
+- Rubros adicionales por estudiante y estado.
 - Comprobantes en revision.
 - Morosidad por curso.
 - Estado de cuenta por estudiante.
@@ -386,12 +388,15 @@ Deben auditarse, como minimo:
 - Creacion de obligaciones.
 - Edicion/anulacion de obligaciones.
 - Creacion de rubros adicionales.
+- Cierre de rubros adicionales como pagado, exonerado, no aplica o anulado.
 - Registro de pagos.
 - Aprobacion/rechazo de comprobantes.
 - Reversos/anulaciones de pagos aprobados.
 - Cambios en valores aprobados.
 - Cambios en documento externo.
 - Continuacion a pesar de duplicado.
+- Cambios de configuracion contable.
+- Activacion/desactivacion de servicios visibles para representantes.
 - Observaciones internas obligatorias.
 
 La auditoria debe registrar:

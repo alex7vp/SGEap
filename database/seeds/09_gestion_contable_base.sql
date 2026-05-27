@@ -17,7 +17,7 @@ VALUES
     ('EVENTO', 'Evento', 'RUBRO', 'Rubro adicional por eventos institucionales.', true),
     ('REPOSICION', 'Reposicion', 'RUBRO', 'Rubro adicional por reposicion de bienes o documentos.', true),
     ('OTRO', 'Otro', 'RUBRO', 'Otro rubro adicional no clasificado.', true)
-ON CONFLICT (ccocodigo) DO UPDATE
+ON CONFLICT (ccocategoria, ccocodigo) DO UPDATE
 SET cconombre = EXCLUDED.cconombre,
     ccocategoria = EXCLUDED.ccocategoria,
     ccodescripcion = EXCLUDED.ccodescripcion,
