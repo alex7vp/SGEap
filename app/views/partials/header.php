@@ -323,13 +323,13 @@ $sidebarModules = [
                     [
                         'key' => 'contabilidad_reportes',
                         'label' => 'Reportes',
-                        'url' => '#',
+                        'url' => baseUrl('contabilidad/reportes'),
                         'icon' => 'fa-bar-chart',
                     ],
                     [
                         'key' => 'contabilidad_auditoria',
                         'label' => 'Auditoria',
-                        'url' => '#',
+                        'url' => baseUrl('contabilidad/auditoria'),
                         'icon' => 'fa-search',
                     ],
                 ],

@@ -12,7 +12,14 @@ class BackupController extends Controller
     public function index(): void
     {
         $user = $this->requireAuth();
-        $service = new BackupService();
+        $backups = [];
+        $error = sessionFlash('error');
+
+        try {
+            $backups = (new BackupService())->all();
+        } catch (\Throwable $exception) {
+            $error = $exception->getMessage();
+        }
 
         $this->view('configuracion.backups', [
             'appName' => config('app')['name'] ?? 'SGEap',
@@ -20,9 +27,9 @@ class BackupController extends Controller
             'currentModule' => 'configuracion',
             'currentSection' => 'backups',
             'user' => $user,
-            'backups' => $service->all(),
+            'backups' => $backups,
             'success' => sessionFlash('success'),
-            'error' => sessionFlash('error'),
+            'error' => $error,
         ]);
     }
 

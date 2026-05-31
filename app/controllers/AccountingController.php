@@ -51,6 +51,28 @@ class AccountingController extends Controller
         $model = new AccountingModel();
 
         $exports = [
+            'cartera-filtrada' => [
+                'filename' => 'cartera_filtrada',
+                'headers' => ['Cedula', 'Apellidos', 'Nombres', 'Nivel', 'Grado', 'Paralelo', 'Tipo', 'Obligacion', 'Mes', 'Vencimiento', 'Valor', 'Pagado', 'Saldo', 'Estado', 'Dias mora'],
+                'rows' => $model->reportObligations($periodId, $this->accountingReportFilters(), 0),
+                'mapper' => static fn (array $row): array => [
+                    $row['percedula'] ?? '',
+                    $row['perapellidos'] ?? '',
+                    $row['pernombres'] ?? '',
+                    $row['nednombre'] ?? '',
+                    $row['granombre'] ?? '',
+                    $row['prlnombre'] ?? '',
+                    $row['cobtipo'] ?? '',
+                    $row['cobdescripcion'] ?? '',
+                    $row['mes_label'] ?? '',
+                    $row['cobfecha_vencimiento'] ?? '',
+                    $row['cobvalor_final'] ?? '0.00',
+                    $row['cobvalor_pagado'] ?? '0.00',
+                    $row['cobsaldo_pendiente'] ?? '0.00',
+                    $row['cobestado'] ?? '',
+                    $row['dias_mora'] ?? '0',
+                ],
+            ],
             'obligaciones-pendientes' => [
                 'filename' => 'obligaciones_pendientes',
                 'headers' => ['Cedula', 'Apellidos', 'Nombres', 'Nivel', 'Grado', 'Paralelo', 'Tipo', 'Obligacion', 'Vencimiento', 'Valor', 'Pagado', 'Saldo', 'Estado'],
@@ -132,6 +154,33 @@ class AccountingController extends Controller
         $filename = $config['filename'] . '_' . $periodLabel . '_' . date('Ymd_His') . '.csv';
 
         $this->streamCsv($filename, $config['headers'], $config['rows'], $config['mapper']);
+    }
+
+    public function reports(): void
+    {
+        $user = $this->requireAuth();
+        $period = currentAcademicPeriod();
+        $periodId = $period !== null ? (int) ($period['pleid'] ?? 0) : 0;
+        $model = new AccountingModel();
+        $filters = $this->accountingReportFilters();
+        $shouldGenerate = (string) ($_GET['consultar'] ?? '') === '1';
+        $reportRows = $shouldGenerate ? $model->reportObligations($periodId, $filters, 300) : [];
+
+        $this->view('contabilidad.reportes', [
+            'appName' => config('app')['name'] ?? 'SGEap',
+            'pageTitle' => 'Reportes contables',
+            'currentModule' => 'contabilidad',
+            'currentSection' => 'contabilidad_reportes',
+            'user' => $user,
+            'currentPeriod' => $period,
+            'summary' => $model->dashboardSummary($periodId),
+            'charts' => $model->dashboardCharts($periodId),
+            'courses' => $periodId > 0 ? (new CourseModel())->allByPeriod($periodId) : [],
+            'filters' => $filters,
+            'shouldGenerate' => $shouldGenerate,
+            'reportRows' => $reportRows,
+            'canExport' => $this->hasPermission('contabilidad.reportes.exportar', $user),
+        ]);
     }
 
     public function obligations(): void
@@ -468,6 +517,35 @@ class AccountingController extends Controller
         ]);
     }
 
+    public function audit(): void
+    {
+        $user = $this->requireAuth();
+        $model = new AccountingModel();
+        $filters = $this->auditFilters();
+        $model->syncMissingPaymentAuditEntries();
+        $page = max(1, (int) ($_GET['page'] ?? 1));
+        $limit = 25;
+        $total = $model->auditTrailCount($filters);
+        $pages = max(1, (int) ceil($total / $limit));
+        $page = min($page, $pages);
+
+        $this->view('contabilidad.auditoria', [
+            'appName' => config('app')['name'] ?? 'SGEap',
+            'pageTitle' => 'Auditoria contable',
+            'currentModule' => 'contabilidad',
+            'currentSection' => 'contabilidad_auditoria',
+            'user' => $user,
+            'filters' => $filters,
+            'entries' => $model->auditTrail($filters, $page, $limit),
+            'pagination' => [
+                'page' => $page,
+                'pages' => $pages,
+                'total' => $total,
+                'limit' => $limit,
+            ],
+        ]);
+    }
+
     public function storeAdditionalItem(): void
     {
         $user = $this->requireAuth();
@@ -591,6 +669,115 @@ class AccountingController extends Controller
             'q' => trim((string) ($_GET['q'] ?? '')),
             'estado' => strtoupper(trim((string) ($_GET['estado'] ?? ''))),
             'curso' => (int) ($_GET['curso'] ?? 0),
+        ];
+    }
+
+    private function auditFilters(): array
+    {
+        $action = mb_strtoupper(trim((string) ($_GET['accion'] ?? '')));
+        $table = trim((string) ($_GET['tabla'] ?? ''));
+
+        return [
+            'q' => trim((string) ($_GET['q'] ?? '')),
+            'tabla' => preg_match('/^[a-z0-9_]{0,80}$/', $table) === 1 ? $table : '',
+            'accion' => in_array($action, ['CREAR', 'EDITAR', 'ANULAR', 'APROBAR', 'RECHAZAR', 'REVERSAR', 'DOCUMENTO_EXTERNO', 'DUPLICADO_ACEPTADO'], true) ? $action : '',
+            'desde' => preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) ($_GET['desde'] ?? '')) === 1 ? (string) $_GET['desde'] : '',
+            'hasta' => preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) ($_GET['hasta'] ?? '')) === 1 ? (string) $_GET['hasta'] : '',
+        ];
+    }
+
+    private function accountingReportFilters(): array
+    {
+        $month = trim((string) ($_GET['mes'] ?? ''));
+        $monthNumbers = [];
+        $rawMonths = $_GET['meses'] ?? [];
+        if (!is_array($rawMonths)) {
+            $rawMonths = [$rawMonths];
+        }
+
+        $monthValues = [];
+        foreach ($rawMonths as $rawMonth) {
+            $monthValue = trim((string) $rawMonth);
+            if (preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $monthValue) === 1) {
+                $monthValues[] = $monthValue;
+                continue;
+            }
+
+            if (preg_match('/^(0[1-9]|1[0-2])$/', $monthValue) === 1) {
+                $monthNumbers[] = $monthValue;
+            }
+        }
+
+        $legacyMonthNumber = trim((string) ($_GET['mes_numero'] ?? ''));
+        if ($monthNumbers === [] && preg_match('/^(0[1-9]|1[0-2])$/', $legacyMonthNumber) === 1) {
+            $monthNumbers[] = $legacyMonthNumber;
+        }
+
+        $monthNumbers = array_values(array_unique($monthNumbers));
+        $year = (int) ($_GET['anio'] ?? date('Y'));
+        $validStatuses = ['EN_REVISION', 'PENDIENTE', 'PAGO_PARCIAL', 'PAGADO', 'VENCIDO', 'ANULADO'];
+        $statuses = [];
+        $rawStatuses = $_GET['estados'] ?? [];
+        if (!is_array($rawStatuses)) {
+            $rawStatuses = [$rawStatuses];
+        }
+
+        foreach ($rawStatuses as $rawStatus) {
+            $status = mb_strtoupper(trim((string) $rawStatus));
+            if (in_array($status, $validStatuses, true)) {
+                $statuses[] = $status;
+            }
+        }
+
+        $legacyStatus = mb_strtoupper(trim((string) ($_GET['estado'] ?? '')));
+        if ($statuses === [] && in_array($legacyStatus, $validStatuses, true)) {
+            $statuses[] = $legacyStatus;
+        }
+
+        $statuses = array_values(array_unique($statuses));
+        $courses = [];
+        $rawCourses = $_GET['cursos'] ?? [];
+        if (!is_array($rawCourses)) {
+            $rawCourses = [$rawCourses];
+        }
+
+        foreach ($rawCourses as $rawCourse) {
+            $courseId = (int) $rawCourse;
+            if ($courseId > 0) {
+                $courses[] = $courseId;
+            }
+        }
+
+        $legacyCourseId = (int) ($_GET['curso'] ?? 0);
+        if ($courses === [] && $legacyCourseId > 0) {
+            $courses[] = $legacyCourseId;
+        }
+
+        $courses = array_values(array_unique($courses));
+
+        if ($monthValues === [] && $monthNumbers !== [] && $year >= 2000 && $year <= 2100) {
+            $monthValues = array_map(static fn (string $monthNumber): string => sprintf('%04d-%s', $year, $monthNumber), $monthNumbers);
+        }
+
+        if ($month === '' && count($monthValues) === 1) {
+            $month = $monthValues[0];
+        } elseif ($month === '' && count($monthNumbers) === 1 && $year >= 2000 && $year <= 2100) {
+            $month = sprintf('%04d-%s', $year, $monthNumbers[0]);
+        }
+
+        return [
+            'q' => trim((string) ($_GET['q'] ?? '')),
+            'curso' => $courses[0] ?? 0,
+            'cursos' => $courses,
+            'mes' => preg_match('/^\d{4}-\d{2}$/', $month) === 1 ? $month : '',
+            'meses' => array_values(array_unique($monthValues)),
+            'meses_numero' => $monthNumbers,
+            'anio' => $year >= 2000 && $year <= 2100 ? $year : (int) date('Y'),
+            'estado' => $statuses[0] ?? '',
+            'estados' => $statuses,
+            'valor_min' => max(0, (float) ($_GET['valor_min'] ?? 0)),
+            'valor_max' => max(0, (float) ($_GET['valor_max'] ?? 0)),
+            'solo_mora' => (string) ($_GET['solo_mora'] ?? '') === '1',
         ];
     }
 

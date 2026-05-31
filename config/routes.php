@@ -53,10 +53,12 @@ return static function (Router $router): void {
     $router->get('/reportes/cuadro-final', [GradebookController::class, 'finalChart']);
     $router->get('/contabilidad', [AccountingController::class, 'index']);
     $router->get('/contabilidad/exportar', [AccountingController::class, 'exportCsv']);
+    $router->get('/contabilidad/reportes', [AccountingController::class, 'reports']);
     $router->get('/contabilidad/obligaciones', [AccountingController::class, 'obligations']);
     $router->get('/contabilidad/obligaciones/detalle', [AccountingController::class, 'obligationDetail']);
     $router->get('/contabilidad/comprobantes', [AccountingController::class, 'receipts']);
     $router->get('/contabilidad/rubros', [AccountingController::class, 'additionalItems']);
+    $router->get('/contabilidad/auditoria', [AccountingController::class, 'audit']);
     $router->get('/seguridad', [ModuleController::class, 'security']);
     $router->post('/logout', [AuthController::class, 'logout']);
 

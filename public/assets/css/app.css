@@ -1364,6 +1364,11 @@ input::placeholder {
     background: #d4e4f1;
 }
 
+.representative-card.is-selected {
+    border-color: var(--primary);
+    background: #dbeafe;
+}
+
 .representative-card-label {
     flex: 1 1 auto;
     min-width: 0;
@@ -1381,6 +1386,95 @@ input::placeholder {
     margin: 0;
     flex: 0 0 auto;
     accent-color: var(--primary);
+}
+
+.report-view-options {
+    margin-bottom: 18px;
+}
+
+.report-custom-form {
+    display: grid;
+    gap: 16px;
+    margin-bottom: 18px;
+}
+
+.report-filter-row {
+    display: grid;
+    grid-template-columns: minmax(240px, 1.5fr) repeat(3, minmax(120px, 0.6fr)) auto;
+    gap: 12px;
+    align-items: center;
+}
+
+.report-filter-groups {
+    display: grid;
+    grid-template-columns: minmax(280px, 1.4fr) minmax(220px, 1fr) minmax(220px, 1fr);
+    gap: 14px;
+}
+
+.report-check-group {
+    min-width: 0;
+    margin: 0;
+    padding: 14px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: #fbfdff;
+}
+
+.report-check-group legend {
+    padding: 0 6px;
+    color: var(--muted);
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.report-checkbox-grid {
+    display: grid;
+    gap: 8px;
+    max-height: 240px;
+    overflow: auto;
+    padding-right: 4px;
+}
+
+.report-checkbox-grid-months,
+.report-checkbox-grid-statuses {
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+}
+
+.report-check-option {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    min-width: 0;
+    padding: 8px 10px;
+    border: 1px solid #d7e3ef;
+    border-radius: 6px;
+    background: #ffffff;
+    color: var(--text);
+    line-height: 1.3;
+}
+
+.report-check-option input[type="checkbox"] {
+    width: 15px;
+    height: 15px;
+    margin-top: 1px;
+    flex: 0 0 auto;
+    accent-color: var(--primary);
+}
+
+.report-check-option span {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.report-check-option:has(input:checked) {
+    border-color: var(--primary);
+    background: #eaf2fb;
+}
+
+.report-filter-actions {
+    margin-top: 0;
 }
 
 .content-card {
@@ -4917,6 +5011,11 @@ thead .role-user-sticky {
         grid-template-columns: 1fr;
     }
 
+    .report-filter-row,
+    .report-filter-groups {
+        grid-template-columns: 1fr;
+    }
+
     .topbar-inner {
         flex-wrap: wrap;
         align-items: flex-start;
@@ -5114,6 +5213,60 @@ thead .role-user-sticky {
     background: #f4f7f9;
     color: var(--muted);
     transform: none;
+}
+
+.audit-json-preview {
+    max-width: 260px;
+    max-height: 96px;
+    margin: 0;
+    overflow: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-size: 0.68rem;
+    line-height: 1.35;
+}
+
+.audit-value-list {
+    display: grid;
+    gap: 4px;
+    min-width: 160px;
+}
+
+.audit-value-item {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 4px 6px;
+    border: 1px solid #d7e4ef;
+    background: #f8fbfe;
+}
+
+.audit-value-item span {
+    color: var(--muted);
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.audit-value-item strong {
+    color: var(--text);
+    font-size: 0.78rem;
+    text-align: right;
+}
+
+.audit-empty-value,
+.audit-value-text {
+    display: inline-block;
+    max-width: 220px;
+    color: var(--muted);
+    font-size: 0.78rem;
+    line-height: 1.35;
+}
+
+a.is-disabled {
+    pointer-events: none;
+    opacity: 0.45;
 }
 
 .calendar-month-heading {

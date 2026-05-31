@@ -1151,6 +1151,178 @@ class AccountingModel extends Model
         return $statement->fetchAll();
     }
 
+    public function reportObligations(int $periodId, array $filters, int $limit = 300): array
+    {
+        if ($periodId <= 0) {
+            return [];
+        }
+
+        $conditions = ['c.pleid = :period_id'];
+        $params = ['period_id' => $periodId];
+        $search = trim((string) ($filters['q'] ?? ''));
+        $courseIds = array_values(array_unique(array_filter(array_map('intval', (array) ($filters['cursos'] ?? [])), static fn (int $value): bool => $value > 0)));
+        if ($courseIds === [] && (int) ($filters['curso'] ?? 0) > 0) {
+            $courseIds[] = (int) $filters['curso'];
+        }
+
+        $month = trim((string) ($filters['mes'] ?? ''));
+        $monthValues = [];
+        $legacyMonths = [];
+        $year = (int) ($filters['anio'] ?? 0);
+        foreach ((array) ($filters['meses'] ?? []) as $rawMonth) {
+            $monthValue = trim((string) $rawMonth);
+            if (preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $monthValue) === 1) {
+                $monthValues[] = $monthValue;
+                continue;
+            }
+
+            if ($year >= 2000 && $year <= 2100 && preg_match('/^(0[1-9]|1[0-2])$/', $monthValue) === 1) {
+                $legacyMonths[] = (int) $monthValue;
+            }
+        }
+        $monthValues = array_values(array_unique($monthValues));
+        $legacyMonths = array_values(array_unique($legacyMonths));
+
+        $statuses = array_values(array_unique(array_filter(array_map(static fn (mixed $value): string => trim((string) $value), (array) ($filters['estados'] ?? [])))));
+        if ($statuses === [] && trim((string) ($filters['estado'] ?? '')) !== '') {
+            $statuses[] = trim((string) $filters['estado']);
+        }
+
+        $minValue = (float) ($filters['valor_min'] ?? 0);
+        $maxValue = (float) ($filters['valor_max'] ?? 0);
+
+        if ($search !== '') {
+            $conditions[] = '(
+                pe.percedula ILIKE :term
+                OR pe.pernombres ILIKE :term
+                OR pe.perapellidos ILIKE :term
+                OR o.cobdescripcion ILIKE :term
+            )';
+            $params['term'] = '%' . $search . '%';
+        }
+
+        if ($courseIds !== []) {
+            $placeholders = [];
+            foreach ($courseIds as $index => $courseId) {
+                $key = 'course_id_' . $index;
+                $placeholders[] = ':' . $key;
+                $params[$key] = $courseId;
+            }
+
+            $conditions[] = 'c.curid IN (' . implode(', ', $placeholders) . ')';
+        }
+
+        if ($monthValues !== []) {
+            $placeholders = [];
+            foreach ($monthValues as $index => $monthValue) {
+                $key = 'month_value_' . $index;
+                $placeholders[] = "to_date(:{$key}, 'YYYY-MM')";
+                $params[$key] = $monthValue;
+            }
+
+            $conditions[] = "o.cobtipo = 'PENSION' AND o.cobanio IS NOT NULL AND o.cobmes IS NOT NULL AND make_date(o.cobanio, o.cobmes, 1) IN (" . implode(', ', $placeholders) . ')';
+        } elseif ($legacyMonths !== []) {
+            $placeholders = [];
+            foreach ($legacyMonths as $index => $monthNumber) {
+                $key = 'month_number_' . $index;
+                $placeholders[] = ':' . $key;
+                $params[$key] = $monthNumber;
+            }
+
+            $conditions[] = "o.cobtipo = 'PENSION' AND o.cobanio = :month_year AND o.cobmes IN (" . implode(', ', $placeholders) . ')';
+            $params['month_year'] = $year;
+        } elseif ($month !== '') {
+            $conditions[] = "o.cobtipo = 'PENSION' AND o.cobanio IS NOT NULL AND o.cobmes IS NOT NULL AND make_date(o.cobanio, o.cobmes, 1) = to_date(:month, 'YYYY-MM')";
+            $params['month'] = $month;
+        }
+
+        if ($statuses !== []) {
+            $placeholders = [];
+            foreach ($statuses as $index => $status) {
+                $key = 'status_' . $index;
+                $placeholders[] = ':' . $key;
+                $params[$key] = $status;
+            }
+
+            $conditions[] = 'o.cobestado IN (' . implode(', ', $placeholders) . ')';
+        }
+
+        if ($minValue > 0) {
+            $conditions[] = 'o.cobsaldo_pendiente >= :min_value';
+            $params['min_value'] = number_format($minValue, 2, '.', '');
+        }
+
+        if ($maxValue > 0) {
+            $conditions[] = 'o.cobsaldo_pendiente <= :max_value';
+            $params['max_value'] = number_format($maxValue, 2, '.', '');
+        }
+
+        if (!empty($filters['solo_mora'])) {
+            $conditions[] = "o.cobestado IN ('PENDIENTE', 'PAGO_PARCIAL', 'VENCIDO')";
+            $conditions[] = 'o.cobsaldo_pendiente > 0';
+            $conditions[] = 'o.cobfecha_vencimiento IS NOT NULL';
+            $conditions[] = 'o.cobfecha_vencimiento < CURRENT_DATE';
+        }
+
+        $limitSql = $limit > 0 ? 'LIMIT :limit' : '';
+        $statement = $this->db->prepare(
+            "SELECT
+                    pe.percedula,
+                    pe.perapellidos,
+                    pe.pernombres,
+                    n.nednombre,
+                    g.granombre,
+                    pr.prlnombre,
+                    c.curid,
+                    o.cobid,
+                    o.cobtipo,
+                    o.cobdescripcion,
+                    o.cobanio,
+                    o.cobmes,
+                    CASE
+                        WHEN o.cobanio IS NOT NULL AND o.cobmes IS NOT NULL
+                        THEN to_char(make_date(o.cobanio, o.cobmes, 1), 'TMMonth YYYY')
+                        ELSE ''
+                    END AS mes_label,
+                    o.cobfecha_vencimiento,
+                    o.cobvalor_final,
+                    o.cobvalor_pagado,
+                    o.cobsaldo_pendiente,
+                    o.cobestado,
+                    CASE
+                        WHEN o.cobfecha_vencimiento IS NOT NULL
+                         AND o.cobfecha_vencimiento < CURRENT_DATE
+                         AND o.cobsaldo_pendiente > 0
+                         AND o.cobestado IN ('PENDIENTE', 'PAGO_PARCIAL', 'VENCIDO')
+                        THEN CURRENT_DATE - o.cobfecha_vencimiento
+                        ELSE 0
+                    END AS dias_mora
+             FROM contabilidad_obligacion o
+             INNER JOIN matricula m ON m.matid = o.matid
+             INNER JOIN curso c ON c.curid = m.curid
+             INNER JOIN grado g ON g.graid = c.graid
+             INNER JOIN nivel_educativo n ON n.nedid = g.nedid
+             INNER JOIN paralelo pr ON pr.prlid = c.prlid
+             INNER JOIN estudiante e ON e.estid = m.estid
+             INNER JOIN persona pe ON pe.perid = e.perid
+             WHERE " . implode(' AND ', $conditions) . "
+             ORDER BY pe.perapellidos ASC, pe.pernombres ASC, o.coborden ASC, o.cobanio NULLS FIRST, o.cobmes NULLS FIRST, o.cobid ASC
+             {$limitSql}"
+        );
+
+        foreach ($params as $key => $value) {
+            $statement->bindValue($key, $value);
+        }
+
+        if ($limit > 0) {
+            $statement->bindValue('limit', $limit, PDO::PARAM_INT);
+        }
+
+        $statement->execute();
+
+        return $statement->fetchAll();
+    }
+
     public function exportReviewedPayments(int $periodId): array
     {
         if ($periodId <= 0) {
@@ -1250,6 +1422,217 @@ class AccountingModel extends Model
         $statement->execute(['period_id' => $periodId]);
 
         return $statement->fetchAll();
+    }
+
+    public function auditTrail(array $filters, int $page = 1, int $limit = 25): array
+    {
+        [$whereSql, $params] = $this->auditTrailWhere($filters);
+        $offset = max(0, ($page - 1) * $limit);
+        $statement = $this->db->prepare(
+            "SELECT
+                a.cauid,
+                a.cautabla,
+                a.cauregistro_id,
+                a.cauaccion,
+                a.cauvalor_anterior,
+                a.cauvalor_nuevo,
+                a.cauobservacion,
+                a.caufecha_creacion,
+                u.usunombre,
+                p.pernombres,
+                p.perapellidos,
+                p.percedula
+             FROM contabilidad_auditoria a
+             INNER JOIN usuario u ON u.usuid = a.usuid
+             LEFT JOIN persona p ON p.perid = u.perid
+             WHERE {$whereSql}
+             ORDER BY a.caufecha_creacion DESC, a.cauid DESC
+             LIMIT :limit OFFSET :offset"
+        );
+
+        foreach ($params as $key => $value) {
+            $statement->bindValue($key, $value);
+        }
+
+        $statement->bindValue('limit', max(1, $limit), PDO::PARAM_INT);
+        $statement->bindValue('offset', $offset, PDO::PARAM_INT);
+        $statement->execute();
+
+        return $statement->fetchAll();
+    }
+
+    public function syncMissingPaymentAuditEntries(): void
+    {
+        $this->db->exec(
+            "INSERT INTO contabilidad_auditoria (
+                cautabla,
+                cauregistro_id,
+                cauaccion,
+                cauvalor_anterior,
+                cauvalor_nuevo,
+                cauobservacion,
+                usuid,
+                caufecha_creacion
+             )
+             SELECT
+                'contabilidad_pago',
+                p.cpagid,
+                'APROBAR',
+                json_build_object(
+                    'cpagestado', 'EN_REVISION',
+                    'cpagvalor_reportado', p.cpagvalor_reportado
+                )::text,
+                json_build_object(
+                    'cpagestado', p.cpagestado,
+                    'cpagvalor_aprobado', p.cpagvalor_aprobado,
+                    'cpagdocumento_externo_numero', p.cpagdocumento_externo_numero
+                )::text,
+                COALESCE(NULLIF(p.cpagobservacion_interna, ''), 'Auditoria reconstruida desde pagos existentes'),
+                COALESCE(p.usuid_revision, p.usuid_registro),
+                COALESCE(p.cpagfecha_revision, p.cpagfecha_registro)
+             FROM contabilidad_pago p
+             WHERE p.cpagestado IN ('APROBADO', 'REVERSADO')
+               AND p.usuid_revision IS NOT NULL
+               AND NOT EXISTS (
+                    SELECT 1
+                    FROM contabilidad_auditoria a
+                    WHERE a.cautabla = 'contabilidad_pago'
+                      AND a.cauregistro_id = p.cpagid
+                      AND a.cauaccion = 'APROBAR'
+               )"
+        );
+
+        $this->db->exec(
+            "INSERT INTO contabilidad_auditoria (
+                cautabla,
+                cauregistro_id,
+                cauaccion,
+                cauvalor_anterior,
+                cauvalor_nuevo,
+                cauobservacion,
+                usuid,
+                caufecha_creacion
+             )
+             SELECT
+                'contabilidad_pago',
+                p.cpagid,
+                'RECHAZAR',
+                json_build_object(
+                    'cpagestado', 'EN_REVISION',
+                    'cpagvalor_reportado', p.cpagvalor_reportado
+                )::text,
+                json_build_object(
+                    'cpagestado', 'RECHAZADO',
+                    'motivo', p.cpagmotivo_rechazo
+                )::text,
+                COALESCE(NULLIF(p.cpagmotivo_rechazo, ''), 'Auditoria reconstruida desde pagos existentes'),
+                COALESCE(p.usuid_revision, p.usuid_registro),
+                COALESCE(p.cpagfecha_revision, p.cpagfecha_registro)
+             FROM contabilidad_pago p
+             WHERE p.cpagestado = 'RECHAZADO'
+               AND p.usuid_revision IS NOT NULL
+               AND NOT EXISTS (
+                    SELECT 1
+                    FROM contabilidad_auditoria a
+                    WHERE a.cautabla = 'contabilidad_pago'
+                      AND a.cauregistro_id = p.cpagid
+                      AND a.cauaccion = 'RECHAZAR'
+               )"
+        );
+
+        $this->db->exec(
+            "INSERT INTO contabilidad_auditoria (
+                cautabla,
+                cauregistro_id,
+                cauaccion,
+                cauvalor_anterior,
+                cauvalor_nuevo,
+                cauobservacion,
+                usuid,
+                caufecha_creacion
+             )
+             SELECT
+                'contabilidad_pago',
+                p.cpagid,
+                'REVERSAR',
+                json_build_object(
+                    'cpagestado', 'APROBADO',
+                    'cpagvalor_aprobado', p.cpagvalor_aprobado
+                )::text,
+                json_build_object(
+                    'cpagestado', 'REVERSADO',
+                    'motivo', p.cpagmotivo_reverso
+                )::text,
+                COALESCE(NULLIF(p.cpagmotivo_reverso, ''), 'Auditoria reconstruida desde pagos existentes'),
+                COALESCE(p.usuid_reverso, p.usuid_revision, p.usuid_registro),
+                COALESCE(p.cpagfecha_reverso, p.cpagfecha_revision, p.cpagfecha_registro)
+             FROM contabilidad_pago p
+             WHERE p.cpagestado = 'REVERSADO'
+               AND p.usuid_reverso IS NOT NULL
+               AND NOT EXISTS (
+                    SELECT 1
+                    FROM contabilidad_auditoria a
+                    WHERE a.cautabla = 'contabilidad_pago'
+                      AND a.cauregistro_id = p.cpagid
+                      AND a.cauaccion = 'REVERSAR'
+               )"
+        );
+    }
+
+    public function auditTrailCount(array $filters): int
+    {
+        [$whereSql, $params] = $this->auditTrailWhere($filters);
+        $statement = $this->db->prepare(
+            "SELECT COUNT(*)
+             FROM contabilidad_auditoria a
+             INNER JOIN usuario u ON u.usuid = a.usuid
+             LEFT JOIN persona p ON p.perid = u.perid
+             WHERE {$whereSql}"
+        );
+        $statement->execute($params);
+
+        return (int) $statement->fetchColumn();
+    }
+
+    private function auditTrailWhere(array $filters): array
+    {
+        $conditions = ['1 = 1'];
+        $params = [];
+
+        if (trim((string) ($filters['q'] ?? '')) !== '') {
+            $conditions[] = "(
+                a.cautabla ILIKE :term
+                OR a.cauaccion ILIKE :term
+                OR a.cauobservacion ILIKE :term
+                OR u.usunombre ILIKE :term
+                OR p.pernombres ILIKE :term
+                OR p.perapellidos ILIKE :term
+                OR p.percedula ILIKE :term
+            )";
+            $params['term'] = '%' . trim((string) $filters['q']) . '%';
+        }
+
+        if (trim((string) ($filters['tabla'] ?? '')) !== '') {
+            $conditions[] = 'a.cautabla = :table_name';
+            $params['table_name'] = trim((string) $filters['tabla']);
+        }
+
+        if (trim((string) ($filters['accion'] ?? '')) !== '') {
+            $conditions[] = 'a.cauaccion = :action';
+            $params['action'] = trim((string) $filters['accion']);
+        }
+
+        if (trim((string) ($filters['desde'] ?? '')) !== '') {
+            $conditions[] = 'a.caufecha_creacion::date >= :from_date';
+            $params['from_date'] = trim((string) $filters['desde']);
+        }
+
+        if (trim((string) ($filters['hasta'] ?? '')) !== '') {
+            $conditions[] = 'a.caufecha_creacion::date <= :to_date';
+            $params['to_date'] = trim((string) $filters['hasta']);
+        }
+
+        return [implode(' AND ', $conditions), $params];
     }
 
     public function representativeAdditionalItems(int $representativePersonId, int $periodId): array
