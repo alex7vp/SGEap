@@ -3,7 +3,8 @@
   "description": "Base MVC simple en PHP nativo con PostgreSQL.",
   "type": "project",
   "require": {
-    "php": ">=8.0"
+    "php": ">=8.0",
+    "dompdf/dompdf": "^3.1"
   },
   "autoload": {
     "classmap": [

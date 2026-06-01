@@ -60,6 +60,16 @@
             <div class="actions-group matricula-actions">
                 <?php if (!empty($canEditMatriculas)): ?>
                     <a
+                        class="icon-button icon-button-view"
+                        href="<?= htmlspecialchars(baseUrl('matriculas/ficha?id=' . (string) $matricula['matid']), ENT_QUOTES, 'UTF-8'); ?>"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title="Ficha de matricula PDF"
+                        aria-label="Ficha de matricula PDF"
+                    >
+                        <i class="fa fa-file-pdf-o" aria-hidden="true"></i>
+                    </a>
+                    <a
                         class="icon-button icon-button-edit"
                         href="<?= htmlspecialchars(baseUrl('matriculas/editar?id=' . (string) $matricula['matid']), ENT_QUOTES, 'UTF-8'); ?>"
                         title="Editar matricula"

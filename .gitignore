@@ -1,5 +1,6 @@
 /.env
 /vendor/
+/composer.phar
 /storage/logs/*.log
 /storage/backups/*
 /storage/temp/*

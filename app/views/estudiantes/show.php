@@ -26,6 +26,7 @@ $isOwnProfile = !empty($isOwnProfile);
 $isRepresentativeProfile = !empty($isRepresentativeProfile);
 $canRepresentativeMatriculate = !empty($canRepresentativeMatriculate);
 $studentEditUrl = baseUrl('estudiantes/editar?id=' . $studentId);
+$matriculationId = (int) ($matriculation['matid'] ?? 0);
 $moduleUrl = static function (string $section) use ($isOwnProfile, $isRepresentativeProfile, $studentId): string {
     if ($isOwnProfile) {
         return baseUrl('mi-matricula/modulo?seccion=' . $section);
@@ -120,6 +121,12 @@ $cards = [
         </span>
         <?php if ($canRepresentativeMatriculate): ?>
             <a class="btn-primary btn-auto" href="<?= $h(baseUrl('matricula-temporal?estudiante=' . $studentId)); ?>">Matricular</a>
+        <?php endif; ?>
+        <?php if ($isRepresentativeProfile && $matriculationId > 0): ?>
+            <a class="btn-secondary btn-auto" href="<?= $h(baseUrl('matriculas/ficha?id=' . $matriculationId)); ?>" target="_blank" rel="noopener noreferrer">
+                <i class="fa fa-file-pdf-o" aria-hidden="true"></i>
+                <span>Ficha PDF</span>
+            </a>
         <?php endif; ?>
         <?php if (!$isOwnProfile && !$isRepresentativeProfile): ?>
             <a class="btn-secondary btn-auto" href="<?= $h($studentEditUrl); ?>">Editar datos</a>

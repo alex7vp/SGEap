@@ -49,7 +49,13 @@ $cards = [
 
 <div class="toolbar">
     <p>Edicion completa de matricula y ficha asociada.</p>
-    <a class="text-link" href="<?= $h(baseUrl('matriculas?panel=gestion#matriculas-registradas')); ?>">Volver a gestion</a>
+    <div class="actions-row">
+        <a class="btn-secondary btn-inline" href="<?= $h(baseUrl('matriculas/ficha?id=' . (string) $matriculaId)); ?>" target="_blank" rel="noopener noreferrer">
+            <i class="fa fa-file-pdf-o" aria-hidden="true"></i>
+            <span>Ficha PDF</span>
+        </a>
+        <a class="text-link" href="<?= $h(baseUrl('matriculas?panel=gestion#matriculas-registradas')); ?>">Volver a gestion</a>
+    </div>
 </div>
 
 <?php if (!empty($feedback)): ?>

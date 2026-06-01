@@ -5,12 +5,14 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Core\Controller;
+use App\Models\InstitutionModel;
 use App\Models\MatriculationConfigurationModel;
 use App\Models\MatriculationModel;
 use App\Models\PersonModel;
 use App\Models\RepresentativeMatriculationAuthorizationModel;
 use App\Models\StudentModel;
 use App\Models\UserModel;
+use App\Services\PdfReportService;
 
 class MatriculationController extends Controller
 {
@@ -596,6 +598,55 @@ class MatriculationController extends Controller
                 'matid' => $matriculaId,
             ],
         ]);
+    }
+
+    public function recordPdf(): void
+    {
+        $user = $this->requireAuth();
+
+        $matriculaId = (int) ($_GET['id'] ?? 0);
+
+        if ($matriculaId <= 0) {
+            sessionFlash('error', 'La matricula seleccionada no es valida.');
+            $this->redirect('/dashboard');
+        }
+
+        $matriculationModel = new MatriculationModel();
+        $matricula = $matriculationModel->findForEdit($matriculaId);
+
+        if ($matricula === false) {
+            sessionFlash('error', 'No se encontro la matricula solicitada.');
+            $this->redirect('/dashboard');
+        }
+
+        $studentModel = new StudentModel();
+        $canManageMatriculation = $this->canEditMatriculations($user);
+        $canRepresentativeAccess = $this->hasPermission('representante.estudiantes', $user)
+            && $studentModel->representativeCanAccessStudent((int) ($user['perid'] ?? 0), (int) $matricula['estid']);
+
+        if (!$canManageMatriculation && !$canRepresentativeAccess) {
+            sessionFlash('error', 'No tienes acceso a la ficha solicitada.');
+            $this->redirect('/dashboard');
+        }
+
+        $profile = $studentModel->profile((int) $matricula['estid'], (int) $matricula['pleid']);
+
+        if ($profile === false) {
+            sessionFlash('error', 'No se pudo cargar la ficha completa del estudiante.');
+            $this->redirect('/dashboard');
+        }
+
+        $student = is_array($profile['student'] ?? null) ? $profile['student'] : [];
+        $filenameName = trim((string) (($student['perapellidos'] ?? '') . '-' . ($student['pernombres'] ?? '')));
+        $filenameName = $filenameName !== '' ? $filenameName : 'estudiante';
+
+        (new PdfReportService())->streamView('pdf.matricula_ficha', [
+            'appName' => config('app')['name'] ?? 'SGEap',
+            'institution' => (new InstitutionModel())->current(),
+            'matricula' => $matricula,
+            'profile' => $profile,
+            'generatedAt' => date('Y-m-d H:i'),
+        ], 'ficha-matricula-' . $filenameName . '.pdf');
     }
 
     public function update(): void
@@ -1964,6 +2015,6 @@ class MatriculationController extends Controller
     {
         $panel = trim((string) ($_GET['panel'] ?? ''));
 
-        return in_array($panel, ['nueva', 'gestion'], true) ? $panel : '';
+        return in_array($panel, ['nueva', 'gestion', 'reportes'], true) ? $panel : '';
     }
 }

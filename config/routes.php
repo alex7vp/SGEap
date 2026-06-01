@@ -167,6 +167,7 @@ return static function (Router $router): void {
     $router->get('/grados', [GradeController::class, 'index']);
     $router->get('/matriculas', [MatriculationController::class, 'index']);
     $router->get('/matriculas/editar', [MatriculationController::class, 'edit']);
+    $router->get('/matriculas/ficha', [MatriculationController::class, 'recordPdf']);
     $router->get('/matriculas/buscar', [MatriculationController::class, 'search']);
     $router->get('/matriculas/persona', [MatriculationController::class, 'findPerson']);
     $router->get('/cursos', [CourseController::class, 'index']);

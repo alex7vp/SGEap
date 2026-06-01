@@ -362,6 +362,7 @@ $healthConditionTemplate = ob_get_clean();
         <a class="<?= $activePanel === 'nueva' ? 'is-active' : ''; ?>" href="<?= htmlspecialchars(baseUrl('matriculas?panel=nueva'), ENT_QUOTES, 'UTF-8'); ?>"><?= htmlspecialchars((string) ($newMatriculaLabel ?? 'Nueva matricula'), ENT_QUOTES, 'UTF-8'); ?></a>
     <?php endif; ?>
     <a class="<?= $activePanel === 'gestion' ? 'is-active' : ''; ?>" href="<?= htmlspecialchars(baseUrl('matriculas?panel=gestion'), ENT_QUOTES, 'UTF-8'); ?>">Gestion de matriculas</a>
+    <a class="<?= $activePanel === 'reportes' ? 'is-active' : ''; ?>" href="<?= htmlspecialchars(baseUrl('matriculas?panel=reportes'), ENT_QUOTES, 'UTF-8'); ?>">Reportes</a>
 </nav>
 <?php endif; ?>
 
@@ -376,7 +377,8 @@ $healthConditionTemplate = ob_get_clean();
                 <a class="text-link" href="<?= htmlspecialchars(baseUrl('matriculas?panel=nueva'), ENT_QUOTES, 'UTF-8'); ?>"><?= htmlspecialchars((string) ($newMatriculaLabel ?? 'Nueva matricula'), ENT_QUOTES, 'UTF-8'); ?></a>
                 o
             <?php endif; ?>
-            <a class="text-link" href="<?= htmlspecialchars(baseUrl('matriculas?panel=gestion'), ENT_QUOTES, 'UTF-8'); ?>">Gestion de matriculas</a>.
+            <a class="text-link" href="<?= htmlspecialchars(baseUrl('matriculas?panel=gestion'), ENT_QUOTES, 'UTF-8'); ?>">Gestion de matriculas</a>
+            o <a class="text-link" href="<?= htmlspecialchars(baseUrl('matriculas?panel=reportes'), ENT_QUOTES, 'UTF-8'); ?>">Reportes</a>.
         </div>
         <?php if (empty($canCreateMatricula)): ?>
             <div class="empty-state">No existe un periodo lectivo con matricula habilitada. Configuralo desde <a class="text-link" href="<?= htmlspecialchars(baseUrl('configuracion/matricula'), ENT_QUOTES, 'UTF-8'); ?>">Configuracion de matricula</a>.</div>
@@ -935,6 +937,60 @@ $healthConditionTemplate = ob_get_clean();
                 </table>
             </div>
             <div data-matricula-list-wrapper hidden></div>
+        <?php endif; ?>
+    </section>
+    <?php endif; ?>
+
+    <?php if ($activePanel === 'reportes'): ?>
+    <section class="security-assignment-block" id="matriculas-reportes">
+        <header class="security-assignment-header">
+            <div>
+                <h3>Reportes de matriculas</h3>
+                <p>Accesos directos para generar documentos del periodo lectivo seleccionado.</p>
+            </div>
+        </header>
+
+        <?php if (empty($matriculas)): ?>
+            <div class="empty-state">No hay matriculas registradas para generar reportes en este periodo.</div>
+        <?php else: ?>
+            <div class="table-wrap">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Estudiante</th>
+                            <th>Curso</th>
+                            <th>Representante</th>
+                            <th>Reporte</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($matriculas as $matricula): ?>
+                            <tr>
+                                <td>
+                                    <span class="cell-title"><?= htmlspecialchars((string) ($matricula['percedula'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></span>
+                                    <span class="cell-subtitle">
+                                        <strong><?= htmlspecialchars((string) ($matricula['perapellidos'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></strong>
+                                        <?= htmlspecialchars((string) ($matricula['pernombres'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>
+                                    </span>
+                                </td>
+                                <td><?= htmlspecialchars(trim((string) (($matricula['granombre'] ?? '') . ' ' . ($matricula['prlnombre'] ?? ''))), ENT_QUOTES, 'UTF-8'); ?></td>
+                                <td><?= htmlspecialchars(trim((string) (($matricula['rep_apellidos'] ?? '') . ' ' . ($matricula['rep_nombres'] ?? ''))), ENT_QUOTES, 'UTF-8'); ?></td>
+                                <td>
+                                    <a
+                                        class="btn-secondary btn-auto"
+                                        href="<?= htmlspecialchars(baseUrl('matriculas/ficha?id=' . (string) ($matricula['matid'] ?? 0)), ENT_QUOTES, 'UTF-8'); ?>"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                    >
+                                        <i class="fa fa-file-pdf-o" aria-hidden="true"></i>
+                                        <span>Ficha PDF</span>
+                                    </a>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
         <?php endif; ?>
     </section>
     <?php endif; ?>
