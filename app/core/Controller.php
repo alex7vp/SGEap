@@ -121,6 +121,8 @@ abstract class Controller
             '/personal' => 'personas.gestionar',
             '/matriculas' => 'matriculas.gestionar',
             '/matriculas/ficha' => 'matriculas.gestionar|representante.estudiantes',
+            '/matriculas/certificado' => 'matriculas.gestionar|representante.estudiantes',
+            '/matriculas/reporte/pdf' => 'matriculas.gestionar',
             '/estudiantes' => 'estudiantes.gestionar',
             '/grados' => 'catalogos.gestionar',
             '/cursos' => 'cursos.gestionar',

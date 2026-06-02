@@ -34,6 +34,63 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    const reportDialogOpenButtons = document.querySelectorAll('[data-report-dialog-open]');
+    const reportDialogs = document.querySelectorAll('[data-report-dialog]');
+
+    const openReportDialog = (dialog) => {
+        if (!(dialog instanceof HTMLElement)) {
+            return;
+        }
+
+        if (typeof dialog.showModal === 'function') {
+            dialog.showModal();
+            return;
+        }
+
+        dialog.setAttribute('open', 'open');
+    };
+
+    const closeReportDialog = (dialog) => {
+        if (!(dialog instanceof HTMLElement)) {
+            return;
+        }
+
+        if (typeof dialog.close === 'function') {
+            dialog.close('cancel');
+            return;
+        }
+
+        dialog.removeAttribute('open');
+    };
+
+    reportDialogOpenButtons.forEach((button) => {
+        if (!(button instanceof HTMLElement)) {
+            return;
+        }
+
+        button.addEventListener('click', () => {
+            const type = button.dataset.reportDialogOpen || '';
+            const dialog = document.querySelector('[data-report-dialog="' + type + '"]');
+            openReportDialog(dialog);
+        });
+    });
+
+    reportDialogs.forEach((dialog) => {
+        if (!(dialog instanceof HTMLElement)) {
+            return;
+        }
+
+        dialog.querySelectorAll('[data-report-dialog-close]').forEach((button) => {
+            if (button instanceof HTMLButtonElement) {
+                button.addEventListener('click', () => closeReportDialog(dialog));
+            }
+        });
+
+        if (dialog.hasAttribute('data-report-dialog-autopen')) {
+            openReportDialog(dialog);
+        }
+    });
+
     const modalFeedbackAlerts = Array.from(document.querySelectorAll(
         '.content-body > .alert.alert-dismissible[data-alert], ' +
         '.security-feedback-global .alert.alert-dismissible[data-alert], ' +

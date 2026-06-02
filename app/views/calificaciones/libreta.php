@@ -85,7 +85,7 @@ $chartPayload = [
             </div>
         </div>
         <div class="actions-row">
-            <button class="btn-secondary btn-inline" type="button" onclick="window.print()">
+            <button class="btn-secondary btn-inline" type="submit" name="pdf" value="1" formtarget="_blank">
                 <i class="fa fa-file-pdf-o" aria-hidden="true"></i>
                 Imprimir / PDF
             </button>

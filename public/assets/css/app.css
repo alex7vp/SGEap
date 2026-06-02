@@ -2734,6 +2734,151 @@ a.btn-primary.btn-icon-only.btn-icon-small:hover {
     padding: 14px;
 }
 
+button.student-compact-card {
+    width: 100%;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+button.student-compact-card.is-active,
+button.student-compact-card:hover {
+    border-color: var(--primary);
+}
+
+.matricula-report-dialog {
+    width: min(900px, calc(100vw - 32px));
+}
+
+.matricula-report-dialog {
+    padding: 6px;
+}
+
+.matricula-report-dialog .security-assignment-header {
+    gap: 6px;
+    margin-bottom: 6px;
+    padding-bottom: 6px;
+}
+
+.matricula-report-dialog .security-assignment-header h3 {
+    font-size: 1rem;
+}
+
+.matricula-report-dialog .security-assignment-header p {
+    margin-top: 2px;
+    font-size: 0.82rem;
+}
+
+.matricula-report-dialog .data-form {
+    gap: 4px;
+}
+
+.matricula-report-dialog .form-grid {
+    gap: 4px 6px !important;
+    grid-template-columns: repeat(3, minmax(160px, 1fr));
+}
+
+.matricula-report-dialog .form-group {
+    margin-bottom: 0 !important;
+    min-width: 0;
+}
+
+.matricula-report-dialog .input-group input,
+.matricula-report-dialog .input-group select,
+.matricula-report-dialog .input-group textarea {
+    min-height: 20px !important;
+    height: 20px !important;
+    padding: 0 5px !important;
+    font-size: 0.72rem !important;
+    line-height: 1 !important;
+    border-radius: 0 !important;
+}
+
+.matricula-report-dialog .input-addon {
+    min-width: 62px !important;
+    min-height: 20px !important;
+    height: 20px !important;
+    padding: 0 5px !important;
+    font-size: 0.68rem !important;
+    line-height: 1 !important;
+    border-radius: 0 !important;
+    flex: 0 0 auto;
+    white-space: nowrap;
+}
+
+.matricula-report-dialog .input-group {
+    min-height: 20px !important;
+    height: 20px !important;
+    box-shadow: none !important;
+    filter: none !important;
+}
+
+.matricula-report-dialog .form-group-full {
+    grid-column: auto !important;
+}
+
+.matricula-report-dialog .student-profile-index-grid {
+    gap: 6px;
+    margin-bottom: 6px;
+}
+
+.matricula-report-dialog .student-compact-card {
+    min-height: 0;
+    padding: 7px;
+}
+
+.matricula-report-dialog .student-compact-card strong {
+    margin-top: 4px;
+    font-size: 0.92rem;
+}
+
+.matricula-report-dialog .cell-subtitle {
+    margin-top: 2px;
+}
+
+.matricula-report-dialog .resource-option {
+    padding: 2px 5px;
+    min-height: 20px;
+}
+
+.matricula-report-dialog .form-actions,
+.matricula-report-dialog .actions-row {
+    margin-top: 5px;
+    gap: 6px;
+}
+
+.matricula-report-dialog .empty-state {
+    margin-top: 5px;
+    padding: 7px;
+}
+
+.matricula-report-dialog .btn-auto {
+    min-height: 22px !important;
+    padding: 1px 7px !important;
+    font-size: 0.72rem !important;
+}
+
+.matricula-report-dialog .matricula-report-results {
+    margin-top: 6px;
+}
+
+.matricula-report-dialog .data-table th,
+.matricula-report-dialog .data-table td {
+    padding: 3px 5px;
+    font-size: 0.72rem;
+}
+
+@media (max-width: 720px) {
+    .matricula-report-dialog .form-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .matricula-report-dialog .form-group-full {
+        grid-column: 1;
+    }
+}
+
 .student-compact-card strong {
     margin: 7px 0 0;
     font-size: 1rem;

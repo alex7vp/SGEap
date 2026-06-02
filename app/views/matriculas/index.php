@@ -946,52 +946,268 @@ $healthConditionTemplate = ob_get_clean();
         <header class="security-assignment-header">
             <div>
                 <h3>Reportes de matriculas</h3>
-                <p>Accesos directos para generar documentos del periodo lectivo seleccionado.</p>
+                <p>Selecciona el tipo de reporte y completa los filtros necesarios.</p>
             </div>
         </header>
 
-        <?php if (empty($matriculas)): ?>
-            <div class="empty-state">No hay matriculas registradas para generar reportes en este periodo.</div>
-        <?php else: ?>
-            <div class="table-wrap">
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>Estudiante</th>
-                            <th>Curso</th>
-                            <th>Representante</th>
-                            <th>Reporte</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php foreach ($matriculas as $matricula): ?>
+        <?php
+            $selectedReportType = (string) ($reportType ?? '');
+            $reportSearchValue = trim((string) ($reportSearch ?? ''));
+            $reportRows = is_array($reportMatriculas ?? null) ? $reportMatriculas : [];
+            $reportCourses = is_array($reportCourses ?? null) ? $reportCourses : [];
+            $reportLevels = is_array($reportLevels ?? null) ? $reportLevels : [];
+            $reportFilters = is_array($reportFilters ?? null) ? $reportFilters : [];
+            $reportSubmitted = !empty($reportSubmitted);
+            $renderReportResultRows = static function (array $rows, string $type): void {
+                if ($rows === []) {
+                    echo '<div class="empty-state">No se encontraron resultados para los filtros seleccionados.</div>';
+                    return;
+                }
+                ?>
+                <div class="table-wrap matricula-report-results">
+                    <table class="data-table">
+                        <thead>
                             <tr>
-                                <td>
-                                    <span class="cell-title"><?= htmlspecialchars((string) ($matricula['percedula'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></span>
-                                    <span class="cell-subtitle">
-                                        <strong><?= htmlspecialchars((string) ($matricula['perapellidos'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></strong>
-                                        <?= htmlspecialchars((string) ($matricula['pernombres'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>
-                                    </span>
-                                </td>
-                                <td><?= htmlspecialchars(trim((string) (($matricula['granombre'] ?? '') . ' ' . ($matricula['prlnombre'] ?? ''))), ENT_QUOTES, 'UTF-8'); ?></td>
-                                <td><?= htmlspecialchars(trim((string) (($matricula['rep_apellidos'] ?? '') . ' ' . ($matricula['rep_nombres'] ?? ''))), ENT_QUOTES, 'UTF-8'); ?></td>
-                                <td>
-                                    <a
-                                        class="btn-secondary btn-auto"
-                                        href="<?= htmlspecialchars(baseUrl('matriculas/ficha?id=' . (string) ($matricula['matid'] ?? 0)), ENT_QUOTES, 'UTF-8'); ?>"
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                    >
-                                        <i class="fa fa-file-pdf-o" aria-hidden="true"></i>
-                                        <span>Ficha PDF</span>
-                                    </a>
-                                </td>
+                                <th>Estudiante</th>
+                                <th>Curso</th>
+                                <th>Edad</th>
+                                <th>Sexo</th>
+                                <?php if ($type === 'representantes'): ?><th>Representante</th><?php endif; ?>
+                                <?php if ($type === 'documentos'): ?><th>Documentos</th><?php endif; ?>
+                                <?php if ($type === 'salud'): ?><th>Salud</th><?php endif; ?>
                             </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
-            </div>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($rows as $row): ?>
+                                <?php
+                                    $studentName = trim((string) (($row['perapellidos'] ?? '') . ' ' . ($row['pernombres'] ?? '')));
+                                    $courseName = trim((string) (($row['granombre'] ?? '') . ' ' . ($row['prlnombre'] ?? '')));
+                                    $repName = trim((string) (($row['rep_apellidos'] ?? '') . ' ' . ($row['rep_nombres'] ?? '')));
+                                ?>
+                                <tr>
+                                    <td><span class="cell-title"><?= htmlspecialchars((string) ($row['percedula'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></span><span class="cell-subtitle"><?= htmlspecialchars($studentName, ENT_QUOTES, 'UTF-8'); ?></span></td>
+                                    <td><?= htmlspecialchars($courseName, ENT_QUOTES, 'UTF-8'); ?></td>
+                                    <td><?= htmlspecialchars((string) ($row['edad'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></td>
+                                    <td><?= htmlspecialchars((string) ($row['persexo'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></td>
+                                    <?php if ($type === 'representantes'): ?><td><span class="cell-title"><?= htmlspecialchars($repName !== '' ? $repName : 'Sin representante', ENT_QUOTES, 'UTF-8'); ?></span><span class="cell-subtitle"><?= htmlspecialchars((string) ($row['rep_telefono'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></span></td><?php endif; ?>
+                                    <?php if ($type === 'documentos'): ?><td><?= htmlspecialchars((string) ($row['documentos_aceptados'] ?? 0), ENT_QUOTES, 'UTF-8'); ?>/<?= htmlspecialchars((string) ($row['total_documentos'] ?? 0), ENT_QUOTES, 'UTF-8'); ?></td><?php endif; ?>
+                                    <?php if ($type === 'salud'): ?><td><span class="cell-title"><?= !empty($row['tiene_discapacidad']) ? 'Discapacidad' : 'Sin discapacidad'; ?></span><span class="cell-subtitle"><?= htmlspecialchars((string) ($row['gsnombre'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></span></td><?php endif; ?>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+                <?php
+            };
+            $reportOptions = [
+                'fichas' => ['title' => 'Fichas de matricula', 'description' => 'Busca un estudiante y genera su ficha PDF individual.', 'icon' => 'fa-file-pdf-o'],
+                'certificados' => ['title' => 'Certificados de matricula', 'description' => 'Ruta preparada; falta cargar la plantilla institucional.', 'icon' => 'fa-certificate'],
+                'curso' => ['title' => 'Listas por curso', 'description' => 'Listados por nivel, grado, paralelo o curso completo.', 'icon' => 'fa-list-ul'],
+                'personalizado' => ['title' => 'Listado personalizado', 'description' => 'Filtros por edad, sexo, nivel y otros criterios.', 'icon' => 'fa-filter'],
+                'representantes' => ['title' => 'Representantes', 'description' => 'Contactos de representantes, padres y madres por curso.', 'icon' => 'fa-users'],
+                'documentos' => ['title' => 'Documentos aceptados', 'description' => 'Seguimiento de documentos obligatorios y opcionales.', 'icon' => 'fa-check-square-o'],
+                'estadisticas' => ['title' => 'Estadisticas', 'description' => 'Resumen por sexo, edad, curso y tipo de matricula.', 'icon' => 'fa-bar-chart'],
+                'salud' => ['title' => 'Salud basica', 'description' => 'Reporte restringido de datos medicos basicos.', 'icon' => 'fa-heartbeat'],
+            ];
+        ?>
+
+        <?php if (!empty($reportError)): ?>
+            <div class="alert alert-error"><?= htmlspecialchars((string) $reportError, ENT_QUOTES, 'UTF-8'); ?></div>
         <?php endif; ?>
+
+        <section class="student-profile-index-grid">
+            <?php foreach ($reportOptions as $type => $option): ?>
+                <button
+                    type="button"
+                    class="summary-card student-profile-card student-card-link student-compact-card <?= $selectedReportType === $type ? 'is-active' : ''; ?>"
+                    data-report-dialog-open="<?= htmlspecialchars($type, ENT_QUOTES, 'UTF-8'); ?>"
+                >
+                    <span class="summary-label"><i class="fa <?= htmlspecialchars($option['icon'], ENT_QUOTES, 'UTF-8'); ?>" aria-hidden="true"></i></span>
+                    <strong><?= htmlspecialchars($option['title'], ENT_QUOTES, 'UTF-8'); ?></strong>
+                    <span class="cell-subtitle"><?= htmlspecialchars($option['description'], ENT_QUOTES, 'UTF-8'); ?></span>
+                </button>
+            <?php endforeach; ?>
+        </section>
+
+        <div class="empty-state">Selecciona una opcion de reporte para configurar sus filtros.</div>
+
+        <?php foreach (['fichas', 'certificados'] as $searchReportType): ?>
+        <dialog class="calendar-dialog matricula-report-dialog" data-report-dialog="<?= htmlspecialchars($searchReportType, ENT_QUOTES, 'UTF-8'); ?>" <?= $selectedReportType === $searchReportType ? 'data-report-dialog-autopen' : ''; ?>>
+            <header class="security-assignment-header">
+                <div>
+                    <h3><?= htmlspecialchars($reportOptions[$searchReportType]['title'], ENT_QUOTES, 'UTF-8'); ?></h3>
+                    <p><?= htmlspecialchars($reportOptions[$searchReportType]['description'], ENT_QUOTES, 'UTF-8'); ?></p>
+                </div>
+                <button class="btn-secondary btn-auto" type="button" data-report-dialog-close>Cerrar</button>
+            </header>
+            <form class="data-form" method="GET" action="<?= htmlspecialchars(baseUrl('matriculas'), ENT_QUOTES, 'UTF-8'); ?>">
+                <input type="hidden" name="panel" value="reportes">
+                <input type="hidden" name="tipo" value="<?= htmlspecialchars($searchReportType, ENT_QUOTES, 'UTF-8'); ?>">
+                <div class="form-grid">
+                    <div class="form-group form-group-full">
+                        <div class="input-group">
+                            <span class="input-addon">Estudiante</span>
+                            <input
+                                type="search"
+                                name="buscar"
+                                placeholder="Apellidos, nombres o numero de cedula"
+                                value="<?= htmlspecialchars($reportSearchValue, ENT_QUOTES, 'UTF-8'); ?>"
+                                minlength="2"
+                                required
+                            >
+                        </div>
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button class="btn-primary btn-auto" type="submit">
+                        <i class="fa fa-search" aria-hidden="true"></i>
+                        <span>Buscar</span>
+                    </button>
+                </div>
+            </form>
+
+            <?php if ($selectedReportType !== $searchReportType): ?>
+                <div class="empty-state">Busca por apellidos, nombres o numero de cedula para ver resultados.</div>
+            <?php elseif ($reportSearchValue === ''): ?>
+                <div class="empty-state">Ingresa al menos dos caracteres para buscar una matricula.</div>
+            <?php elseif ($reportRows === []): ?>
+                <div class="empty-state">No se encontraron matriculas para la busqueda indicada.</div>
+            <?php else: ?>
+            <form
+                class="data-form"
+                method="GET"
+                action="<?= htmlspecialchars(baseUrl($searchReportType === 'certificados' ? 'matriculas/certificado' : 'matriculas/ficha'), ENT_QUOTES, 'UTF-8'); ?>"
+                target="_blank"
+            >
+                <div class="student-profile-index-grid">
+                    <?php foreach ($reportRows as $index => $matricula): ?>
+                        <?php
+                            $matriculaId = (int) ($matricula['matid'] ?? 0);
+                            $studentLabel = trim((string) (($matricula['perapellidos'] ?? '') . ' ' . ($matricula['pernombres'] ?? '')));
+                            $courseLabel = trim((string) (($matricula['granombre'] ?? '') . ' ' . ($matricula['prlnombre'] ?? '')));
+                            $representativeLabel = trim((string) (($matricula['rep_apellidos'] ?? '') . ' ' . ($matricula['rep_nombres'] ?? '')));
+                        ?>
+                        <label class="summary-card student-profile-card student-compact-card">
+                            <span class="summary-label">Matricula <?= htmlspecialchars((string) $matriculaId, ENT_QUOTES, 'UTF-8'); ?></span>
+                            <strong><?= htmlspecialchars($studentLabel !== '' ? $studentLabel : 'Estudiante sin nombre', ENT_QUOTES, 'UTF-8'); ?></strong>
+                            <span class="cell-subtitle">Cedula: <?= htmlspecialchars((string) ($matricula['percedula'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></span>
+                            <span class="cell-subtitle">Curso: <?= htmlspecialchars($courseLabel !== '' ? $courseLabel : 'Sin curso', ENT_QUOTES, 'UTF-8'); ?></span>
+                            <span class="cell-subtitle">Representante: <?= htmlspecialchars($representativeLabel !== '' ? $representativeLabel : 'Sin representante', ENT_QUOTES, 'UTF-8'); ?></span>
+                            <span class="resource-option report-selection-option">
+                                <span>Seleccionar</span>
+                                <input type="radio" name="id" value="<?= htmlspecialchars((string) $matriculaId, ENT_QUOTES, 'UTF-8'); ?>" <?= $index === 0 ? 'required' : ''; ?>>
+                            </span>
+                        </label>
+                    <?php endforeach; ?>
+                </div>
+                <div class="form-actions">
+                    <button class="btn-primary btn-auto" type="submit">
+                        <i class="fa fa-file-pdf-o" aria-hidden="true"></i>
+                        <span><?= $searchReportType === 'certificados' ? 'Generar certificado de matricula' : 'Generar ficha de matricula'; ?></span>
+                    </button>
+                </div>
+            </form>
+            <?php endif; ?>
+        </dialog>
+        <?php endforeach; ?>
+
+        <dialog class="calendar-dialog matricula-report-dialog" data-report-dialog="curso" <?= $selectedReportType === 'curso' ? 'data-report-dialog-autopen' : ''; ?>>
+            <header class="security-assignment-header">
+                <div>
+                    <h3><?= htmlspecialchars($reportOptions['curso']['title'], ENT_QUOTES, 'UTF-8'); ?></h3>
+                    <p><?= htmlspecialchars($reportOptions['curso']['description'], ENT_QUOTES, 'UTF-8'); ?></p>
+                </div>
+                <button class="btn-secondary btn-auto" type="button" data-report-dialog-close>Cerrar</button>
+            </header>
+            <form class="data-form" method="GET" action="<?= htmlspecialchars(baseUrl('matriculas'), ENT_QUOTES, 'UTF-8'); ?>">
+                <input type="hidden" name="panel" value="reportes">
+                <input type="hidden" name="tipo" value="curso">
+                <input type="hidden" name="consultar" value="1">
+                <div class="form-grid">
+                    <div class="form-group form-group-full"><div class="input-group"><span class="input-addon">Curso</span><select name="curid" required><option value="">Seleccione</option><?php foreach ($reportCourses as $course): ?><option value="<?= htmlspecialchars((string) ($course['curid'] ?? 0), ENT_QUOTES, 'UTF-8'); ?>" <?= (int) ($reportFilters['curid'] ?? 0) === (int) ($course['curid'] ?? 0) ? 'selected' : ''; ?>><?= htmlspecialchars((string) (($course['nednombre'] ?? '') . ' | ' . ($course['granombre'] ?? '') . ' | ' . ($course['prlnombre'] ?? '')), ENT_QUOTES, 'UTF-8'); ?></option><?php endforeach; ?></select></div></div>
+                    <div class="form-group"><div class="input-group"><span class="input-addon">Formato</span><select name="formato"><option selected>PDF</option></select></div></div>
+                </div>
+                <div class="form-actions">
+                    <button class="btn-primary btn-auto" type="submit">
+                        <i class="fa fa-search" aria-hidden="true"></i>
+                        <span>Buscar</span>
+                    </button>
+                    <button class="btn-secondary btn-auto" type="submit" formaction="<?= htmlspecialchars(baseUrl('matriculas/reporte/pdf'), ENT_QUOTES, 'UTF-8'); ?>" formtarget="_blank">
+                        <i class="fa fa-file-pdf-o" aria-hidden="true"></i>
+                        <span>Generar PDF</span>
+                    </button>
+                </div>
+            </form>
+            <?php if ($selectedReportType === 'curso' && $reportSubmitted): ?>
+                <?php $renderReportResultRows($reportRows, 'curso'); ?>
+            <?php endif; ?>
+        </dialog>
+
+        <dialog class="calendar-dialog matricula-report-dialog" data-report-dialog="personalizado" <?= $selectedReportType === 'personalizado' ? 'data-report-dialog-autopen' : ''; ?>>
+            <header class="security-assignment-header">
+                <div>
+                    <h3><?= htmlspecialchars($reportOptions['personalizado']['title'], ENT_QUOTES, 'UTF-8'); ?></h3>
+                    <p><?= htmlspecialchars($reportOptions['personalizado']['description'], ENT_QUOTES, 'UTF-8'); ?></p>
+                </div>
+                <button class="btn-secondary btn-auto" type="button" data-report-dialog-close>Cerrar</button>
+            </header>
+            <form class="data-form" method="GET" action="<?= htmlspecialchars(baseUrl('matriculas'), ENT_QUOTES, 'UTF-8'); ?>">
+                <input type="hidden" name="panel" value="reportes">
+                <input type="hidden" name="tipo" value="personalizado">
+                <input type="hidden" name="consultar" value="1">
+                <div class="form-grid">
+                    <div class="form-group"><div class="input-group"><span class="input-addon">Edad desde</span><input name="edad_desde" type="number" min="0" value="<?= htmlspecialchars((string) ($reportFilters['edad_desde'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>"></div></div>
+                    <div class="form-group"><div class="input-group"><span class="input-addon">Edad hasta</span><input name="edad_hasta" type="number" min="0" value="<?= htmlspecialchars((string) ($reportFilters['edad_hasta'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>"></div></div>
+                    <div class="form-group"><div class="input-group"><span class="input-addon">Sexo</span><select name="sexo"><option value="">Todos</option><option value="Masculino" <?= ($reportFilters['sexo'] ?? '') === 'Masculino' ? 'selected' : ''; ?>>Masculino</option><option value="Femenino" <?= ($reportFilters['sexo'] ?? '') === 'Femenino' ? 'selected' : ''; ?>>Femenino</option></select></div></div>
+                    <div class="form-group"><div class="input-group"><span class="input-addon">Nivel</span><select name="nedid"><option value="0">Todos</option><?php foreach ($reportLevels as $level): ?><option value="<?= htmlspecialchars((string) ($level['nedid'] ?? 0), ENT_QUOTES, 'UTF-8'); ?>" <?= (int) ($reportFilters['nedid'] ?? 0) === (int) ($level['nedid'] ?? 0) ? 'selected' : ''; ?>><?= htmlspecialchars((string) ($level['nednombre'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></option><?php endforeach; ?></select></div></div>
+                    <div class="form-group"><div class="input-group"><span class="input-addon">Usuario</span><select name="usuario"><option value="todos">Todos</option><option value="con_usuario" <?= ($reportFilters['usuario'] ?? '') === 'con_usuario' ? 'selected' : ''; ?>>Con usuario</option><option value="sin_usuario" <?= ($reportFilters['usuario'] ?? '') === 'sin_usuario' ? 'selected' : ''; ?>>Sin usuario</option></select></div></div>
+                </div>
+                <div class="form-actions">
+                    <button class="btn-primary btn-auto" type="submit"><i class="fa fa-search" aria-hidden="true"></i><span>Buscar</span></button>
+                    <button class="btn-secondary btn-auto" type="submit" formaction="<?= htmlspecialchars(baseUrl('matriculas/reporte/pdf'), ENT_QUOTES, 'UTF-8'); ?>" formtarget="_blank"><i class="fa fa-file-pdf-o" aria-hidden="true"></i><span>Generar PDF</span></button>
+                </div>
+            </form>
+            <?php if ($selectedReportType === 'personalizado' && $reportSubmitted): ?>
+                <?php $renderReportResultRows($reportRows, 'personalizado'); ?>
+            <?php endif; ?>
+        </dialog>
+
+        <?php foreach (['representantes', 'documentos', 'estadisticas', 'salud'] as $pendingReportType): ?>
+        <dialog class="calendar-dialog matricula-report-dialog" data-report-dialog="<?= htmlspecialchars($pendingReportType, ENT_QUOTES, 'UTF-8'); ?>" <?= $selectedReportType === $pendingReportType ? 'data-report-dialog-autopen' : ''; ?>>
+            <header class="security-assignment-header">
+                <div>
+                    <h3><?= htmlspecialchars($reportOptions[$pendingReportType]['title'], ENT_QUOTES, 'UTF-8'); ?></h3>
+                    <p><?= htmlspecialchars($reportOptions[$pendingReportType]['description'], ENT_QUOTES, 'UTF-8'); ?></p>
+                </div>
+                <button class="btn-secondary btn-auto" type="button" data-report-dialog-close>Cerrar</button>
+            </header>
+            <form class="data-form" method="GET" action="<?= htmlspecialchars(baseUrl('matriculas'), ENT_QUOTES, 'UTF-8'); ?>">
+                <input type="hidden" name="panel" value="reportes">
+                <input type="hidden" name="tipo" value="<?= htmlspecialchars($pendingReportType, ENT_QUOTES, 'UTF-8'); ?>">
+                <input type="hidden" name="consultar" value="1">
+                <div class="form-grid">
+                    <div class="form-group form-group-full"><div class="input-group"><span class="input-addon">Curso</span><select name="curid"><option value="0">Todos</option><?php foreach ($reportCourses as $course): ?><option value="<?= htmlspecialchars((string) ($course['curid'] ?? 0), ENT_QUOTES, 'UTF-8'); ?>" <?= (int) ($reportFilters['curid'] ?? 0) === (int) ($course['curid'] ?? 0) ? 'selected' : ''; ?>><?= htmlspecialchars((string) (($course['nednombre'] ?? '') . ' | ' . ($course['granombre'] ?? '') . ' | ' . ($course['prlnombre'] ?? '')), ENT_QUOTES, 'UTF-8'); ?></option><?php endforeach; ?></select></div></div>
+                    <?php if ($pendingReportType === 'representantes'): ?>
+                        <div class="form-group"><div class="input-group"><span class="input-addon">Representante</span><select name="representante"><option value="todos">Todos</option><option value="con_representante" <?= ($reportFilters['representante'] ?? '') === 'con_representante' ? 'selected' : ''; ?>>Con representante</option><option value="sin_representante" <?= ($reportFilters['representante'] ?? '') === 'sin_representante' ? 'selected' : ''; ?>>Sin representante</option></select></div></div>
+                    <?php elseif ($pendingReportType === 'documentos'): ?>
+                        <div class="form-group"><div class="input-group"><span class="input-addon">Documentos</span><select name="documentos"><option value="todos">Todos</option><option value="pendientes" <?= ($reportFilters['documentos'] ?? '') === 'pendientes' ? 'selected' : ''; ?>>Pendientes</option><option value="completos" <?= ($reportFilters['documentos'] ?? '') === 'completos' ? 'selected' : ''; ?>>Completos</option></select></div></div>
+                    <?php elseif ($pendingReportType === 'salud'): ?>
+                        <div class="form-group"><div class="input-group"><span class="input-addon">Discapacidad</span><select name="discapacidad"><option value="todos">Todos</option><option value="si" <?= ($reportFilters['discapacidad'] ?? '') === 'si' ? 'selected' : ''; ?>>Si</option><option value="no" <?= ($reportFilters['discapacidad'] ?? '') === 'no' ? 'selected' : ''; ?>>No</option></select></div></div>
+                        <div class="form-group"><div class="input-group"><span class="input-addon">Sexo</span><select name="sexo"><option value="">Todos</option><option value="Masculino" <?= ($reportFilters['sexo'] ?? '') === 'Masculino' ? 'selected' : ''; ?>>Masculino</option><option value="Femenino" <?= ($reportFilters['sexo'] ?? '') === 'Femenino' ? 'selected' : ''; ?>>Femenino</option></select></div></div>
+                    <?php else: ?>
+                        <div class="form-group"><div class="input-group"><span class="input-addon">Agrupar por</span><select disabled><option>Curso y sexo</option></select></div></div>
+                    <?php endif; ?>
+                </div>
+                <div class="form-actions">
+                    <button class="btn-primary btn-auto" type="submit"><i class="fa fa-search" aria-hidden="true"></i><span>Buscar</span></button>
+                    <button class="btn-secondary btn-auto" type="submit" formaction="<?= htmlspecialchars(baseUrl('matriculas/reporte/pdf'), ENT_QUOTES, 'UTF-8'); ?>" formtarget="_blank"><i class="fa fa-file-pdf-o" aria-hidden="true"></i><span>Generar PDF</span></button>
+                </div>
+            </form>
+            <?php if ($selectedReportType === $pendingReportType && $reportSubmitted): ?>
+                <?php $renderReportResultRows($reportRows, $pendingReportType); ?>
+            <?php endif; ?>
+        </dialog>
+        <?php endforeach; ?>
     </section>
     <?php endif; ?>
 <?php endif; ?>

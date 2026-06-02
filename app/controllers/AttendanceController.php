@@ -10,6 +10,7 @@ use App\Models\CourseModel;
 use App\Models\NoveltyModel;
 use App\Models\PersonalModel;
 use App\Models\StudentModel;
+use App\Services\PdfReportService;
 use Throwable;
 
 class AttendanceController extends Controller
@@ -504,7 +505,7 @@ class AttendanceController extends Controller
             )
             : [];
 
-        $this->view('asistencia.reportes', [
+        $viewData = [
             'appName' => config('app')['name'] ?? 'SGEap',
             'pageTitle' => 'Reporte de asistencia',
             'currentModule' => 'academico',
@@ -533,7 +534,19 @@ class AttendanceController extends Controller
             'studentHourlyMatrix' => $studentHourlyMatrix,
             'success' => sessionFlash('success'),
             'error' => sessionFlash('error'),
-        ]);
+        ];
+
+        if ((string) ($_GET['pdf'] ?? '') === '1') {
+            (new PdfReportService())->streamView(
+                'pdf.reporte_asistencia',
+                $viewData,
+                'reporte-asistencia.pdf',
+                'A4',
+                count((array) ($matrixReport['dates'] ?? [])) > 12 ? 'landscape' : 'portrait'
+            );
+        }
+
+        $this->view('asistencia.reportes', $viewData);
     }
 
     public function annulSession(): void

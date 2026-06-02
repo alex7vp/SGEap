@@ -6,6 +6,7 @@ namespace App\Controllers;
 
 use App\Core\Controller;
 use App\Models\GradebookModel;
+use App\Services\PdfReportService;
 
 class GradebookController extends Controller
 {
@@ -609,7 +610,7 @@ class GradebookController extends Controller
             }
         }
 
-        $this->view('calificaciones.libreta', [
+        $viewData = [
             'appName' => config('app')['name'] ?? 'SGEap',
             'pageTitle' => 'Libreta de calificaciones',
             'currentModule' => 'academico',
@@ -636,7 +637,19 @@ class GradebookController extends Controller
             'annualGeneralAverage' => $annualGeneralAverage,
             'success' => sessionFlash('success'),
             'error' => sessionFlash('error'),
-        ]);
+        ];
+
+        if ((string) ($_GET['pdf'] ?? '') === '1') {
+            (new PdfReportService())->streamView(
+                'pdf.reporte_libreta',
+                $viewData,
+                'libreta-calificaciones.pdf',
+                'A4',
+                'landscape'
+            );
+        }
+
+        $this->view('calificaciones.libreta', $viewData);
     }
 
     public function finalChart(): void
@@ -710,7 +723,7 @@ class GradebookController extends Controller
             }
         }
 
-        $this->view('calificaciones.cuadro_final', [
+        $viewData = [
             'appName' => config('app')['name'] ?? 'SGEap',
             'pageTitle' => 'Cuadro final',
             'currentModule' => 'academico',
@@ -724,7 +737,19 @@ class GradebookController extends Controller
             'rows' => $rows,
             'success' => sessionFlash('success'),
             'error' => sessionFlash('error'),
-        ]);
+        ];
+
+        if ((string) ($_GET['pdf'] ?? '') === '1') {
+            (new PdfReportService())->streamView(
+                'pdf.reporte_cuadro_final',
+                $viewData,
+                'cuadro-final.pdf',
+                'A4',
+                'landscape'
+            );
+        }
+
+        $this->view('calificaciones.cuadro_final', $viewData);
     }
 
     private function finalSubjectScores(GradebookModel $model, int $courseSubjectId, int $profileId, array $students): array

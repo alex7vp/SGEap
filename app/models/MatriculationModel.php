@@ -234,6 +234,130 @@ class MatriculationModel extends Model
         return $statement->fetchAll();
     }
 
+    public function reportRowsByPeriod(int $periodId, array $filters = []): array
+    {
+        $conditions = ['c.pleid = :period_id', 'e.estestado = true'];
+        $params = ['period_id' => $periodId];
+        $courseId = (int) ($filters['curid'] ?? 0);
+        $levelId = (int) ($filters['nedid'] ?? 0);
+        $sex = trim((string) ($filters['sexo'] ?? ''));
+        $userState = (string) ($filters['usuario'] ?? '');
+        $ageFrom = (int) ($filters['edad_desde'] ?? 0);
+        $ageTo = (int) ($filters['edad_hasta'] ?? 0);
+        $representative = (string) ($filters['representante'] ?? '');
+        $documents = (string) ($filters['documentos'] ?? '');
+        $disability = (string) ($filters['discapacidad'] ?? '');
+
+        if ($courseId > 0) {
+            $conditions[] = 'm.curid = :course_id';
+            $params['course_id'] = $courseId;
+        }
+
+        if ($levelId > 0) {
+            $conditions[] = 'n.nedid = :level_id';
+            $params['level_id'] = $levelId;
+        }
+
+        if (in_array($sex, ['Masculino', 'Femenino'], true)) {
+            $conditions[] = 'p.persexo = :sex';
+            $params['sex'] = $sex;
+        }
+
+        if ($userState === 'con_usuario') {
+            $conditions[] = 'u.usuid IS NOT NULL';
+        } elseif ($userState === 'sin_usuario') {
+            $conditions[] = 'u.usuid IS NULL';
+        }
+
+        if ($ageFrom > 0) {
+            $conditions[] = "DATE_PART('year', AGE(CURRENT_DATE, p.perfechanacimiento)) >= :age_from";
+            $params['age_from'] = $ageFrom;
+        }
+
+        if ($ageTo > 0) {
+            $conditions[] = "DATE_PART('year', AGE(CURRENT_DATE, p.perfechanacimiento)) <= :age_to";
+            $params['age_to'] = $ageTo;
+        }
+
+        if ($representative === 'con_representante') {
+            $conditions[] = 'mr.mreid IS NOT NULL';
+        } elseif ($representative === 'sin_representante') {
+            $conditions[] = 'mr.mreid IS NULL';
+        }
+
+        if ($documents === 'pendientes') {
+            $conditions[] = 'COALESCE(doc_stats.total_documentos, 0) > COALESCE(doc_stats.documentos_aceptados, 0)';
+        } elseif ($documents === 'completos') {
+            $conditions[] = 'COALESCE(doc_stats.total_documentos, 0) > 0 AND COALESCE(doc_stats.total_documentos, 0) = COALESCE(doc_stats.documentos_aceptados, 0)';
+        }
+
+        if ($disability === 'si') {
+            $conditions[] = 'COALESCE(ecs.ecstienediscapacidad, false) = true';
+        } elseif ($disability === 'no') {
+            $conditions[] = 'COALESCE(ecs.ecstienediscapacidad, false) = false';
+        }
+
+        $whereSql = implode(' AND ', $conditions);
+        $statement = $this->db->prepare(
+            "SELECT m.matid,
+                    m.matfecha,
+                    p.percedula,
+                    p.perapellidos,
+                    p.pernombres,
+                    p.persexo,
+                    p.perfechanacimiento,
+                    DATE_PART('year', AGE(CURRENT_DATE, p.perfechanacimiento))::int AS edad,
+                    n.nedid,
+                    n.nednombre,
+                    g.granombre,
+                    pr.prlnombre,
+                    em.emdnombre,
+                    e.estestado,
+                    u.usuid AS student_usuid,
+                    u.usunombre AS student_usunombre,
+                    rp.percedula AS rep_cedula,
+                    rp.perapellidos AS rep_apellidos,
+                    rp.pernombres AS rep_nombres,
+                    rp.pertelefono1 AS rep_telefono,
+                    rp.percorreo AS rep_correo,
+                    pt.ptenombre AS rep_parentesco,
+                    COALESCE(doc_stats.total_documentos, 0) AS total_documentos,
+                    COALESCE(doc_stats.documentos_aceptados, 0) AS documentos_aceptados,
+                    COALESCE(ecs.ecstienediscapacidad, false) AS tiene_discapacidad,
+                    ecs.ecsdetallediscapacidad,
+                    gs.gsnombre,
+                    am.amnombre
+             FROM {$this->table} m
+             INNER JOIN estudiante e ON e.estid = m.estid
+             INNER JOIN persona p ON p.perid = e.perid
+             LEFT JOIN usuario u ON u.perid = p.perid
+             INNER JOIN curso c ON c.curid = m.curid
+             INNER JOIN grado g ON g.graid = c.graid
+             INNER JOIN nivel_educativo n ON n.nedid = g.nedid
+             INNER JOIN paralelo pr ON pr.prlid = c.prlid
+             INNER JOIN estado_matricula em ON em.emdid = m.emdid
+             LEFT JOIN matricula_representante mr ON mr.matid = m.matid
+             LEFT JOIN persona rp ON rp.perid = mr.perid
+             LEFT JOIN parentesco pt ON pt.pteid = mr.pteid
+             LEFT JOIN estudiante_contexto_salud ecs ON ecs.estid = e.estid
+             LEFT JOIN grupo_sanguineo gs ON gs.gsid = ecs.gsid
+             LEFT JOIN atencion_medica am ON am.amid = ecs.amid
+             LEFT JOIN (
+                SELECT mad.matid,
+                       COUNT(*) AS total_documentos,
+                       COUNT(*) FILTER (WHERE mad.madaceptado = true) AS documentos_aceptados
+                FROM matricula_aceptacion_documentos mad
+                GROUP BY mad.matid
+             ) doc_stats ON doc_stats.matid = m.matid
+             WHERE {$whereSql}
+             ORDER BY n.nedid ASC, g.graid ASC, pr.prlnombre ASC, p.perapellidos ASC, p.pernombres ASC
+             LIMIT 500"
+        );
+        $statement->execute($params);
+
+        return $statement->fetchAll();
+    }
+
     public function countByPeriod(int $periodId): int
     {
         $statement = $this->db->prepare(

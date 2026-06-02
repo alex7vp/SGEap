@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Core\Controller;
+use App\Models\GradeModel;
 use App\Models\InstitutionModel;
 use App\Models\MatriculationConfigurationModel;
 use App\Models\MatriculationModel;
@@ -39,6 +40,22 @@ class MatriculationController extends Controller
 
         if (!$canCreateMatricula && $activePanel === 'nueva') {
             $activePanel = '';
+        }
+
+        $reportType = trim((string) ($_GET['tipo'] ?? ''));
+        $validReportTypes = ['fichas', 'certificados', 'curso', 'personalizado', 'representantes', 'documentos', 'estadisticas', 'salud'];
+        $reportType = in_array($reportType, $validReportTypes, true) ? $reportType : '';
+        $reportSearch = trim((string) ($_GET['buscar'] ?? ''));
+        $reportMatriculas = [];
+        $reportFilters = $this->reportFilters();
+        $reportSubmitted = (string) ($_GET['consultar'] ?? '') === '1';
+
+        if ($activePanel === 'reportes' && in_array($reportType, ['fichas', 'certificados'], true) && $viewedPeriod !== null && $reportSearch !== '') {
+            $reportMatriculas = $matriculationModel->allByPeriod((int) $viewedPeriod['pleid'], [
+                'q' => $reportSearch,
+            ], $enabledMatriculationPeriodId);
+        } elseif ($activePanel === 'reportes' && $reportType !== '' && $viewedPeriod !== null && $reportSubmitted) {
+            $reportMatriculas = $matriculationModel->reportRowsByPeriod((int) $viewedPeriod['pleid'], $reportFilters);
         }
 
         $this->view('matriculas.index', [
@@ -76,6 +93,14 @@ class MatriculationController extends Controller
             'matriculaListFeedback' => $this->matriculaListFeedback(),
             'old' => $this->oldFormData(),
             'canToggleRepresentativeMatriculation' => $enabledMatriculationPeriodId !== null,
+            'reportSearch' => $reportSearch,
+            'reportMatriculas' => $reportMatriculas,
+            'reportType' => $reportType,
+            'reportFilters' => $reportFilters,
+            'reportSubmitted' => $reportSubmitted,
+            'reportCourses' => is_array($viewedPeriod) ? $matriculationModel->allCoursesByPeriod((int) $viewedPeriod['pleid']) : [],
+            'reportLevels' => (new GradeModel())->allLevels(),
+            'reportError' => sessionFlash('error'),
         ]);
     }
 
@@ -647,6 +672,84 @@ class MatriculationController extends Controller
             'profile' => $profile,
             'generatedAt' => date('Y-m-d H:i'),
         ], 'ficha-matricula-' . $filenameName . '.pdf');
+    }
+
+    public function certificatePdf(): void
+    {
+        $user = $this->requireAuth();
+        $matriculaId = (int) ($_GET['id'] ?? 0);
+
+        if ($matriculaId <= 0) {
+            sessionFlash('error', 'Seleccione una matricula valida para generar el certificado.');
+            $this->redirect('/matriculas?panel=reportes&tipo=certificados');
+        }
+
+        $matricula = (new MatriculationModel())->findForEdit($matriculaId);
+
+        if ($matricula === false) {
+            sessionFlash('error', 'No se encontro la matricula solicitada.');
+            $this->redirect('/matriculas?panel=reportes&tipo=certificados');
+        }
+
+        $studentModel = new StudentModel();
+        $canManageMatriculation = $this->canEditMatriculations($user);
+        $canRepresentativeAccess = $this->hasPermission('representante.estudiantes', $user)
+            && $studentModel->representativeCanAccessStudent((int) ($user['perid'] ?? 0), (int) $matricula['estid']);
+
+        if (!$canManageMatriculation && !$canRepresentativeAccess) {
+            sessionFlash('error', 'No tienes acceso al certificado solicitado.');
+            $this->redirect('/dashboard');
+        }
+
+        sessionFlash('error', 'El certificado de matricula aun no tiene plantilla configurada. Envia el formato para implementarlo.');
+        $this->redirect('/matriculas?panel=reportes&tipo=certificados&buscar=' . urlencode((string) ($matricula['percedula'] ?? '')));
+    }
+
+    public function reportPdf(): void
+    {
+        $user = $this->requireAuth();
+
+        if (!$this->canEditMatriculations($user)) {
+            sessionFlash('error', 'Solo Administrador y Secretaria pueden generar reportes de matriculas.');
+            $this->redirect('/matriculas?panel=reportes');
+        }
+
+        $period = currentAcademicPeriod();
+
+        if (!is_array($period)) {
+            sessionFlash('error', 'Debe seleccionar un periodo lectivo para generar reportes.');
+            $this->redirect('/matriculas?panel=reportes');
+        }
+
+        $type = trim((string) ($_GET['tipo'] ?? ''));
+        $validTypes = ['curso', 'personalizado', 'representantes', 'documentos', 'estadisticas', 'salud'];
+
+        if (!in_array($type, $validTypes, true)) {
+            sessionFlash('error', 'El tipo de reporte solicitado no es valido.');
+            $this->redirect('/matriculas?panel=reportes');
+        }
+
+        $filters = $this->reportFilters();
+        $rows = (new MatriculationModel())->reportRowsByPeriod((int) $period['pleid'], $filters);
+        $titles = [
+            'curso' => 'Lista de estudiantes por curso',
+            'personalizado' => 'Listado personalizado de estudiantes',
+            'representantes' => 'Reporte de representantes',
+            'documentos' => 'Reporte de documentos',
+            'estadisticas' => 'Estadisticas de matriculas',
+            'salud' => 'Reporte de salud basica',
+        ];
+
+        (new PdfReportService())->streamView('pdf.matricula_reporte', [
+            'appName' => config('app')['name'] ?? 'SGEap',
+            'institution' => (new InstitutionModel())->current(),
+            'period' => $period,
+            'type' => $type,
+            'title' => $titles[$type],
+            'filters' => $filters,
+            'rows' => $rows,
+            'generatedAt' => date('Y-m-d H:i'),
+        ], 'matriculas-' . $type . '.pdf', 'A4', 'landscape');
     }
 
     public function update(): void
@@ -2016,5 +2119,28 @@ class MatriculationController extends Controller
         $panel = trim((string) ($_GET['panel'] ?? ''));
 
         return in_array($panel, ['nueva', 'gestion', 'reportes'], true) ? $panel : '';
+    }
+
+    private function reportFilters(): array
+    {
+        $sex = trim((string) ($_GET['sexo'] ?? ''));
+        $user = trim((string) ($_GET['usuario'] ?? ''));
+        $representative = trim((string) ($_GET['representante'] ?? ''));
+        $documents = trim((string) ($_GET['documentos'] ?? ''));
+        $disability = trim((string) ($_GET['discapacidad'] ?? ''));
+
+        return [
+            'curid' => max(0, (int) ($_GET['curid'] ?? 0)),
+            'nedid' => max(0, (int) ($_GET['nedid'] ?? 0)),
+            'edad_desde' => max(0, (int) ($_GET['edad_desde'] ?? 0)),
+            'edad_hasta' => max(0, (int) ($_GET['edad_hasta'] ?? 0)),
+            'sexo' => in_array($sex, ['Masculino', 'Femenino'], true) ? $sex : '',
+            'estado' => 'activos',
+            'usuario' => in_array($user, ['todos', 'con_usuario', 'sin_usuario'], true) ? $user : '',
+            'representante' => in_array($representative, ['todos', 'con_representante', 'sin_representante'], true) ? $representative : '',
+            'documentos' => in_array($documents, ['todos', 'pendientes', 'completos'], true) ? $documents : '',
+            'discapacidad' => in_array($disability, ['todos', 'si', 'no'], true) ? $disability : '',
+            'formato' => trim((string) ($_GET['formato'] ?? 'PDF')) === 'Excel' ? 'Excel' : 'PDF',
+        ];
     }
 }
