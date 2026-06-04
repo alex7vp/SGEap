@@ -248,7 +248,7 @@ $isStudentReport = $selectedStudentId > 0;
             </div>
             <div class="actions-row">
                 <button class="btn-primary btn-inline" type="submit">Generar reporte</button>
-                <button class="btn-secondary btn-inline" type="submit" name="pdf" value="1" formtarget="_blank">Imprimir / PDF</button>
+                <button class="btn-secondary btn-inline" type="submit" name="pdf" value="1" formtarget="_blank">Generar PDF</button>
             </div>
         </form>
     </section>
