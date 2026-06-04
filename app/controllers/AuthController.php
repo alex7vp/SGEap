@@ -6,6 +6,7 @@ namespace App\Controllers;
 
 use App\Core\Controller;
 use App\Models\CourseModel;
+use App\Models\GradebookModel;
 use App\Models\MatriculationConfigurationModel;
 use App\Models\MatriculationModel;
 use App\Models\PersonalModel;
@@ -102,6 +103,24 @@ class AuthController extends Controller
         $enabledMatriculationPeriod = $matriculationConfigurationModel->findEnabledPeriod();
         $canCreateMatricula = $enabledMatriculationPeriod !== false;
         $newMatriculaLabel = 'Nueva matricula';
+        $teacherCourses = $currentPeriod !== false
+            ? (new GradebookModel())->teacherCourses((int) ($user['perid'] ?? 0), (int) $currentPeriod['pleid'])
+            : [];
+
+        if ($this->usesTeacherDashboard($user)) {
+            $this->view('auth.dashboard_docente', [
+                'appName' => config('app')['name'] ?? 'SGEap',
+                'pageTitle' => 'Mis cursos',
+                'currentModule' => 'academico',
+                'currentSection' => 'docente_cursos',
+                'user' => $user,
+                'currentPeriod' => $currentPeriod !== false ? $currentPeriod : null,
+                'teacherCourses' => $teacherCourses,
+                'success' => sessionFlash('success'),
+                'error' => sessionFlash('error'),
+            ]);
+            return;
+        }
 
         if ($canCreateMatricula) {
             $newMatriculaLabel .= ' | ' . (string) $enabledMatriculationPeriod['pledescripcion'];
@@ -138,6 +157,63 @@ class AuthController extends Controller
             'success' => sessionFlash('success'),
             'error' => sessionFlash('error'),
         ]);
+    }
+
+    public function profile(): void
+    {
+        $user = $this->requireAuth();
+        $personModel = new PersonModel();
+        $person = $personModel->find((int) ($user['perid'] ?? 0));
+
+        if ($person === false) {
+            sessionFlash('error', 'No se encontro la informacion personal del usuario.');
+            $this->redirect('/dashboard');
+        }
+
+        $this->view('auth.profile', [
+            'appName' => config('app')['name'] ?? 'SGEap',
+            'pageTitle' => 'Mi perfil',
+            'currentSection' => 'perfil',
+            'user' => $user,
+            'instructionLevels' => $personModel->allInstructionLevels(),
+            'civilStatuses' => $personModel->allCivilStatuses(),
+            'success' => sessionFlash('success'),
+            'error' => sessionFlash('error'),
+            'old' => $this->profileOldData($person),
+        ]);
+    }
+
+    public function updateProfile(): void
+    {
+        $user = $this->requireAuth();
+        $personId = (int) ($user['perid'] ?? 0);
+        $data = $this->profileFormData();
+        $personModel = new PersonModel();
+
+        if ($personId <= 0 || $personModel->find($personId) === false) {
+            sessionFlash('error', 'No se encontro la informacion personal del usuario.');
+            $this->redirect('/dashboard');
+        }
+
+        if ($data['percedula'] === '' || $data['pernombres'] === '' || $data['perapellidos'] === '') {
+            $this->flashProfileFormData($data);
+            sessionFlash('error', 'Cedula, nombres y apellidos son obligatorios.');
+            $this->redirect('/perfil');
+        }
+
+        if ($personModel->existsByCedulaExceptId($data['percedula'], $personId)) {
+            $this->flashProfileFormData($data);
+            sessionFlash('error', 'La cedula ya esta registrada en otra persona.');
+            $this->redirect('/perfil');
+        }
+
+        $personModel->updateBasic($personId, $data);
+
+        $_SESSION['auth']['first_name'] = $data['pernombres'];
+        $_SESSION['auth']['last_name'] = $data['perapellidos'];
+
+        sessionFlash('success', 'Perfil actualizado correctamente.');
+        $this->redirect('/perfil');
     }
 
     public function logout(): void
@@ -190,4 +266,68 @@ class AuthController extends Controller
 
         return (new RepresentativeMatriculationAuthorizationModel())->activeByUserAndPeriod($userId, (int) $period['pleid']) !== false;
     }
+
+    private function usesTeacherDashboard(array $user): bool
+    {
+        if (!$this->userHasAnyRoleName($user, ['Docente'])) {
+            return false;
+        }
+
+        return !$this->userHasAnyRoleName($user, [
+            'Administrador',
+            'Coordinador',
+            'Inspector',
+            'Rector',
+            'Vicerrector',
+            'Secretaria',
+        ]);
+    }
+
+    private function profileOldData(array $person): array
+    {
+        return [
+            'percedula' => sessionFlash('old_percedula') ?? (string) ($person['percedula'] ?? ''),
+            'pernombres' => sessionFlash('old_pernombres') ?? (string) ($person['pernombres'] ?? ''),
+            'perapellidos' => sessionFlash('old_perapellidos') ?? (string) ($person['perapellidos'] ?? ''),
+            'pertelefono1' => sessionFlash('old_pertelefono1') ?? (string) ($person['pertelefono1'] ?? ''),
+            'pertelefono2' => sessionFlash('old_pertelefono2') ?? (string) ($person['pertelefono2'] ?? ''),
+            'percorreo' => sessionFlash('old_percorreo') ?? (string) ($person['percorreo'] ?? ''),
+            'persexo' => sessionFlash('old_persexo') ?? (string) ($person['persexo'] ?? ''),
+            'perfechanacimiento' => sessionFlash('old_perfechanacimiento') ?? (string) ($person['perfechanacimiento'] ?? ''),
+            'eciid' => sessionFlash('old_eciid') ?? (string) ($person['eciid'] ?? ''),
+            'istid' => sessionFlash('old_istid') ?? (string) ($person['istid'] ?? ''),
+            'perprofesion' => sessionFlash('old_perprofesion') ?? (string) ($person['perprofesion'] ?? ''),
+            'perocupacion' => sessionFlash('old_perocupacion') ?? (string) ($person['perocupacion'] ?? ''),
+            'perlugardetrabajo' => sessionFlash('old_perlugardetrabajo') ?? (string) ($person['perlugardetrabajo'] ?? ''),
+            'perhablaingles' => sessionFlash('old_perhablaingles') ?? (!empty($person['perhablaingles']) ? '1' : '0'),
+        ];
+    }
+
+    private function profileFormData(): array
+    {
+        return [
+            'percedula' => trim((string) ($_POST['percedula'] ?? '')),
+            'pernombres' => trim((string) ($_POST['pernombres'] ?? '')),
+            'perapellidos' => trim((string) ($_POST['perapellidos'] ?? '')),
+            'pertelefono1' => trim((string) ($_POST['pertelefono1'] ?? '')),
+            'pertelefono2' => trim((string) ($_POST['pertelefono2'] ?? '')),
+            'percorreo' => trim((string) ($_POST['percorreo'] ?? '')),
+            'persexo' => trim((string) ($_POST['persexo'] ?? '')),
+            'perfechanacimiento' => trim((string) ($_POST['perfechanacimiento'] ?? '')),
+            'eciid' => (int) ($_POST['eciid'] ?? 0),
+            'istid' => (int) ($_POST['istid'] ?? 0),
+            'perprofesion' => trim((string) ($_POST['perprofesion'] ?? '')),
+            'perocupacion' => trim((string) ($_POST['perocupacion'] ?? '')),
+            'perlugardetrabajo' => trim((string) ($_POST['perlugardetrabajo'] ?? '')),
+            'perhablaingles' => isset($_POST['perhablaingles']),
+        ];
+    }
+
+    private function flashProfileFormData(array $data): void
+    {
+        foreach ($data as $key => $value) {
+            sessionFlash('old_' . $key, is_bool($value) ? ($value ? '1' : '0') : (string) $value);
+        }
+    }
+
 }

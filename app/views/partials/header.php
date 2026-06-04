@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Models\InstitutionModel;
 use App\Models\MatriculationConfigurationModel;
 use App\Models\RepresentativeMatriculationAuthorizationModel;
+use App\Models\UserModel;
 
 $topModules = [
     'inicio' => [
@@ -40,6 +41,9 @@ $sectionModuleMap = [
     'mi_matricula' => 'inicio',
     'representante_pagos' => 'inicio',
     'academico_home' => 'academico',
+    'docente_cursos' => 'academico',
+    'docente_curso' => 'academico',
+    'docente_lista_curso' => 'academico',
     'personas' => 'academico',
     'estudiantes' => 'academico',
     'matriculas' => 'academico',
@@ -131,6 +135,12 @@ $sidebarModules = [
             [
                 'title' => 'Operativo',
                 'items' => [
+                    [
+                        'key' => 'docente_cursos',
+                        'label' => 'Mis cursos',
+                        'url' => baseUrl('docente/cursos'),
+                        'icon' => 'fa-book',
+                    ],
                     [
                         'key' => 'estudiantes',
                         'label' => 'Estudiantes',
@@ -407,6 +417,22 @@ if (in_array((string) ($currentSection ?? ''), ['personal', 'personal_register',
 
 $userPermissions = (array) ($user['permissions'] ?? []);
 $representativeNewStudentEnabled = false;
+$teacherCourseOnlyNavigation = false;
+
+try {
+    $userModel = new UserModel();
+    $teacherCourseOnlyNavigation = $userModel->hasAnyRoleName((int) ($user['usuid'] ?? 0), ['Docente'])
+        && !$userModel->hasAnyRoleName((int) ($user['usuid'] ?? 0), [
+            'Administrador',
+            'Coordinador',
+            'Inspector',
+            'Rector',
+            'Vicerrector',
+            'Secretaria',
+        ]);
+} catch (\Throwable) {
+    $teacherCourseOnlyNavigation = false;
+}
 
 if (in_array('representante.matricula_nueva', $userPermissions, true)) {
     try {
@@ -424,7 +450,7 @@ if (in_array('representante.matricula_nueva', $userPermissions, true)) {
 }
 
 $permissionMap = [
-    'dashboard' => 'dashboard.ver',
+    'dashboard' => ['dashboard.ver', 'asistencia.registrar', 'novedades.registrar', 'calificaciones.registrar', 'calificaciones.editar'],
     'matricula_temporal' => ['matricula_temporal.ver', 'representante.matricula_nueva'],
     'mi_matricula' => 'estudiante.mi_matricula',
     'representante_pagos' => ['contabilidad.representante.obligaciones.ver', 'contabilidad.representante.pagos.ver', 'contabilidad.representante.comprobantes.subir', 'contabilidad.representante.rubros.ver'],
@@ -436,6 +462,7 @@ $permissionMap = [
     'novedades_propias' => 'novedades.ver_propia',
     'novedades_representante' => 'novedades.representante.ver',
     'academico_home' => ['estudiantes.gestionar', 'personas.gestionar', 'matriculas.gestionar', 'asistencia.registrar', 'asistencia.supervisar', 'justificaciones.gestionar', 'asistencia.ver_propia', 'asistencia.representante.ver', 'novedades.registrar', 'novedades.supervisar', 'novedades.ver_propia', 'novedades.representante.ver', 'calificaciones.registrar', 'calificaciones.editar', 'calificaciones.configurar', 'calificaciones.validar', 'calificaciones.publicar', 'calificaciones.auditoria.ver'],
+    'docente_cursos' => ['asistencia.registrar', 'novedades.registrar', 'calificaciones.registrar', 'calificaciones.editar'],
     'estudiantes' => 'estudiantes.gestionar',
     'personal' => 'personas.gestionar',
     'personal_register' => 'personas.gestionar',
@@ -499,7 +526,7 @@ $canAccess = static function (string $key) use ($permissionMap, $userPermissions
     return false;
 };
 $modulePermissions = [
-    'inicio' => ['dashboard.ver', 'matricula_temporal.ver', 'representante.matricula_nueva', 'estudiante.mi_matricula', 'representante.estudiantes', 'asistencia.ver_propia', 'asistencia.representante.ver', 'novedades.ver_propia', 'novedades.representante.ver', 'contabilidad.representante.obligaciones.ver', 'contabilidad.representante.pagos.ver', 'contabilidad.representante.comprobantes.subir'],
+    'inicio' => ['dashboard.ver', 'asistencia.registrar', 'novedades.registrar', 'calificaciones.registrar', 'calificaciones.editar', 'matricula_temporal.ver', 'representante.matricula_nueva', 'estudiante.mi_matricula', 'representante.estudiantes', 'asistencia.ver_propia', 'asistencia.representante.ver', 'novedades.ver_propia', 'novedades.representante.ver', 'contabilidad.representante.obligaciones.ver', 'contabilidad.representante.pagos.ver', 'contabilidad.representante.comprobantes.subir'],
     'academico' => ['estudiantes.gestionar', 'personas.gestionar', 'matriculas.gestionar', 'asistencia.calendario.gestionar', 'asistencia.registrar', 'asistencia.supervisar', 'justificaciones.gestionar', 'asistencia.ver_propia', 'asistencia.representante.ver', 'novedades.registrar', 'novedades.supervisar', 'novedades.ver_propia', 'novedades.representante.ver', 'calificaciones.registrar', 'calificaciones.editar', 'calificaciones.configurar', 'calificaciones.validar', 'calificaciones.publicar', 'calificaciones.auditoria.ver'],
     'configuracion' => ['configuracion.gestionar', 'catalogos.gestionar', 'cursos.gestionar', 'matriculas.documentos', 'asistencia.calendario.gestionar', 'calificaciones.configurar', 'calificaciones.plantillas.gestionar', 'contabilidad.configurar', 'backups.gestionar'],
     'contabilidad' => ['contabilidad.ver', 'contabilidad.configurar', 'contabilidad.obligaciones.ver', 'contabilidad.rubros.ver', 'contabilidad.comprobantes.revisar', 'contabilidad.pagos.registrar', 'contabilidad.reportes.ver', 'contabilidad.auditoria.ver'],
@@ -540,6 +567,22 @@ if (!$representativeNewStudentEnabled && !in_array('matricula_temporal.ver', $us
         $sidebarModules['inicio']['items'],
         static fn (array $item): bool => ($item['key'] ?? '') !== 'matricula_temporal'
     ));
+}
+
+if ($teacherCourseOnlyNavigation) {
+    $hiddenTeacherSidebarItems = [
+        'estudiantes',
+        'asistencia_home',
+        'calificaciones_registro',
+        'reportes_home',
+    ];
+
+    foreach (($sidebarModules['academico']['groups'] ?? []) as $groupIndex => $group) {
+        $sidebarModules['academico']['groups'][$groupIndex]['items'] = array_values(array_filter(
+            (array) ($group['items'] ?? []),
+            static fn (array $item): bool => !in_array((string) ($item['key'] ?? ''), $hiddenTeacherSidebarItems, true)
+        ));
+    }
 }
 
 $topModules = array_filter($topModules, static fn (array $module, string $moduleKey): bool => $canAccessModule($moduleKey), ARRAY_FILTER_USE_BOTH);
@@ -610,6 +653,13 @@ if ($displayUserName === '') {
     $displayUserName = (string) ($user['username'] ?? '');
 }
 
+$displayFirstName = trim((string) ($user['first_name'] ?? ''));
+$displayFirstName = $displayFirstName !== '' ? preg_split('/\s+/', $displayFirstName)[0] : $displayUserName;
+$canOpenConfiguration = $canAccessModule('configuracion');
+$canOpenSecurity = $canAccessModule('seguridad');
+$topbarNotifications = array_values(array_filter((array) ($notifications ?? []), static fn (mixed $notification): bool => is_array($notification)));
+$topbarNotificationCount = count($topbarNotifications);
+
 $institutionName = (string) ($appName ?? 'SGEap');
 
 try {
@@ -645,9 +695,38 @@ foreach ($logoPatterns as $logoPattern) {
 <html lang="es">
 <head>
     <meta charset="UTF-8">
+    <script>
+        (function () {
+            var accents = {
+                blue: ['#0f4c81', '#0b385e', '#e6f0f8', '#20384d', '#1f6aa5'],
+                sky: ['#0284c7', '#075985', '#e0f2fe', '#12364a', '#38bdf8'],
+                teal: ['#0f766e', '#115e59', '#ccfbf1', '#123b37', '#14b8a6'],
+                navy: ['#1e3a8a', '#172554', '#dbeafe', '#1b2a4a', '#1d4ed8'],
+                gray: ['#475569', '#334155', '#f1f5f9', '#263241', '#64748b'],
+                violet: ['#6d43a8', '#4c1d95', '#ede9fe', '#2d2146', '#8b5cf6']
+            };
+
+            function applyAccent(name) {
+                var values = accents[name] || accents.blue;
+                var isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+                document.documentElement.style.setProperty('--primary', values[0]);
+                document.documentElement.style.setProperty('--primary-dark', values[1]);
+                document.documentElement.style.setProperty('--primary-soft', isDark ? values[3] : values[2]);
+                document.documentElement.style.setProperty('--primary-gradient-end', values[4]);
+            }
+
+            try {
+                if (window.localStorage.getItem('sgeap-theme') === 'dark') {
+                    document.documentElement.setAttribute('data-theme', 'dark');
+                }
+                applyAccent(window.localStorage.getItem('sgeap-accent') || 'blue');
+            } catch (error) {
+            }
+        }());
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= htmlspecialchars($appName ?? 'SGEap', ENT_QUOTES, 'UTF-8'); ?> | <?= htmlspecialchars($pageTitle ?? 'Panel', ENT_QUOTES, 'UTF-8'); ?></title>
-    <link rel="stylesheet" href="<?= htmlspecialchars(asset('css/app.css'), ENT_QUOTES, 'UTF-8'); ?>">
+    <link rel="stylesheet" href="<?= htmlspecialchars(asset('css/app.css') . '?v=' . (string) filemtime(BASE_PATH . '/public/assets/css/app.css'), ENT_QUOTES, 'UTF-8'); ?>">
     <link rel="stylesheet" href="<?= htmlspecialchars(asset('scss/icons/font-awesome/css/font-awesome.css'), ENT_QUOTES, 'UTF-8'); ?>">
 </head>
 <body class="panel-page">
@@ -708,9 +787,104 @@ foreach ($logoPatterns as $logoPattern) {
                         <?php endif; ?>
                     </div>
                 </details>
+                <details class="topbar-notifications">
+                    <summary
+                        class="topbar-notification-button <?= $topbarNotificationCount > 0 ? 'has-notifications' : ''; ?>"
+                        title="Notificaciones"
+                        aria-label="Notificaciones<?= $topbarNotificationCount > 0 ? ': ' . $topbarNotificationCount . ' pendientes' : ''; ?>"
+                    >
+                        <i class="fa <?= $topbarNotificationCount > 0 ? 'fa-bell' : 'fa-bell-o'; ?>" aria-hidden="true"></i>
+                        <?php if ($topbarNotificationCount > 0): ?>
+                            <span class="topbar-notification-badge"><?= htmlspecialchars((string) min($topbarNotificationCount, 9), ENT_QUOTES, 'UTF-8'); ?></span>
+                        <?php endif; ?>
+                    </summary>
+                    <div class="topbar-notification-menu">
+                        <header>
+                            <strong>Notificaciones</strong>
+                            <span><?= $topbarNotificationCount > 0 ? htmlspecialchars((string) $topbarNotificationCount . ' pendiente' . ($topbarNotificationCount === 1 ? '' : 's'), ENT_QUOTES, 'UTF-8') : 'Sin pendientes'; ?></span>
+                        </header>
+                        <?php if ($topbarNotificationCount === 0): ?>
+                            <div class="topbar-notification-empty">No hay notificaciones nuevas.</div>
+                        <?php else: ?>
+                            <?php foreach ($topbarNotifications as $notification): ?>
+                                <?php
+                                $notificationTitle = trim((string) ($notification['title'] ?? 'Notificacion'));
+                                $notificationBody = trim((string) ($notification['body'] ?? ''));
+                                $notificationUrl = trim((string) ($notification['url'] ?? ''));
+                                ?>
+                                <?php if ($notificationUrl !== ''): ?>
+                                    <a class="topbar-notification-item" href="<?= htmlspecialchars(baseUrl($notificationUrl), ENT_QUOTES, 'UTF-8'); ?>">
+                                <?php else: ?>
+                                    <div class="topbar-notification-item">
+                                <?php endif; ?>
+                                        <i class="fa fa-info-circle" aria-hidden="true"></i>
+                                        <span>
+                                            <strong><?= htmlspecialchars($notificationTitle, ENT_QUOTES, 'UTF-8'); ?></strong>
+                                            <?php if ($notificationBody !== ''): ?>
+                                                <small><?= htmlspecialchars($notificationBody, ENT_QUOTES, 'UTF-8'); ?></small>
+                                            <?php endif; ?>
+                                        </span>
+                                <?php if ($notificationUrl !== ''): ?>
+                                    </a>
+                                <?php else: ?>
+                                    </div>
+                                <?php endif; ?>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </div>
+                </details>
                 <div class="topbar-user">
-                    <span><?= htmlspecialchars($displayUserName, ENT_QUOTES, 'UTF-8'); ?></span>
+                    <span>Hola, <?= htmlspecialchars($displayFirstName, ENT_QUOTES, 'UTF-8'); ?></span>
                 </div>
+                <details class="topbar-settings">
+                    <summary class="topbar-settings-button" title="Configuracion de usuario" aria-label="Configuracion de usuario">
+                        <i class="fa fa-cog" aria-hidden="true"></i>
+                    </summary>
+                    <div class="topbar-settings-menu">
+                        <div class="topbar-settings-user">
+                            <strong><?= htmlspecialchars($displayUserName, ENT_QUOTES, 'UTF-8'); ?></strong>
+                            <span><?= htmlspecialchars((string) ($user['username'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></span>
+                        </div>
+                        <a href="<?= htmlspecialchars(baseUrl('perfil'), ENT_QUOTES, 'UTF-8'); ?>">
+                            <i class="fa fa-user" aria-hidden="true"></i>
+                            <span>Perfil</span>
+                        </a>
+                        <?php if ($canOpenConfiguration): ?>
+                            <a href="<?= htmlspecialchars(baseUrl('configuracion'), ENT_QUOTES, 'UTF-8'); ?>">
+                                <i class="fa fa-cogs" aria-hidden="true"></i>
+                                <span>Configuracion</span>
+                            </a>
+                        <?php endif; ?>
+                        <?php if ($canOpenSecurity): ?>
+                            <a href="<?= htmlspecialchars(baseUrl('seguridad'), ENT_QUOTES, 'UTF-8'); ?>">
+                                <i class="fa fa-shield" aria-hidden="true"></i>
+                                <span>Seguridad</span>
+                            </a>
+                        <?php endif; ?>
+                        <button type="button" data-theme-toggle>
+                            <i class="fa fa-moon-o" aria-hidden="true"></i>
+                            <span data-theme-toggle-label>Modo oscuro</span>
+                        </button>
+                        <label class="topbar-theme-control">
+                            <span><i class="fa fa-tint" aria-hidden="true"></i> Tema</span>
+                            <span class="topbar-theme-swatches" role="group" aria-label="Seleccion de color de tema">
+                                <button type="button" class="topbar-theme-swatch" data-accent-theme="blue" style="--swatch-color: #0f4c81;" title="Azul institucional" aria-label="Azul institucional"></button>
+                                <button type="button" class="topbar-theme-swatch" data-accent-theme="sky" style="--swatch-color: #0284c7;" title="Celeste" aria-label="Celeste"></button>
+                                <button type="button" class="topbar-theme-swatch" data-accent-theme="teal" style="--swatch-color: #0f766e;" title="Turquesa" aria-label="Turquesa"></button>
+                                <button type="button" class="topbar-theme-swatch" data-accent-theme="navy" style="--swatch-color: #1e3a8a;" title="Azul marino" aria-label="Azul marino"></button>
+                                <button type="button" class="topbar-theme-swatch" data-accent-theme="gray" style="--swatch-color: #475569;" title="Gris" aria-label="Gris"></button>
+                                <button type="button" class="topbar-theme-swatch" data-accent-theme="violet" style="--swatch-color: #6d43a8;" title="Violeta" aria-label="Violeta"></button>
+                            </span>
+                        </label>
+                        <form method="POST" action="<?= htmlspecialchars(baseUrl('logout'), ENT_QUOTES, 'UTF-8'); ?>">
+                            <?= csrfField(); ?>
+                            <button type="submit">
+                                <i class="fa fa-sign-out" aria-hidden="true"></i>
+                                <span>Cerrar sesion</span>
+                            </button>
+                        </form>
+                    </div>
+                </details>
             </div>
         </div>
     </header>
@@ -725,6 +899,7 @@ foreach ($logoPatterns as $logoPattern) {
                             <?php
                             $itemKey = (string) ($item['key'] ?? '');
                             $isActiveSidebarItem = ($currentSection ?? '') === $itemKey
+                                || ($itemKey === 'docente_cursos' && str_starts_with((string) ($currentSection ?? ''), 'docente_'))
                                 || ($itemKey === 'asistencia_home' && str_starts_with((string) ($currentSection ?? ''), 'asistencia_'))
                                 || ($itemKey === 'asistencia_home' && str_starts_with((string) ($currentSection ?? ''), 'novedades_'))
                                 || ($itemKey === 'reportes_home' && str_starts_with((string) ($currentSection ?? ''), 'reporte_'))

@@ -1042,6 +1042,7 @@ class AttendanceModel extends Model
                     sc.sclnumero_hora,
                     sc.sclestado,
                     ca.cafecha,
+                    v.curid,
                     v.mtcnombre_mostrar,
                     v.granombre,
                     v.prlnombre,
@@ -1059,7 +1060,7 @@ class AttendanceModel extends Model
                AND ca.pleid = :period_id
                AND ca.cafecha = :class_date
                AND sc.sclestado <> 'ANULADA'
-             GROUP BY sc.sclid, ca.cafecha, v.mtcnombre_mostrar, v.granombre, v.prlnombre
+             GROUP BY sc.sclid, ca.cafecha, v.curid, v.mtcnombre_mostrar, v.granombre, v.prlnombre
              ORDER BY sc.sclnumero_hora ASC, v.mtcnombre_mostrar ASC"
         );
         $statement->execute([

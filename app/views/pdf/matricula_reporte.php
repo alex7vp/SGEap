@@ -10,6 +10,7 @@ $filters = is_array($filters ?? null) ? $filters : [];
 $type = (string) ($type ?? 'curso');
 $title = (string) ($title ?? 'Reporte de matriculas');
 $generatedAt = (string) ($generatedAt ?? date('Y-m-d H:i'));
+$selectedFields = is_array($filters['campos'] ?? null) ? $filters['campos'] : [];
 
 $courseText = static function (array $row): string {
     return trim((string) (($row['nednombre'] ?? '') . ' | ' . ($row['granombre'] ?? '') . ' | ' . ($row['prlnombre'] ?? '')));
@@ -131,11 +132,18 @@ foreach ($rows as $row) {
             <thead>
                 <tr>
                     <th style="width: 4%;">#</th>
-                    <th style="width: 13%;">Cedula</th>
-                    <th>Estudiante</th>
-                    <th>Curso</th>
-                    <th style="width: 6%;">Edad</th>
-                    <th style="width: 8%;">Sexo</th>
+                    <?php if ($type === 'curso'): ?>
+                        <th>Apellidos y nombres</th>
+                        <?php if (in_array('cedula', $selectedFields, true)): ?><th style="width: 13%;">Cedula</th><?php endif; ?>
+                        <?php if (in_array('edad', $selectedFields, true)): ?><th style="width: 6%;">Edad</th><?php endif; ?>
+                        <?php if (in_array('sexo', $selectedFields, true)): ?><th style="width: 8%;">Sexo</th><?php endif; ?>
+                    <?php else: ?>
+                        <th style="width: 13%;">Cedula</th>
+                        <th>Estudiante</th>
+                        <th>Curso</th>
+                        <th style="width: 6%;">Edad</th>
+                        <th style="width: 8%;">Sexo</th>
+                    <?php endif; ?>
                     <?php if ($type === 'representantes'): ?><th>Representante</th><th>Contacto</th><?php endif; ?>
                     <?php if ($type === 'documentos'): ?><th style="width: 11%;">Documentos</th><?php endif; ?>
                     <?php if ($type === 'salud'): ?><th>Salud</th><?php endif; ?>
@@ -145,11 +153,18 @@ foreach ($rows as $row) {
                 <?php foreach ($rows as $index => $row): ?>
                     <tr>
                         <td><?= $h((string) ($index + 1)); ?></td>
-                        <td><?= $h($row['percedula'] ?? ''); ?></td>
-                        <td><?= $h($studentText($row)); ?></td>
-                        <td><?= $h($courseText($row)); ?></td>
-                        <td><?= $h($row['edad'] ?? ''); ?></td>
-                        <td><?= $h($row['persexo'] ?? ''); ?></td>
+                        <?php if ($type === 'curso'): ?>
+                            <td><?= $h($studentText($row)); ?></td>
+                            <?php if (in_array('cedula', $selectedFields, true)): ?><td><?= $h($row['percedula'] ?? ''); ?></td><?php endif; ?>
+                            <?php if (in_array('edad', $selectedFields, true)): ?><td><?= $h($row['edad'] ?? ''); ?></td><?php endif; ?>
+                            <?php if (in_array('sexo', $selectedFields, true)): ?><td><?= $h($row['persexo'] ?? ''); ?></td><?php endif; ?>
+                        <?php else: ?>
+                            <td><?= $h($row['percedula'] ?? ''); ?></td>
+                            <td><?= $h($studentText($row)); ?></td>
+                            <td><?= $h($courseText($row)); ?></td>
+                            <td><?= $h($row['edad'] ?? ''); ?></td>
+                            <td><?= $h($row['persexo'] ?? ''); ?></td>
+                        <?php endif; ?>
                         <?php if ($type === 'representantes'): ?>
                             <td><?= $h($representativeText($row) !== '' ? $representativeText($row) : 'Sin representante'); ?><br><span class="muted"><?= $h($row['rep_parentesco'] ?? ''); ?></span></td>
                             <td><?= $h($row['rep_telefono'] ?? ''); ?><br><span class="muted"><?= $h($row['rep_correo'] ?? ''); ?></span></td>

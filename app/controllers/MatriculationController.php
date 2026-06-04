@@ -9,6 +9,8 @@ use App\Models\GradeModel;
 use App\Models\InstitutionModel;
 use App\Models\MatriculationConfigurationModel;
 use App\Models\MatriculationModel;
+use App\Models\PeriodModel;
+use App\Models\PersonalModel;
 use App\Models\PersonModel;
 use App\Models\RepresentativeMatriculationAuthorizationModel;
 use App\Models\StudentModel;
@@ -49,11 +51,27 @@ class MatriculationController extends Controller
         $reportMatriculas = [];
         $reportFilters = $this->reportFilters();
         $reportSubmitted = (string) ($_GET['consultar'] ?? '') === '1';
+        $reportPeriods = (new PeriodModel())->allOrdered();
+        $reportPeriodId = max(0, (int) ($_GET['pleid'] ?? 0));
+        $currentPeriodId = is_array($viewedPeriod) ? (int) $viewedPeriod['pleid'] : 0;
+        $certificateSearchPeriodId = $reportPeriodId > 0 ? $reportPeriodId : $currentPeriodId;
+        $certificateSecretaries = (new PersonalModel())->activeByTypeName('Secretaria');
+        $certificateInstitution = (new InstitutionModel())->current();
+        $certificateInstitutionNames = $this->certificateInstitutionNames(is_array($certificateInstitution) ? $certificateInstitution : []);
+        $canCustomizeCourseReport = $this->userHasAnyRoleName($user, self::MATRICULATION_MANAGEMENT_ROLE_NAMES);
 
-        if ($activePanel === 'reportes' && in_array($reportType, ['fichas', 'certificados'], true) && $viewedPeriod !== null && $reportSearch !== '') {
-            $reportMatriculas = $matriculationModel->allByPeriod((int) $viewedPeriod['pleid'], [
+        if ($reportType === 'curso' && !$canCustomizeCourseReport) {
+            $reportFilters['campos'] = [];
+            $reportFilters['sexo'] = '';
+            $reportFilters['edad_desde'] = 0;
+            $reportFilters['edad_hasta'] = 0;
+        }
+
+        if ($activePanel === 'reportes' && in_array($reportType, ['fichas', 'certificados'], true) && $reportSearch !== '') {
+            $searchPeriodId = $reportType === 'certificados' ? $certificateSearchPeriodId : $currentPeriodId;
+            $reportMatriculas = $searchPeriodId > 0 ? $matriculationModel->allByPeriod($searchPeriodId, [
                 'q' => $reportSearch,
-            ], $enabledMatriculationPeriodId);
+            ], $enabledMatriculationPeriodId) : [];
         } elseif ($activePanel === 'reportes' && $reportType !== '' && $viewedPeriod !== null && $reportSubmitted) {
             $reportMatriculas = $matriculationModel->reportRowsByPeriod((int) $viewedPeriod['pleid'], $reportFilters);
         }
@@ -100,6 +118,11 @@ class MatriculationController extends Controller
             'reportSubmitted' => $reportSubmitted,
             'reportCourses' => is_array($viewedPeriod) ? $matriculationModel->allCoursesByPeriod((int) $viewedPeriod['pleid']) : [],
             'reportLevels' => (new GradeModel())->allLevels(),
+            'reportPeriods' => $reportPeriods,
+            'reportPeriodId' => $reportPeriodId > 0 ? $reportPeriodId : $currentPeriodId,
+            'certificateSecretaries' => $certificateSecretaries,
+            'certificateInstitutionNames' => $certificateInstitutionNames,
+            'canCustomizeCourseReport' => $canCustomizeCourseReport,
             'reportError' => sessionFlash('error'),
         ]);
     }
@@ -544,7 +567,7 @@ class MatriculationController extends Controller
         $user = $this->requireAuth();
 
         if (!$this->canEditMatriculations($user)) {
-            $this->flashMatriculaListFeedback('error', 'Solo Administrador y Secretaria pueden editar matriculas.');
+            $this->flashMatriculaListFeedback('error', 'Solo el personal administrativo autorizado puede editar matriculas.');
             $this->redirect('/matriculas?panel=gestion#matriculas-registradas');
         }
 
@@ -684,7 +707,8 @@ class MatriculationController extends Controller
             $this->redirect('/matriculas?panel=reportes&tipo=certificados');
         }
 
-        $matricula = (new MatriculationModel())->findForEdit($matriculaId);
+        $matriculationModel = new MatriculationModel();
+        $matricula = $matriculationModel->findForCertificate($matriculaId);
 
         if ($matricula === false) {
             sessionFlash('error', 'No se encontro la matricula solicitada.');
@@ -701,8 +725,66 @@ class MatriculationController extends Controller
             $this->redirect('/dashboard');
         }
 
-        sessionFlash('error', 'El certificado de matricula aun no tiene plantilla configurada. Envia el formato para implementarlo.');
-        $this->redirect('/matriculas?panel=reportes&tipo=certificados&buscar=' . urlencode((string) ($matricula['percedula'] ?? '')));
+        $institution = (new InstitutionModel())->current();
+        $institution = is_array($institution) ? $institution : [];
+        $institutionNameOptions = $this->certificateInstitutionNames($institution);
+        $institutionNameType = trim((string) ($_GET['institucion_nombre'] ?? ''));
+        $selectedInstitutionName = '';
+
+        if (count($institutionNameOptions) > 1 && $institutionNameType === '') {
+            sessionFlash('error', 'Seleccione el nombre de la institucion que se imprimira en el certificado.');
+            $this->redirect('/matriculas?panel=reportes&tipo=certificados&buscar=' . urlencode((string) ($matricula['percedula'] ?? '')));
+        }
+
+        if ($institutionNameType !== '' && !isset($institutionNameOptions[$institutionNameType])) {
+            sessionFlash('error', 'El nombre de institucion seleccionado no esta disponible.');
+            $this->redirect('/matriculas?panel=reportes&tipo=certificados&buscar=' . urlencode((string) ($matricula['percedula'] ?? '')));
+        }
+
+        if ($institutionNameType !== '') {
+            $selectedInstitutionName = $institutionNameOptions[$institutionNameType];
+        } elseif ($institutionNameOptions !== []) {
+            $selectedInstitutionName = reset($institutionNameOptions);
+        }
+
+        $secretaries = (new PersonalModel())->activeByTypeName('Secretaria');
+        $selectedSecretaryPersonId = (int) ($_GET['secretaria_perid'] ?? 0);
+        $selectedSecretary = false;
+
+        if ($secretaries !== []) {
+            if (count($secretaries) > 1 && $selectedSecretaryPersonId <= 0) {
+                sessionFlash('error', 'Seleccione la secretaria que firmara el certificado.');
+                $this->redirect('/matriculas?panel=reportes&tipo=certificados&buscar=' . urlencode((string) ($matricula['percedula'] ?? '')));
+            }
+
+            foreach ($secretaries as $secretary) {
+                if ($selectedSecretaryPersonId > 0 && (int) ($secretary['perid'] ?? 0) === $selectedSecretaryPersonId) {
+                    $selectedSecretary = $secretary;
+                    break;
+                }
+            }
+
+            if ($selectedSecretary === false && count($secretaries) === 1) {
+                $selectedSecretary = $secretaries[0];
+            }
+
+            if ($selectedSecretary === false && $selectedSecretaryPersonId > 0) {
+                sessionFlash('error', 'La secretaria seleccionada no esta disponible.');
+                $this->redirect('/matriculas?panel=reportes&tipo=certificados&buscar=' . urlencode((string) ($matricula['percedula'] ?? '')));
+            }
+        }
+
+        $studentName = trim((string) (($matricula['perapellidos'] ?? '') . '-' . ($matricula['pernombres'] ?? '')));
+        $studentName = $studentName !== '' ? $studentName : 'estudiante';
+
+        (new PdfReportService())->streamView('pdf.matricula_certificado', [
+            'appName' => config('app')['name'] ?? 'SGEap',
+            'institution' => $institution,
+            'institutionName' => $selectedInstitutionName,
+            'matricula' => $matricula,
+            'secretary' => $selectedSecretary,
+            'generatedAt' => date('Y-m-d H:i'),
+        ], 'certificado-matricula-' . $studentName . '.pdf');
     }
 
     public function reportPdf(): void
@@ -710,7 +792,7 @@ class MatriculationController extends Controller
         $user = $this->requireAuth();
 
         if (!$this->canEditMatriculations($user)) {
-            sessionFlash('error', 'Solo Administrador y Secretaria pueden generar reportes de matriculas.');
+            sessionFlash('error', 'Solo el personal administrativo autorizado puede generar reportes de matriculas.');
             $this->redirect('/matriculas?panel=reportes');
         }
 
@@ -730,6 +812,15 @@ class MatriculationController extends Controller
         }
 
         $filters = $this->reportFilters();
+        $canCustomizeCourseReport = $this->userHasAnyRoleName($user, self::MATRICULATION_MANAGEMENT_ROLE_NAMES);
+
+        if ($type === 'curso' && !$canCustomizeCourseReport) {
+            $filters['campos'] = [];
+            $filters['sexo'] = '';
+            $filters['edad_desde'] = 0;
+            $filters['edad_hasta'] = 0;
+        }
+
         $rows = (new MatriculationModel())->reportRowsByPeriod((int) $period['pleid'], $filters);
         $titles = [
             'curso' => 'Lista de estudiantes por curso',
@@ -757,7 +848,7 @@ class MatriculationController extends Controller
         $user = $this->requireAuth();
 
         if (!$this->canEditMatriculations($user)) {
-            $this->flashMatriculaListFeedback('error', 'Solo Administrador y Secretaria pueden editar matriculas.');
+            $this->flashMatriculaListFeedback('error', 'Solo el personal administrativo autorizado puede editar matriculas.');
             $this->redirect('/matriculas?panel=gestion#matriculas-registradas');
         }
 
@@ -793,7 +884,7 @@ class MatriculationController extends Controller
         $user = $this->requireAuth();
 
         if (!$this->canEditMatriculations($user)) {
-            $this->flashMatriculaListFeedback('error', 'Solo Administrador y Secretaria pueden editar matriculas.');
+            $this->flashMatriculaListFeedback('error', 'Solo el personal administrativo autorizado puede editar matriculas.');
             $this->redirect('/matriculas?panel=gestion#matriculas-registradas');
         }
 
@@ -1854,10 +1945,7 @@ class MatriculationController extends Controller
 
     private function canEditMatriculations(array $user): bool
     {
-        return (new UserModel())->hasAnyRoleName(
-            (int) ($user['usuid'] ?? 0),
-            ['Administrador', 'Secretaria']
-        );
+        return $this->userHasAnyRoleName($user, self::MATRICULATION_MANAGEMENT_ROLE_NAMES);
     }
 
     private function matriculationRowsHtml(array $matriculas, bool $canEditMatriculas, bool $canToggleRepresentativeMatriculation): string
@@ -2128,6 +2216,10 @@ class MatriculationController extends Controller
         $representative = trim((string) ($_GET['representante'] ?? ''));
         $documents = trim((string) ($_GET['documentos'] ?? ''));
         $disability = trim((string) ($_GET['discapacidad'] ?? ''));
+        $fields = $_GET['campos'] ?? [];
+        $fields = is_array($fields) ? $fields : [$fields];
+        $allowedFields = ['cedula', 'edad', 'sexo'];
+        $fields = array_values(array_intersect($allowedFields, array_map(static fn ($field): string => trim((string) $field), $fields)));
 
         return [
             'curid' => max(0, (int) ($_GET['curid'] ?? 0)),
@@ -2140,7 +2232,25 @@ class MatriculationController extends Controller
             'representante' => in_array($representative, ['todos', 'con_representante', 'sin_representante'], true) ? $representative : '',
             'documentos' => in_array($documents, ['todos', 'pendientes', 'completos'], true) ? $documents : '',
             'discapacidad' => in_array($disability, ['todos', 'si', 'no'], true) ? $disability : '',
+            'campos' => $fields,
             'formato' => trim((string) ($_GET['formato'] ?? 'PDF')) === 'Excel' ? 'Excel' : 'PDF',
         ];
+    }
+
+    private function certificateInstitutionNames(array $institution): array
+    {
+        $names = [];
+        $commercialName = trim((string) ($institution['insnombre'] ?? ''));
+        $officialName = trim((string) ($institution['insrazonsocial'] ?? ''));
+
+        if ($officialName !== '') {
+            $names['oficial'] = $officialName;
+        }
+
+        if ($commercialName !== '' && $commercialName !== $officialName) {
+            $names['comercial'] = $commercialName;
+        }
+
+        return $names;
     }
 }

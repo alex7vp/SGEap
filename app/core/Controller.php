@@ -5,9 +5,19 @@ declare(strict_types=1);
 namespace App\Core;
 
 use App\Models\RolePermissionModel;
+use App\Models\UserModel;
 
 abstract class Controller
 {
+    protected const MATRICULATION_MANAGEMENT_ROLE_NAMES = [
+        'Administrador',
+        'Rector',
+        'Vicerrector',
+        'Coordinador',
+        'Inspector',
+        'Secretaria',
+    ];
+
     protected function requireAuth(): array
     {
         if (empty($_SESSION['auth'])) {
@@ -29,9 +39,16 @@ abstract class Controller
         $user['permissions'] = $rolePermissionModel->permissionCodesByUser((int) ($user['usuid'] ?? 0));
         $_SESSION['auth'] = $user;
 
-        $requiredPermission = $this->permissionForCurrentPath(currentPath());
+        $currentPath = currentPath();
+        $requiredPermission = $this->permissionForCurrentPath($currentPath);
 
         if ($requiredPermission !== null && !$this->hasPermission($requiredPermission, $user)) {
+            $this->denyAccess();
+        }
+
+        if ($this->isAdministrativeMatriculationPath($currentPath)
+            && !$this->userHasAnyRoleName($user, self::MATRICULATION_MANAGEMENT_ROLE_NAMES)
+        ) {
             $this->denyAccess();
         }
 
@@ -61,13 +78,33 @@ abstract class Controller
         return false;
     }
 
+    protected function userHasAnyRoleName(array $user, array $roleNames): bool
+    {
+        return (new UserModel())->hasAnyRoleName((int) ($user['usuid'] ?? 0), $roleNames);
+    }
+
+    private function isAdministrativeMatriculationPath(string $path): bool
+    {
+        $path = '/' . trim($path, '/');
+
+        if ($path === '/matriculas') {
+            return true;
+        }
+
+        if (in_array($path, ['/matriculas/ficha', '/matriculas/certificado'], true)) {
+            return false;
+        }
+
+        return str_starts_with($path, '/matriculas/');
+    }
+
     private function permissionForCurrentPath(string $path): ?string
     {
         $path = '/' . trim($path, '/');
         $path = $path === '/' ? '/dashboard' : $path;
 
         $exact = [
-            '/dashboard' => 'dashboard.ver',
+            '/dashboard' => 'dashboard.ver|asistencia.registrar|novedades.registrar|calificaciones.registrar|calificaciones.editar',
             '/matricula-temporal' => 'matricula_temporal.ver|representante.matricula_nueva|representante.estudiantes',
             '/matricula-temporal/persona' => 'matricula_temporal.editar|representante.matricula_nueva',
             '/mi-matricula' => 'estudiante.mi_matricula',
@@ -75,6 +112,9 @@ abstract class Controller
             '/representante/estudiante/modulo' => 'representante.estudiantes',
             '/representante/contabilidad' => 'contabilidad.representante.obligaciones.ver|contabilidad.representante.pagos.ver|contabilidad.representante.comprobantes.subir|contabilidad.representante.rubros.ver',
             '/academico' => 'estudiantes.gestionar|personas.gestionar|matriculas.gestionar|asistencia.calendario.gestionar|asistencia.registrar|asistencia.supervisar|justificaciones.gestionar|asistencia.ver_propia|asistencia.representante.ver|novedades.registrar|novedades.supervisar|novedades.ver_propia|novedades.representante.ver|calificaciones.registrar|calificaciones.editar|calificaciones.configurar|calificaciones.validar|calificaciones.publicar|calificaciones.auditoria.ver',
+            '/docente/cursos' => 'asistencia.registrar|novedades.registrar|calificaciones.registrar|calificaciones.editar',
+            '/docente/curso' => 'asistencia.registrar|novedades.registrar|calificaciones.registrar|calificaciones.editar',
+            '/docente/curso/lista' => 'asistencia.registrar|novedades.registrar|calificaciones.registrar|calificaciones.editar',
             '/calificaciones/registro' => 'asistencia.registrar|calificaciones.registrar|calificaciones.editar|calificaciones.configurar|calificaciones.validar|calificaciones.publicar|calificaciones.auditoria.ver',
             '/calificaciones/actividad' => 'asistencia.registrar|calificaciones.registrar|calificaciones.editar|calificaciones.configurar',
             '/calificaciones/notas' => 'asistencia.registrar|calificaciones.registrar|calificaciones.editar|calificaciones.configurar',

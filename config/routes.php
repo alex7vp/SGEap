@@ -24,6 +24,8 @@ return static function (Router $router): void {
     $router->get('/login', [AuthController::class, 'index']);
     $router->post('/login', [AuthController::class, 'authenticate']);
     $router->get('/dashboard', [AuthController::class, 'dashboard']);
+    $router->get('/perfil', [AuthController::class, 'profile']);
+    $router->post('/perfil', [AuthController::class, 'updateProfile']);
     $router->get('/matricula-temporal', [MatriculationController::class, 'temporary']);
     $router->post('/matricula-temporal', [MatriculationController::class, 'storeTemporary']);
     $router->get('/matricula-temporal/persona', [MatriculationController::class, 'findPersonTemporary']);
@@ -33,6 +35,9 @@ return static function (Router $router): void {
     $router->get('/representante/estudiante/modulo', [StudentController::class, 'representativeStudentModule']);
     $router->get('/representante/contabilidad', [AccountingController::class, 'representativePayments']);
     $router->get('/academico', [ModuleController::class, 'academic']);
+    $router->get('/docente/cursos', [ModuleController::class, 'teacherCourses']);
+    $router->get('/docente/curso', [ModuleController::class, 'teacherCourse']);
+    $router->get('/docente/curso/lista', [ModuleController::class, 'teacherCourseList']);
     $router->get('/calificaciones/registro', [GradebookController::class, 'register']);
     $router->post('/calificaciones/actividad', [GradebookController::class, 'storeActivity']);
     $router->post('/calificaciones/notas', [GradebookController::class, 'saveGrades']);

@@ -68,6 +68,7 @@ class GradebookModel extends Model
                 v.curid,
                 v.graid,
                 cfg.nedid,
+                n.nednombre,
                 v.granombre,
                 v.prlnombre,
                 v.areanombre,
@@ -88,6 +89,8 @@ class GradebookModel extends Model
                 cfg.visible_como_materia_individual
              FROM materia_curso_docente mcd
              INNER JOIN vw_materia_curso v ON v.mtcid = mcd.mtcid
+             INNER JOIN grado gd ON gd.graid = v.graid
+             INNER JOIN nivel_educativo n ON n.nedid = gd.nedid
              LEFT JOIN vw_calificacion_materia_config_agrupada cfg
                 ON cfg.mtcid = mcd.mtcid
                 AND cfg.pleid = v.pleid
@@ -110,6 +113,41 @@ class GradebookModel extends Model
         return $statement->fetchAll();
     }
 
+    public function teacherCourses(int $personId, int $periodId): array
+    {
+        if ($personId <= 0 || $periodId <= 0) {
+            return [];
+        }
+
+        $courses = [];
+
+        foreach ($this->teacherSubjects($personId, $periodId) as $subject) {
+            $courseId = (int) ($subject['curid'] ?? 0);
+
+            if ($courseId <= 0) {
+                continue;
+            }
+
+            if (!isset($courses[$courseId])) {
+                $courses[$courseId] = [
+                    'curid' => $courseId,
+                    'nednombre' => (string) ($subject['nednombre'] ?? ''),
+                    'granombre' => (string) ($subject['granombre'] ?? ''),
+                    'prlnombre' => (string) ($subject['prlnombre'] ?? ''),
+                    'subjects' => [],
+                ];
+            }
+
+            $subjectName = trim((string) ($subject['mtcnombre_mostrar'] ?? $subject['asgnombre'] ?? ''));
+
+            if ($subjectName !== '' && !in_array($subjectName, $courses[$courseId]['subjects'], true)) {
+                $courses[$courseId]['subjects'][] = $subjectName;
+            }
+        }
+
+        return array_values($courses);
+    }
+
     public function selectedTeacherSubject(int $personId, int $periodId, int $courseSubjectId): array|false
     {
         foreach ($this->teacherSubjects($personId, $periodId) as $subject) {
@@ -130,6 +168,7 @@ class GradebookModel extends Model
                 v.curid,
                 v.graid,
                 cfg.nedid,
+                n.nednombre,
                 v.granombre,
                 v.prlnombre,
                 v.areanombre,
@@ -150,6 +189,8 @@ class GradebookModel extends Model
                 cfg.promedia_como_materia_individual,
                 cfg.visible_como_materia_individual
              FROM vw_materia_curso v
+             INNER JOIN grado gd ON gd.graid = v.graid
+             INNER JOIN nivel_educativo n ON n.nedid = gd.nedid
              LEFT JOIN vw_calificacion_materia_config_agrupada cfg
                 ON cfg.mtcid = v.mtcid
                 AND cfg.pleid = v.pleid
@@ -178,6 +219,7 @@ class GradebookModel extends Model
                 v.curid,
                 v.graid,
                 cfg.nedid,
+                n.nednombre,
                 v.granombre,
                 v.prlnombre,
                 v.areanombre,
@@ -198,6 +240,8 @@ class GradebookModel extends Model
                 cfg.promedia_como_materia_individual,
                 cfg.visible_como_materia_individual
              FROM vw_materia_curso v
+             INNER JOIN grado gd ON gd.graid = v.graid
+             INNER JOIN nivel_educativo n ON n.nedid = gd.nedid
              LEFT JOIN vw_calificacion_materia_config_agrupada cfg
                 ON cfg.mtcid = v.mtcid
                 AND cfg.pleid = v.pleid

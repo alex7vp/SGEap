@@ -66,13 +66,13 @@ $showInstitutionForm = $institution === false || !empty($error) || !empty($field
                     </div>
                 <?php endif; ?>
                 <div class="input-group">
-                    <span class="input-addon">Nombre</span>
+                    <span class="input-addon">Nombre comercial</span>
                     <input class="<?= !empty($fieldErrors['insnombre']) ? 'is-invalid' : ''; ?>" type="text" name="insnombre" value="<?= htmlspecialchars((string) ($old['insnombre'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" required>
                 </div>
             </div>
             <div class="form-group-full">
                 <div class="input-group">
-                    <span class="input-addon">Razon social</span>
+                    <span class="input-addon">Nombre oficial</span>
                     <input type="text" name="insrazonsocial" value="<?= htmlspecialchars((string) ($old['insrazonsocial'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>">
                 </div>
             </div>

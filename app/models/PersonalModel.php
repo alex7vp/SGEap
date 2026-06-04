@@ -83,6 +83,33 @@ class PersonalModel extends Model
         return $statement->fetchAll();
     }
 
+    public function activeByTypeName(string $typeName): array
+    {
+        $statement = $this->db->prepare(
+            "SELECT DISTINCT
+                    ps.psnid,
+                    ps.perid,
+                    p.percedula,
+                    p.pernombres,
+                    p.perapellidos,
+                    p.percorreo
+             FROM {$this->table} ps
+             INNER JOIN persona p ON p.perid = ps.perid
+             INNER JOIN asignacion_tipo_personal atp
+                     ON atp.psnid = ps.psnid
+                    AND atp.atpestado = true
+             INNER JOIN tipo_personal tp
+                     ON tp.tpid = atp.tpid
+                    AND tp.tpestado = true
+             WHERE ps.psnestado = true
+               AND tp.tpnombre = :type_name
+             ORDER BY p.perapellidos ASC, p.pernombres ASC"
+        );
+        $statement->execute(['type_name' => $typeName]);
+
+        return $statement->fetchAll();
+    }
+
     public function activeTypes(): array
     {
         $statement = $this->db->query(

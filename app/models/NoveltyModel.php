@@ -301,6 +301,7 @@ class NoveltyModel extends Model
                     p.percedula,
                     p.perapellidos,
                     p.pernombres,
+                    c.curid,
                     CONCAT(g.granombre, ' ', pr.prlnombre) AS curso,
                     sc.sclnumero_hora,
                     v.mtcnombre_mostrar,

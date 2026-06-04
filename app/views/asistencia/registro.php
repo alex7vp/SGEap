@@ -19,6 +19,8 @@ $noveltyTypes = is_array($noveltyTypes ?? null) ? $noveltyTypes : [];
 $noveltyStudents = is_array($noveltyStudents ?? null) ? $noveltyStudents : [];
 $noveltySessions = is_array($noveltySessions ?? null) ? $noveltySessions : [];
 $recentNovelties = is_array($recentNovelties ?? null) ? $recentNovelties : [];
+$selectedCourseId = (int) ($selectedCourseId ?? 0);
+$courseQuerySuffix = $selectedCourseId > 0 ? '&curid=' . (string) $selectedCourseId : '';
 $userPermissions = (array) ($user['permissions'] ?? []);
 $canRegisterNovelties = !empty($canRegisterNovelties)
     || in_array('novedades.registrar', $userPermissions, true)
@@ -53,8 +55,8 @@ $openNoveltyMode = (string) ($_GET['accion'] ?? '') === 'novedad';
 $openNoveltyForSession = $session !== false && $openNoveltyMode;
 $noveltyFormStudents = $openNoveltyForSession ? $students : $noveltyStudents;
 $noveltyRedirect = $openNoveltyForSession
-    ? '/asistencia/registro?sclid=' . (string) $session['sclid'] . '&accion=novedad#novedad-dialog'
-    : '/asistencia/registro?mes=' . (string) $selectedMonth . '&fecha=' . (string) $selectedDate . '&accion=novedad#novedad-dialog';
+    ? '/asistencia/registro?sclid=' . (string) $session['sclid'] . $courseQuerySuffix . '&accion=novedad#novedad-dialog'
+    : '/asistencia/registro?mes=' . (string) $selectedMonth . '&fecha=' . (string) $selectedDate . $courseQuerySuffix . '&accion=novedad#novedad-dialog';
 $contextLabels = [
     'CLASE' => 'Hora clase',
     'RECREO' => 'Recreo',
@@ -84,7 +86,7 @@ $contextLabels = [
                 <?php if ($canNavigatePrevious): ?>
                     <a
                         class="calendar-nav-button"
-                        href="<?= htmlspecialchars(baseUrl('asistencia/registro?mes=' . $previousMonth . '#calendario-docente'), ENT_QUOTES, 'UTF-8'); ?>"
+                        href="<?= htmlspecialchars(baseUrl('asistencia/registro?mes=' . $previousMonth . $courseQuerySuffix . '#calendario-docente'), ENT_QUOTES, 'UTF-8'); ?>"
                         title="Mes anterior"
                         aria-label="Mes anterior"
                     >
@@ -100,7 +102,7 @@ $contextLabels = [
                 <?php if ($canNavigateNext): ?>
                     <a
                         class="calendar-nav-button"
-                        href="<?= htmlspecialchars(baseUrl('asistencia/registro?mes=' . $nextMonth . '#calendario-docente'), ENT_QUOTES, 'UTF-8'); ?>"
+                        href="<?= htmlspecialchars(baseUrl('asistencia/registro?mes=' . $nextMonth . $courseQuerySuffix . '#calendario-docente'), ENT_QUOTES, 'UTF-8'); ?>"
                         title="Mes siguiente"
                         aria-label="Mes siguiente"
                     >
@@ -128,7 +130,7 @@ $contextLabels = [
                         $day = $teacherCalendarDays[$date] ?? null;
                         $enabled = is_array($day);
                         $isWeekend = (int) date('N', strtotime($date)) >= 6;
-                        $actionUrl = baseUrl('asistencia/registro?mes=' . (string) $selectedMonth . '&fecha=' . $date . '#acciones-dia');
+                        $actionUrl = baseUrl('asistencia/registro?mes=' . (string) $selectedMonth . '&fecha=' . $date . $courseQuerySuffix . '#acciones-dia');
                         ?>
                         <div
                             class="calendar-day <?= $enabled ? 'is-enabled is-type-normal' : 'is-suspended'; ?> <?= $isWeekend ? 'is-weekend' : ''; ?> <?= $date === (string) $selectedDate ? 'is-selected' : ''; ?>"
@@ -149,6 +151,9 @@ $contextLabels = [
                 <form class="data-form" method="POST" action="<?= htmlspecialchars(baseUrl('asistencia/sesiones'), ENT_QUOTES, 'UTF-8'); ?>">
                     <?= csrfField(); ?>
                     <input type="hidden" name="next_action" value="attendance">
+                    <?php if ($selectedCourseId > 0): ?>
+                        <input type="hidden" name="curid" value="<?= htmlspecialchars((string) $selectedCourseId, ENT_QUOTES, 'UTF-8'); ?>">
+                    <?php endif; ?>
                     <header class="security-assignment-header">
                         <div>
                             <h3 data-session-dialog-title>Abrir lista</h3>
@@ -253,7 +258,7 @@ $contextLabels = [
 
                 <div class="actions-row">
                     <?php if ($teacherDaySessions !== []): ?>
-                        <a class="btn-secondary btn-inline" href="<?= htmlspecialchars(baseUrl('asistencia/registro?mes=' . (string) $selectedMonth . '&fecha=' . (string) $selectedDate . '#detalle-docente'), ENT_QUOTES, 'UTF-8'); ?>">
+                        <a class="btn-secondary btn-inline" href="<?= htmlspecialchars(baseUrl('asistencia/registro?mes=' . (string) $selectedMonth . '&fecha=' . (string) $selectedDate . $courseQuerySuffix . '#detalle-docente'), ENT_QUOTES, 'UTF-8'); ?>">
                             Ver detalle
                         </a>
                     <?php endif; ?>

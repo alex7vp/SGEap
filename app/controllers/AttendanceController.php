@@ -141,6 +141,7 @@ class AttendanceController extends Controller
         $period = currentAcademicPeriod();
         $attendanceModel = new AttendanceModel();
         $periodId = $period !== null ? (int) $period['pleid'] : 0;
+        $selectedCourseId = max(0, (int) ($_GET['curid'] ?? 0));
         $classDateRange = $periodId > 0 ? $attendanceModel->classDateRangeByPeriod($periodId) : null;
         $availableMonths = $classDateRange !== null
             ? $this->monthsBetween((string) $classDateRange['start'], (string) $classDateRange['end'])
@@ -156,6 +157,7 @@ class AttendanceController extends Controller
         $availabilityRows = $periodId > 0
             ? $attendanceModel->teacherCalendarAvailabilityByRange((int) ($user['perid'] ?? 0), $periodId, $monthStart, $monthEnd)
             : [];
+        $availabilityRows = $this->filterRowsByCourse($availabilityRows, $selectedCourseId);
         $teacherCalendarDays = $this->teacherCalendarDaysFromAvailability($availabilityRows);
         $teacherSubjectHours = [];
         $date = $this->validDateOrToday((string) ($_GET['fecha'] ?? $this->firstTeacherSelectableDateForMonth($teacherCalendarDays, $monthStart, $classDateRange)));
@@ -171,6 +173,14 @@ class AttendanceController extends Controller
             $session = $attendanceModel->sessionForTeacher($sessionId, (int) ($user['perid'] ?? 0));
 
             if ($session !== false) {
+                if ($selectedCourseId > 0 && (int) ($session['curid'] ?? 0) !== $selectedCourseId) {
+                    $session = false;
+                } else {
+                    $selectedCourseId = (int) ($session['curid'] ?? $selectedCourseId);
+                }
+            }
+
+            if ($session !== false) {
                 $students = $attendanceModel->activeStudentsForSession($sessionId);
                 $attendance = $attendanceModel->attendanceBySession($sessionId);
                 $date = (string) $session['cafecha'];
@@ -184,6 +194,7 @@ class AttendanceController extends Controller
             $availabilityRows = $periodId > 0
                 ? $attendanceModel->teacherCalendarAvailabilityByRange((int) ($user['perid'] ?? 0), $periodId, $monthStart, $monthEnd)
                 : [];
+            $availabilityRows = $this->filterRowsByCourse($availabilityRows, $selectedCourseId);
             $teacherCalendarDays = $this->teacherCalendarDaysFromAvailability($availabilityRows);
             $teacherSessionDays = $periodId > 0
                 ? $attendanceModel->teacherSessionSummaryByRange((int) ($user['perid'] ?? 0), $periodId, $monthStart, $monthEnd)
@@ -191,6 +202,12 @@ class AttendanceController extends Controller
         }
 
         $teacherSubjectHours = $this->teacherSubjectHoursForDate($availabilityRows, $date);
+        $teacherDaySessions = $periodId > 0 && $date !== ''
+            ? $this->filterRowsByCourse(
+                $attendanceModel->teacherSessionsByDate((int) ($user['perid'] ?? 0), $periodId, $date),
+                $selectedCourseId
+            )
+            : [];
         $canRegisterNovelties = $this->hasPermission('novedades.registrar', $user)
             || $this->hasPermission('novedades.supervisar', $user);
         $noveltyModel = $canRegisterNovelties ? new NoveltyModel() : null;
@@ -214,10 +231,9 @@ class AttendanceController extends Controller
             'teacherSubjectHours' => $teacherSubjectHours,
             'teacherDayHourSubjects' => $this->teacherDayHourSubjectsFromAvailability($availabilityRows),
             'teacherSessionDays' => $teacherSessionDays,
-            'teacherDaySessions' => $periodId > 0 && $date !== ''
-                ? $attendanceModel->teacherSessionsByDate((int) ($user['perid'] ?? 0), $periodId, $date)
-                : [],
+            'teacherDaySessions' => $teacherDaySessions,
             'selectedHour' => (string) ($_GET['hora'] ?? ''),
+            'selectedCourseId' => $selectedCourseId,
             'teacherSubjects' => array_values($teacherSubjectHours),
             'session' => $session,
             'students' => $students,
@@ -225,13 +241,13 @@ class AttendanceController extends Controller
             'canRegisterNovelties' => $canRegisterNovelties,
             'noveltyTypes' => $noveltyModel !== null ? $noveltyModel->activeTypes() : [],
             'noveltyStudents' => $periodId > 0 && $noveltyModel !== null
-                ? $noveltyModel->activeMatriculationsForPeriod($periodId, $noveltyTeacherScope)
+                ? $this->filterRowsByCourse($noveltyModel->activeMatriculationsForPeriod($periodId, $noveltyTeacherScope), $selectedCourseId)
                 : [],
             'noveltySessions' => $periodId > 0 && $noveltyModel !== null
-                ? $noveltyModel->sessionsForDate($periodId, $date, $noveltyTeacherScope)
+                ? $this->filterRowsByCourse($noveltyModel->sessionsForDate($periodId, $date, $noveltyTeacherScope), $selectedCourseId)
                 : [],
             'recentNovelties' => $periodId > 0 && $noveltyModel !== null
-                ? $noveltyModel->byPeriod($periodId, $date, 0, $noveltyTeacherScope)
+                ? $this->filterRowsByCourse($noveltyModel->byPeriod($periodId, $date, 0, $noveltyTeacherScope), $selectedCourseId)
                 : [],
             'success' => sessionFlash('success'),
             'error' => sessionFlash('error'),
@@ -815,13 +831,15 @@ class AttendanceController extends Controller
         $assignmentKey = explode('|', (string) ($_POST['asignacion'] ?? ''));
         $assignmentId = (int) ($assignmentKey[0] ?? 0);
         $courseSubjectId = (int) ($assignmentKey[1] ?? 0);
+        $courseId = max(0, (int) ($_POST['curid'] ?? 0));
         $hour = (int) ($_POST['sclnumero_hora'] ?? 0);
         $date = $this->validDateOrToday((string) ($_POST['cafecha'] ?? ''));
         $nextAction = (string) ($_POST['next_action'] ?? 'attendance');
+        $courseQuery = $courseId > 0 ? '&curid=' . $courseId : '';
 
         if ($courseSubjectId <= 0 || $assignmentId <= 0 || $hour < 1 || $hour > 7) {
             sessionFlash('error', 'Debe seleccionar una materia asignada y una hora valida.');
-            $this->redirect('/asistencia/registro?fecha=' . $date);
+            $this->redirect('/asistencia/registro?fecha=' . $date . $courseQuery);
         }
 
         $attendanceModel = new AttendanceModel();
@@ -835,24 +853,29 @@ class AttendanceController extends Controller
 
         if ($assignment === false) {
             sessionFlash('error', 'La materia seleccionada no esta asignada a su usuario para esa fecha.');
-            $this->redirect('/asistencia/registro?fecha=' . $date);
+            $this->redirect('/asistencia/registro?fecha=' . $date . $courseQuery);
+        }
+
+        if ($courseId > 0 && (int) ($assignment['curid'] ?? 0) !== $courseId) {
+            sessionFlash('error', 'La materia seleccionada no pertenece al curso solicitado.');
+            $this->redirect('/asistencia/registro?fecha=' . $date . $courseQuery);
         }
 
         $calendarId = $attendanceModel->findCalendarDayId((int) $period['pleid'], $date);
 
         if ($calendarId === null) {
             sessionFlash('error', 'El dia no esta habilitado para registrar asistencia.');
-            $this->redirect('/asistencia/registro?fecha=' . $date);
+            $this->redirect('/asistencia/registro?fecha=' . $date . $courseQuery);
         }
 
         if (!$attendanceModel->dateIsInsideClassRange((int) $period['pleid'], $date)) {
             sessionFlash('error', 'La fecha seleccionada esta fuera del rango de clases configurado.');
-            $this->redirect('/asistencia/registro?fecha=' . $date);
+            $this->redirect('/asistencia/registro?fecha=' . $date . $courseQuery);
         }
 
         if (!$attendanceModel->calendarAllowsSession($calendarId, (int) $assignment['curid'], $hour)) {
             sessionFlash('error', 'La jornada no permite registrar asistencia para esa hora y curso.');
-            $this->redirect('/asistencia/registro?fecha=' . $date);
+            $this->redirect('/asistencia/registro?fecha=' . $date . $courseQuery);
         }
 
         try {
@@ -865,14 +888,14 @@ class AttendanceController extends Controller
             );
         } catch (Throwable) {
             sessionFlash('error', 'No se pudo abrir la sesion de asistencia.');
-            $this->redirect('/asistencia/registro?fecha=' . $date);
+            $this->redirect('/asistencia/registro?fecha=' . $date . $courseQuery);
         }
 
         if ($nextAction === 'novelty') {
-            $this->redirect('/asistencia/registro?sclid=' . $sessionId . '&accion=novedad#novedad-dialog');
+            $this->redirect('/asistencia/registro?sclid=' . $sessionId . $courseQuery . '&accion=novedad#novedad-dialog');
         }
 
-        $this->redirect('/asistencia/registro?sclid=' . $sessionId . '#registro');
+        $this->redirect('/asistencia/registro?sclid=' . $sessionId . $courseQuery . '#registro');
     }
 
     public function saveRegister(): void
@@ -887,21 +910,23 @@ class AttendanceController extends Controller
             $this->redirect('/asistencia/registro');
         }
 
+        $sessionCourseQuery = (int) ($session['curid'] ?? 0) > 0 ? '&curid=' . (int) $session['curid'] : '';
+
         if (($session['sclestado'] ?? '') === 'CERRADA') {
             sessionFlash('error', 'La sesion ya esta cerrada y no permite cambios.');
-            $this->redirect('/asistencia/registro?sclid=' . $sessionId . '#registro');
+            $this->redirect('/asistencia/registro?sclid=' . $sessionId . $sessionCourseQuery . '#registro');
         }
 
         if (!$attendanceModel->calendarAllowsSession((int) $session['caid'], (int) $session['curid'], (int) $session['sclnumero_hora'])) {
             sessionFlash('error', 'La jornada ya no permite registrar asistencia para esa hora y curso.');
-            $this->redirect('/asistencia/registro?sclid=' . $sessionId . '#registro');
+            $this->redirect('/asistencia/registro?sclid=' . $sessionId . $sessionCourseQuery . '#registro');
         }
 
         $students = $attendanceModel->activeStudentsForSession($sessionId);
 
         if ($students === []) {
             sessionFlash('error', 'No hay estudiantes activos para registrar en esta sesion.');
-            $this->redirect('/asistencia/registro?sclid=' . $sessionId . '#registro');
+            $this->redirect('/asistencia/registro?sclid=' . $sessionId . $sessionCourseQuery . '#registro');
         }
 
         $allowedStudentIds = array_map(static fn (array $student): int => (int) $student['estid'], $students);
@@ -922,11 +947,12 @@ class AttendanceController extends Controller
             sessionFlash('success', 'Asistencia guardada correctamente.');
         } catch (Throwable $exception) {
             sessionFlash('error', $exception->getMessage());
-            $this->redirect('/asistencia/registro?sclid=' . $sessionId . '#registro');
+            $this->redirect('/asistencia/registro?sclid=' . $sessionId . $sessionCourseQuery . '#registro');
         }
 
         $date = (string) ($session['cafecha'] ?? date('Y-m-d'));
-        $this->redirect('/asistencia/registro?mes=' . substr($date, 0, 7) . '&fecha=' . $date . '#calendario-docente');
+        $courseId = (int) ($session['curid'] ?? 0);
+        $this->redirect('/asistencia/registro?mes=' . substr($date, 0, 7) . '&fecha=' . $date . ($courseId > 0 ? '&curid=' . $courseId : '') . '#calendario-docente');
     }
 
     public function closeSession(): void
@@ -947,17 +973,18 @@ class AttendanceController extends Controller
             $this->redirect('/asistencia/registro');
         }
 
+        $sessionCourseQuery = (int) ($session['curid'] ?? 0) > 0 ? '&curid=' . (int) $session['curid'] : '';
         $students = $attendanceModel->activeStudentsForSession($sessionId);
         $attendance = $attendanceModel->attendanceBySession($sessionId);
 
         if ($students === []) {
             sessionFlash('error', 'No hay estudiantes activos para cerrar esta sesion.');
-            $this->redirect('/asistencia/registro?sclid=' . $sessionId . '#registro');
+            $this->redirect('/asistencia/registro?sclid=' . $sessionId . $sessionCourseQuery . '#registro');
         }
 
         if (count($attendance) < count($students)) {
             sessionFlash('error', 'Debe guardar asistencia para todos los estudiantes activos antes de cerrar la sesion.');
-            $this->redirect('/asistencia/registro?sclid=' . $sessionId . '#registro');
+            $this->redirect('/asistencia/registro?sclid=' . $sessionId . $sessionCourseQuery . '#registro');
         }
 
         try {
@@ -967,7 +994,7 @@ class AttendanceController extends Controller
             sessionFlash('error', $exception->getMessage());
         }
 
-        $this->redirect('/asistencia/registro?sclid=' . $sessionId . '#registro');
+        $this->redirect('/asistencia/registro?sclid=' . $sessionId . $sessionCourseQuery . '#registro');
     }
 
     public function storeArea(): void
@@ -1421,6 +1448,18 @@ class AttendanceController extends Controller
         }
 
         return $map;
+    }
+
+    private function filterRowsByCourse(array $rows, int $courseId): array
+    {
+        if ($courseId <= 0) {
+            return $rows;
+        }
+
+        return array_values(array_filter(
+            $rows,
+            static fn (array $row): bool => (int) ($row['curid'] ?? 0) === $courseId
+        ));
     }
 
     private function dateInsideClassRange(string $date, ?array $classDateRange): bool

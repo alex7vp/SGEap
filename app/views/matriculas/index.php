@@ -956,39 +956,61 @@ $healthConditionTemplate = ob_get_clean();
             $reportRows = is_array($reportMatriculas ?? null) ? $reportMatriculas : [];
             $reportCourses = is_array($reportCourses ?? null) ? $reportCourses : [];
             $reportLevels = is_array($reportLevels ?? null) ? $reportLevels : [];
+            $reportPeriods = is_array($reportPeriods ?? null) ? $reportPeriods : [];
+            $reportPeriodId = (int) ($reportPeriodId ?? ($currentPeriod['pleid'] ?? 0));
+            $certificateSecretaries = is_array($certificateSecretaries ?? null) ? $certificateSecretaries : [];
+            $certificateInstitutionNames = is_array($certificateInstitutionNames ?? null) ? $certificateInstitutionNames : [];
+            $canCustomizeCourseReport = !empty($canCustomizeCourseReport);
             $reportFilters = is_array($reportFilters ?? null) ? $reportFilters : [];
             $reportSubmitted = !empty($reportSubmitted);
-            $renderReportResultRows = static function (array $rows, string $type): void {
+            $renderReportResultRows = static function (array $rows, string $type, array $filters = []): void {
                 if ($rows === []) {
                     echo '<div class="empty-state">No se encontraron resultados para los filtros seleccionados.</div>';
                     return;
                 }
+                $selectedFields = is_array($filters['campos'] ?? null) ? $filters['campos'] : [];
                 ?>
                 <div class="table-wrap matricula-report-results">
                     <table class="data-table">
                         <thead>
                             <tr>
-                                <th>Estudiante</th>
-                                <th>Curso</th>
-                                <th>Edad</th>
-                                <th>Sexo</th>
+                                <?php if ($type === 'curso'): ?>
+                                    <th>#</th>
+                                    <th>Apellidos y nombres</th>
+                                    <?php if (in_array('cedula', $selectedFields, true)): ?><th>Cedula</th><?php endif; ?>
+                                    <?php if (in_array('edad', $selectedFields, true)): ?><th>Edad</th><?php endif; ?>
+                                    <?php if (in_array('sexo', $selectedFields, true)): ?><th>Sexo</th><?php endif; ?>
+                                <?php else: ?>
+                                    <th>Estudiante</th>
+                                    <th>Curso</th>
+                                    <th>Edad</th>
+                                    <th>Sexo</th>
+                                <?php endif; ?>
                                 <?php if ($type === 'representantes'): ?><th>Representante</th><?php endif; ?>
                                 <?php if ($type === 'documentos'): ?><th>Documentos</th><?php endif; ?>
                                 <?php if ($type === 'salud'): ?><th>Salud</th><?php endif; ?>
                             </tr>
                         </thead>
                         <tbody>
-                            <?php foreach ($rows as $row): ?>
+                            <?php foreach ($rows as $index => $row): ?>
                                 <?php
                                     $studentName = trim((string) (($row['perapellidos'] ?? '') . ' ' . ($row['pernombres'] ?? '')));
                                     $courseName = trim((string) (($row['granombre'] ?? '') . ' ' . ($row['prlnombre'] ?? '')));
                                     $repName = trim((string) (($row['rep_apellidos'] ?? '') . ' ' . ($row['rep_nombres'] ?? '')));
                                 ?>
                                 <tr>
-                                    <td><span class="cell-title"><?= htmlspecialchars((string) ($row['percedula'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></span><span class="cell-subtitle"><?= htmlspecialchars($studentName, ENT_QUOTES, 'UTF-8'); ?></span></td>
-                                    <td><?= htmlspecialchars($courseName, ENT_QUOTES, 'UTF-8'); ?></td>
-                                    <td><?= htmlspecialchars((string) ($row['edad'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></td>
-                                    <td><?= htmlspecialchars((string) ($row['persexo'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></td>
+                                    <?php if ($type === 'curso'): ?>
+                                        <td><?= htmlspecialchars((string) ($index + 1), ENT_QUOTES, 'UTF-8'); ?></td>
+                                        <td><?= htmlspecialchars($studentName, ENT_QUOTES, 'UTF-8'); ?></td>
+                                        <?php if (in_array('cedula', $selectedFields, true)): ?><td><?= htmlspecialchars((string) ($row['percedula'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></td><?php endif; ?>
+                                        <?php if (in_array('edad', $selectedFields, true)): ?><td><?= htmlspecialchars((string) ($row['edad'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></td><?php endif; ?>
+                                        <?php if (in_array('sexo', $selectedFields, true)): ?><td><?= htmlspecialchars((string) ($row['persexo'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></td><?php endif; ?>
+                                    <?php else: ?>
+                                        <td><span class="cell-title"><?= htmlspecialchars((string) ($row['percedula'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></span><span class="cell-subtitle"><?= htmlspecialchars($studentName, ENT_QUOTES, 'UTF-8'); ?></span></td>
+                                        <td><?= htmlspecialchars($courseName, ENT_QUOTES, 'UTF-8'); ?></td>
+                                        <td><?= htmlspecialchars((string) ($row['edad'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></td>
+                                        <td><?= htmlspecialchars((string) ($row['persexo'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></td>
+                                    <?php endif; ?>
                                     <?php if ($type === 'representantes'): ?><td><span class="cell-title"><?= htmlspecialchars($repName !== '' ? $repName : 'Sin representante', ENT_QUOTES, 'UTF-8'); ?></span><span class="cell-subtitle"><?= htmlspecialchars((string) ($row['rep_telefono'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></span></td><?php endif; ?>
                                     <?php if ($type === 'documentos'): ?><td><?= htmlspecialchars((string) ($row['documentos_aceptados'] ?? 0), ENT_QUOTES, 'UTF-8'); ?>/<?= htmlspecialchars((string) ($row['total_documentos'] ?? 0), ENT_QUOTES, 'UTF-8'); ?></td><?php endif; ?>
                                     <?php if ($type === 'salud'): ?><td><span class="cell-title"><?= !empty($row['tiene_discapacidad']) ? 'Discapacidad' : 'Sin discapacidad'; ?></span><span class="cell-subtitle"><?= htmlspecialchars((string) ($row['gsnombre'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></span></td><?php endif; ?>
@@ -1001,7 +1023,7 @@ $healthConditionTemplate = ob_get_clean();
             };
             $reportOptions = [
                 'fichas' => ['title' => 'Fichas de matricula', 'description' => 'Busca un estudiante y genera su ficha PDF individual.', 'icon' => 'fa-file-pdf-o'],
-                'certificados' => ['title' => 'Certificados de matricula', 'description' => 'Ruta preparada; falta cargar la plantilla institucional.', 'icon' => 'fa-certificate'],
+                'certificados' => ['title' => 'Certificados de matricula', 'description' => 'Selecciona periodo y estudiante para generar el certificado PDF.', 'icon' => 'fa-certificate'],
                 'curso' => ['title' => 'Listas por curso', 'description' => 'Listados por nivel, grado, paralelo o curso completo.', 'icon' => 'fa-list-ul'],
                 'personalizado' => ['title' => 'Listado personalizado', 'description' => 'Filtros por edad, sexo, nivel y otros criterios.', 'icon' => 'fa-filter'],
                 'representantes' => ['title' => 'Representantes', 'description' => 'Contactos de representantes, padres y madres por curso.', 'icon' => 'fa-users'],
@@ -1044,6 +1066,20 @@ $healthConditionTemplate = ob_get_clean();
                 <input type="hidden" name="panel" value="reportes">
                 <input type="hidden" name="tipo" value="<?= htmlspecialchars($searchReportType, ENT_QUOTES, 'UTF-8'); ?>">
                 <div class="form-grid">
+                    <?php if ($searchReportType === 'certificados'): ?>
+                    <div class="form-group">
+                        <div class="input-group">
+                            <span class="input-addon">Periodo</span>
+                            <select name="pleid" required>
+                                <?php foreach ($reportPeriods as $period): ?>
+                                    <option value="<?= htmlspecialchars((string) ($period['pleid'] ?? 0), ENT_QUOTES, 'UTF-8'); ?>" <?= $reportPeriodId === (int) ($period['pleid'] ?? 0) ? 'selected' : ''; ?>>
+                                        <?= htmlspecialchars((string) ($period['pledescripcion'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                    </div>
+                    <?php endif; ?>
                     <div class="form-group form-group-full">
                         <div class="input-group">
                             <span class="input-addon">Estudiante</span>
@@ -1067,7 +1103,7 @@ $healthConditionTemplate = ob_get_clean();
             </form>
 
             <?php if ($selectedReportType !== $searchReportType): ?>
-                <div class="empty-state">Busca por apellidos, nombres o numero de cedula para ver resultados.</div>
+                <div class="empty-state"><?= $searchReportType === 'certificados' ? 'Selecciona periodo y busca por apellidos, nombres o numero de cedula.' : 'Busca por apellidos, nombres o numero de cedula para ver resultados.'; ?></div>
             <?php elseif ($reportSearchValue === ''): ?>
                 <div class="empty-state">Ingresa al menos dos caracteres para buscar una matricula.</div>
             <?php elseif ($reportRows === []): ?>
@@ -1100,6 +1136,51 @@ $healthConditionTemplate = ob_get_clean();
                         </label>
                     <?php endforeach; ?>
                 </div>
+                <?php if ($searchReportType === 'certificados'): ?>
+                    <?php if (count($certificateInstitutionNames) > 1): ?>
+                        <div class="form-grid">
+                            <div class="form-group form-group-full">
+                                <div class="input-group">
+                                    <span class="input-addon">Institucion</span>
+                                    <select name="institucion_nombre" required>
+                                        <option value="">Seleccione</option>
+                                        <?php foreach ($certificateInstitutionNames as $nameType => $institutionName): ?>
+                                            <option value="<?= htmlspecialchars((string) $nameType, ENT_QUOTES, 'UTF-8'); ?>">
+                                                <?= htmlspecialchars(((string) $nameType === 'oficial' ? 'Oficial: ' : 'Comercial: ') . (string) $institutionName, ENT_QUOTES, 'UTF-8'); ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    <?php elseif (count($certificateInstitutionNames) === 1): ?>
+                        <input type="hidden" name="institucion_nombre" value="<?= htmlspecialchars((string) array_key_first($certificateInstitutionNames), ENT_QUOTES, 'UTF-8'); ?>">
+                    <?php else: ?>
+                        <div class="empty-state">No hay nombre institucional registrado. El certificado usara el nombre de la aplicacion.</div>
+                    <?php endif; ?>
+                    <?php if (count($certificateSecretaries) > 1): ?>
+                        <div class="form-grid">
+                            <div class="form-group form-group-full">
+                                <div class="input-group">
+                                    <span class="input-addon">Secretaria</span>
+                                    <select name="secretaria_perid" required>
+                                        <option value="">Seleccione</option>
+                                        <?php foreach ($certificateSecretaries as $secretary): ?>
+                                            <?php $secretaryName = trim((string) (($secretary['perapellidos'] ?? '') . ' ' . ($secretary['pernombres'] ?? ''))); ?>
+                                            <option value="<?= htmlspecialchars((string) ($secretary['perid'] ?? 0), ENT_QUOTES, 'UTF-8'); ?>">
+                                                <?= htmlspecialchars($secretaryName !== '' ? $secretaryName : 'Secretaria sin nombre', ENT_QUOTES, 'UTF-8'); ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    <?php elseif (count($certificateSecretaries) === 1): ?>
+                        <input type="hidden" name="secretaria_perid" value="<?= htmlspecialchars((string) ($certificateSecretaries[0]['perid'] ?? 0), ENT_QUOTES, 'UTF-8'); ?>">
+                    <?php else: ?>
+                        <div class="empty-state">No hay personal activo con tipo Secretaria. El certificado se generara sin nombre de secretaria.</div>
+                    <?php endif; ?>
+                <?php endif; ?>
                 <div class="form-actions">
                     <button class="btn-primary btn-auto" type="submit">
                         <i class="fa fa-file-pdf-o" aria-hidden="true"></i>
@@ -1125,8 +1206,32 @@ $healthConditionTemplate = ob_get_clean();
                 <input type="hidden" name="consultar" value="1">
                 <div class="form-grid">
                     <div class="form-group form-group-full"><div class="input-group"><span class="input-addon">Curso</span><select name="curid" required><option value="">Seleccione</option><?php foreach ($reportCourses as $course): ?><option value="<?= htmlspecialchars((string) ($course['curid'] ?? 0), ENT_QUOTES, 'UTF-8'); ?>" <?= (int) ($reportFilters['curid'] ?? 0) === (int) ($course['curid'] ?? 0) ? 'selected' : ''; ?>><?= htmlspecialchars((string) (($course['nednombre'] ?? '') . ' | ' . ($course['granombre'] ?? '') . ' | ' . ($course['prlnombre'] ?? '')), ENT_QUOTES, 'UTF-8'); ?></option><?php endforeach; ?></select></div></div>
+                    <?php if ($canCustomizeCourseReport): ?>
+                        <div class="form-group"><div class="input-group"><span class="input-addon">Sexo</span><select name="sexo"><option value="">Todos</option><option value="Masculino" <?= ($reportFilters['sexo'] ?? '') === 'Masculino' ? 'selected' : ''; ?>>Masculino</option><option value="Femenino" <?= ($reportFilters['sexo'] ?? '') === 'Femenino' ? 'selected' : ''; ?>>Femenino</option></select></div></div>
+                        <div class="form-group"><div class="input-group"><span class="input-addon">Edad desde</span><input name="edad_desde" type="number" min="0" value="<?= htmlspecialchars((string) ($reportFilters['edad_desde'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>"></div></div>
+                        <div class="form-group"><div class="input-group"><span class="input-addon">Edad hasta</span><input name="edad_hasta" type="number" min="0" value="<?= htmlspecialchars((string) ($reportFilters['edad_hasta'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>"></div></div>
+                    <?php endif; ?>
                     <div class="form-group"><div class="input-group"><span class="input-addon">Formato</span><select name="formato"><option selected>PDF</option></select></div></div>
                 </div>
+                <?php if ($canCustomizeCourseReport): ?>
+                    <?php $selectedCourseFields = is_array($reportFilters['campos'] ?? null) ? $reportFilters['campos'] : []; ?>
+                    <div class="resource-options-grid">
+                        <label class="resource-option">
+                            <span>Mostrar cedula</span>
+                            <input type="checkbox" name="campos[]" value="cedula" <?= in_array('cedula', $selectedCourseFields, true) ? 'checked' : ''; ?>>
+                        </label>
+                        <label class="resource-option">
+                            <span>Mostrar edad</span>
+                            <input type="checkbox" name="campos[]" value="edad" <?= in_array('edad', $selectedCourseFields, true) ? 'checked' : ''; ?>>
+                        </label>
+                        <label class="resource-option">
+                            <span>Mostrar sexo</span>
+                            <input type="checkbox" name="campos[]" value="sexo" <?= in_array('sexo', $selectedCourseFields, true) ? 'checked' : ''; ?>>
+                        </label>
+                    </div>
+                <?php else: ?>
+                    <div class="empty-state">El listado para docentes se genera con numeracion y apellidos/nombres.</div>
+                <?php endif; ?>
                 <div class="form-actions">
                     <button class="btn-primary btn-auto" type="submit">
                         <i class="fa fa-search" aria-hidden="true"></i>
@@ -1139,7 +1244,7 @@ $healthConditionTemplate = ob_get_clean();
                 </div>
             </form>
             <?php if ($selectedReportType === 'curso' && $reportSubmitted): ?>
-                <?php $renderReportResultRows($reportRows, 'curso'); ?>
+                <?php $renderReportResultRows($reportRows, 'curso', $reportFilters); ?>
             <?php endif; ?>
         </dialog>
 
@@ -1168,7 +1273,7 @@ $healthConditionTemplate = ob_get_clean();
                 </div>
             </form>
             <?php if ($selectedReportType === 'personalizado' && $reportSubmitted): ?>
-                <?php $renderReportResultRows($reportRows, 'personalizado'); ?>
+                <?php $renderReportResultRows($reportRows, 'personalizado', $reportFilters); ?>
             <?php endif; ?>
         </dialog>
 
@@ -1204,7 +1309,7 @@ $healthConditionTemplate = ob_get_clean();
                 </div>
             </form>
             <?php if ($selectedReportType === $pendingReportType && $reportSubmitted): ?>
-                <?php $renderReportResultRows($reportRows, $pendingReportType); ?>
+                <?php $renderReportResultRows($reportRows, $pendingReportType, $reportFilters); ?>
             <?php endif; ?>
         </dialog>
         <?php endforeach; ?>

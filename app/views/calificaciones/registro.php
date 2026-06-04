@@ -16,6 +16,7 @@ $selectedSubject = is_array($selectedSubject ?? null) ? $selectedSubject : false
 $selectedCourse = is_array($selectedCourse ?? null) ? $selectedCourse : false;
 $selectedCourseId = (int) ($selectedCourseId ?? 0);
 $useAdministrativeSelection = !empty($useAdministrativeSelection);
+$courseQuerySuffix = $selectedCourseId > 0 ? '&curid=' . (string) $selectedCourseId : '';
 $canEditSelectedSubject = !empty($canEditSelectedSubject);
 $canAuthorizeGradeEntry = !empty($canAuthorizeGradeEntry);
 $gradeEntryAuthorization = is_array($gradeEntryAuthorization ?? null) ? $gradeEntryAuthorization : false;
@@ -78,7 +79,7 @@ foreach (($components[(int) ($selectedSubperiodId ?? 0)] ?? []) as $component) {
         <?php elseif (empty($subjects)): ?>
             <div class="empty-state">No tienes materias activas asignadas en este periodo o todavia no existe un perfil de calificaciones activo para ellas.</div>
         <?php else: ?>
-            <?php if ($useAdministrativeSelection && $selectedCourse !== false): ?>
+            <?php if ($selectedCourse !== false): ?>
                 <header class="security-assignment-header">
                     <div>
                         <h3><?= $h($selectedCourse['granombre'] . ' ' . $selectedCourse['prlnombre']); ?></h3>
@@ -89,7 +90,7 @@ foreach (($components[(int) ($selectedSubperiodId ?? 0)] ?? []) as $component) {
             <div class="gradebook-subject-grid">
                 <?php foreach ($subjects as $subject): ?>
                     <?php $hasProfile = !empty($subject['pcaid']); ?>
-                    <?php $subjectUrl = 'calificaciones/registro?mtcid=' . (string) $subject['mtcid'] . ($useAdministrativeSelection ? '&curid=' . (string) $selectedCourseId : ''); ?>
+                    <?php $subjectUrl = 'calificaciones/registro?mtcid=' . (string) $subject['mtcid'] . $courseQuerySuffix; ?>
                     <?php if ($hasProfile): ?>
                         <a class="gradebook-subject-card" href="<?= $h(baseUrl($subjectUrl)); ?>">
                     <?php else: ?>
@@ -118,11 +119,11 @@ foreach (($components[(int) ($selectedSubperiodId ?? 0)] ?? []) as $component) {
                     <?php endif; ?>
                 <?php endforeach; ?>
             </div>
-            <?php if ($useAdministrativeSelection): ?>
+            <?php if ($selectedCourseId > 0): ?>
                 <div class="actions-row">
-                    <a class="btn-secondary btn-auto" href="<?= $h(baseUrl('calificaciones/registro')); ?>">
+                    <a class="btn-secondary btn-auto" href="<?= $h(baseUrl($useAdministrativeSelection ? 'calificaciones/registro' : 'docente/curso?curid=' . (string) $selectedCourseId)); ?>">
                         <i class="fa fa-th-large" aria-hidden="true"></i>
-                        Cambiar curso
+                        <?= $useAdministrativeSelection ? 'Cambiar curso' : 'Volver al curso'; ?>
                     </a>
                 </div>
             <?php endif; ?>
@@ -159,7 +160,7 @@ foreach (($components[(int) ($selectedSubperiodId ?? 0)] ?? []) as $component) {
                                 . (string) $selectedSubject['mtcid']
                                 . '&spcid='
                                 . (string) $subperiod['spcid']
-                                . ($useAdministrativeSelection ? '&curid=' . (string) $selectedCourseId : '')
+                                . $courseQuerySuffix
                             );
                             ?>
                             <a class="gradebook-subject-card <?= $isInRange ? '' : 'is-out-of-range'; ?>" href="<?= $h($subperiodUrl); ?>">
@@ -181,7 +182,7 @@ foreach (($components[(int) ($selectedSubperiodId ?? 0)] ?? []) as $component) {
                                 </span>
                             </a>
                         <?php endforeach; ?>
-                        <a class="gradebook-subject-card gradebook-final-card" href="<?= $h(baseUrl('calificaciones/registro?mtcid=' . (string) $selectedSubject['mtcid'] . '&final=1' . ($useAdministrativeSelection ? '&curid=' . (string) $selectedCourseId : ''))); ?>">
+                        <a class="gradebook-subject-card gradebook-final-card" href="<?= $h(baseUrl('calificaciones/registro?mtcid=' . (string) $selectedSubject['mtcid'] . '&final=1' . $courseQuerySuffix)); ?>">
                             <span class="gradebook-subject-icon">
                                 <i class="fa fa-bar-chart" aria-hidden="true"></i>
                             </span>
@@ -195,16 +196,20 @@ foreach (($components[(int) ($selectedSubperiodId ?? 0)] ?? []) as $component) {
                     </div>
                 <?php endif; ?>
                 <div class="actions-row">
-                    <a class="btn-secondary btn-auto" href="<?= $h(baseUrl($useAdministrativeSelection ? 'calificaciones/registro?curid=' . (string) $selectedCourseId : 'calificaciones/registro')); ?>">
+                    <a class="btn-secondary btn-auto" href="<?= $h(baseUrl($selectedCourseId > 0 ? 'calificaciones/registro?curid=' . (string) $selectedCourseId : 'calificaciones/registro')); ?>">
                         <i class="fa fa-th-large" aria-hidden="true"></i>
                         Cambiar materia
                     </a>
                 </div>
             <?php elseif ($showFinalAverages): ?>
                 <div class="gradebook-toolbar">
-                    <a class="btn-secondary btn-auto" href="<?= $h(baseUrl('calificaciones/registro?mtcid=' . (string) $selectedSubject['mtcid'] . ($useAdministrativeSelection ? '&curid=' . (string) $selectedCourseId : ''))); ?>">
+                    <a class="btn-secondary btn-auto" href="<?= $h(baseUrl('calificaciones/registro?mtcid=' . (string) $selectedSubject['mtcid'] . $courseQuerySuffix)); ?>">
                         <i class="fa fa-calendar-o" aria-hidden="true"></i>
                         Ver subperiodos
+                    </a>
+                    <a class="btn-secondary btn-auto" href="<?= $h(baseUrl('calificaciones/registro?mtcid=' . (string) $selectedSubject['mtcid'] . '&final=1&pdf=1' . $courseQuerySuffix)); ?>" target="_blank" rel="noopener noreferrer">
+                        <i class="fa fa-file-pdf-o" aria-hidden="true"></i>
+                        Generar PDF
                     </a>
                 </div>
                 <div class="table-wrap gradebook-table-wrap">
@@ -311,7 +316,7 @@ foreach (($components[(int) ($selectedSubperiodId ?? 0)] ?? []) as $component) {
                             <?= csrfField(); ?>
                             <input type="hidden" name="mtcid" value="<?= $h($selectedSubject['mtcid']); ?>">
                             <input type="hidden" name="spcid" value="<?= $h($selectedSubperiodId); ?>">
-                            <?php if ($useAdministrativeSelection): ?>
+                            <?php if ($selectedCourseId > 0): ?>
                                 <input type="hidden" name="curid" value="<?= $h($selectedCourseId); ?>">
                             <?php endif; ?>
                         </form>
@@ -320,13 +325,17 @@ foreach (($components[(int) ($selectedSubperiodId ?? 0)] ?? []) as $component) {
                         <?= csrfField(); ?>
                         <input type="hidden" name="mtcid" value="<?= $h($selectedSubject['mtcid']); ?>">
                         <input type="hidden" name="spcid" value="<?= $h($selectedSubperiodId); ?>">
-                        <?php if ($useAdministrativeSelection): ?>
+                        <?php if ($selectedCourseId > 0): ?>
                             <input type="hidden" name="curid" value="<?= $h($selectedCourseId); ?>">
                         <?php endif; ?>
                         <div class="gradebook-toolbar">
-                            <a class="btn-secondary btn-auto" href="<?= $h(baseUrl('calificaciones/registro?mtcid=' . (string) $selectedSubject['mtcid'] . ($useAdministrativeSelection ? '&curid=' . (string) $selectedCourseId : ''))); ?>">
+                            <a class="btn-secondary btn-auto" href="<?= $h(baseUrl('calificaciones/registro?mtcid=' . (string) $selectedSubject['mtcid'] . $courseQuerySuffix)); ?>">
                                 <i class="fa fa-calendar-o" aria-hidden="true"></i>
                                 Cambiar subperiodo
+                            </a>
+                            <a class="btn-secondary btn-auto" href="<?= $h(baseUrl('calificaciones/registro?mtcid=' . (string) $selectedSubject['mtcid'] . '&spcid=' . (string) $selectedSubperiodId . '&pdf=1' . $courseQuerySuffix)); ?>" target="_blank" rel="noopener noreferrer">
+                                <i class="fa fa-file-pdf-o" aria-hidden="true"></i>
+                                Generar PDF
                             </a>
                             <?php if ($canEditSelectedSubject): ?>
                                 <button type="submit" class="btn-primary btn-auto" <?= $selectedSubperiodCanRegister ? '' : 'disabled'; ?>>
@@ -500,7 +509,7 @@ foreach (($components[(int) ($selectedSubperiodId ?? 0)] ?? []) as $component) {
                                 <input type="hidden" name="mtcid" value="<?= $h($selectedSubject['mtcid']); ?>">
                                 <input type="hidden" name="spcid" value="<?= $h($selectedSubperiodId); ?>">
                                 <input type="hidden" name="cpcid" value="<?= $h($componentId); ?>">
-                                <?php if ($useAdministrativeSelection): ?>
+                                <?php if ($selectedCourseId > 0): ?>
                                     <input type="hidden" name="curid" value="<?= $h($selectedCourseId); ?>">
                                 <?php endif; ?>
                                 <h3>Agregar actividad</h3>

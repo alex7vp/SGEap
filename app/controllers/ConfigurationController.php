@@ -550,7 +550,7 @@ class ConfigurationController extends Controller
 
         if ($data['insnombre'] === '') {
             $this->flashInstitutionFormData($data);
-            $this->flashInstitutionFieldError('insnombre', 'El nombre de la institucion es obligatorio.');
+            $this->flashInstitutionFieldError('insnombre', 'El nombre comercial de la institucion es obligatorio.');
             $this->redirectToInstitutionField('insnombre');
         }
 

@@ -117,6 +117,7 @@ SELECT r.rolid, p.prmid, true
 FROM rol r
 INNER JOIN permiso p ON p.prmcodigo IN (
     'dashboard.ver',
+    'matriculas.gestionar',
     'asistencia.calendario.gestionar',
     'asistencia.supervisar',
     'justificaciones.gestionar',
@@ -160,6 +161,7 @@ SELECT r.rolid, p.prmid, true
 FROM rol r
 INNER JOIN permiso p ON p.prmcodigo IN (
     'asistencia.calendario.gestionar',
+    'matriculas.gestionar',
     'asistencia.supervisar',
     'justificaciones.gestionar',
     'novedades.registrar',
@@ -225,6 +227,7 @@ SELECT r.rolid, p.prmid, true
 FROM rol r
 INNER JOIN permiso p ON p.prmcodigo IN (
     'asistencia.calendario.gestionar',
+    'matriculas.gestionar',
     'asistencia.supervisar',
     'justificaciones.gestionar',
     'novedades.registrar',
@@ -279,3 +282,17 @@ WHERE r.rolnombre = 'Representante'
 ON CONFLICT (rolid, prmid) DO UPDATE
 SET rpeestado = EXCLUDED.rpeestado,
     rpefecha_modificacion = CURRENT_TIMESTAMP;
+
+DELETE FROM rol_permiso rp
+USING rol r, permiso p
+WHERE rp.rolid = r.rolid
+  AND rp.prmid = p.prmid
+  AND p.prmcodigo = 'matriculas.gestionar'
+  AND r.rolnombre NOT IN (
+      'Administrador',
+      'Rector',
+      'Vicerrector',
+      'Coordinador',
+      'Inspector',
+      'Secretaria'
+  );

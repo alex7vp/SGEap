@@ -397,6 +397,60 @@ class MatriculationModel extends Model
         return $statement->fetch();
     }
 
+    public function findForCertificate(int $matriculaId): array|false
+    {
+        $statement = $this->db->prepare(
+            "SELECT certificate_data.*
+             FROM (
+                SELECT m.matid,
+                       m.estid,
+                       m.matfecha,
+                       p.percedula,
+                       p.pernombres,
+                       p.perapellidos,
+                       p.persexo,
+                       c.curid,
+                       c.pleid,
+                       pl.pledescripcion,
+                       pl.plefechainicio,
+                       pl.plefechafin,
+                       n.nednombre,
+                       g.granombre,
+                       pr.prlnombre,
+                       em.emdnombre,
+                       tm.tmanombre,
+                       ROW_NUMBER() OVER (
+                           PARTITION BY c.pleid
+                           ORDER BY m.matfecha ASC, m.matid ASC
+                       )::int AS numero_matricula
+                FROM {$this->table} m
+                INNER JOIN estudiante e ON e.estid = m.estid
+                INNER JOIN persona p ON p.perid = e.perid
+                INNER JOIN curso c ON c.curid = m.curid
+                INNER JOIN periodo_lectivo pl ON pl.pleid = c.pleid
+                INNER JOIN grado g ON g.graid = c.graid
+                INNER JOIN nivel_educativo n ON n.nedid = g.nedid
+                INNER JOIN paralelo pr ON pr.prlid = c.prlid
+                INNER JOIN estado_matricula em ON em.emdid = m.emdid
+                INNER JOIN tipo_matricula tm ON tm.tmaid = m.tmaid
+             ) certificate_data
+             WHERE certificate_data.matid = :matid
+             LIMIT 1"
+        );
+        $statement->execute(['matid' => $matriculaId]);
+
+        $row = $statement->fetch();
+
+        if ($row === false) {
+            return false;
+        }
+
+        $number = max(1, (int) ($row['numero_matricula'] ?? 1));
+        $row['folio'] = (int) ceil($number / 3);
+
+        return $row;
+    }
+
     public function updateMatriculationData(int $matriculaId, array $data): void
     {
         if ($matriculaId <= 0) {

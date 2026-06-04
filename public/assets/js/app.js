@@ -9,6 +9,100 @@ document.addEventListener('DOMContentLoaded', () => {
     const sidebarToggle = document.querySelector('[data-sidebar-toggle]');
     const shell = document.querySelector('.shell');
     const alertCloseButtons = document.querySelectorAll('[data-alert-close]');
+    const themeToggle = document.querySelector('[data-theme-toggle]');
+    const themeToggleLabel = document.querySelector('[data-theme-toggle-label]');
+    const accentThemeControls = document.querySelectorAll('[data-accent-theme]');
+    const accentThemes = {
+        blue: ['#0f4c81', '#0b385e', '#e6f0f8', '#20384d', '#1f6aa5'],
+        sky: ['#0284c7', '#075985', '#e0f2fe', '#12364a', '#38bdf8'],
+        teal: ['#0f766e', '#115e59', '#ccfbf1', '#123b37', '#14b8a6'],
+        navy: ['#1e3a8a', '#172554', '#dbeafe', '#1b2a4a', '#1d4ed8'],
+        gray: ['#475569', '#334155', '#f1f5f9', '#263241', '#64748b'],
+        violet: ['#6d43a8', '#4c1d95', '#ede9fe', '#2d2146', '#8b5cf6'],
+    };
+
+    const setAccentTheme = (themeName) => {
+        const normalizedTheme = Object.prototype.hasOwnProperty.call(accentThemes, themeName) ? themeName : 'blue';
+        const [primary, primaryDark, primarySoftLight, primarySoftDark, gradientEnd] = accentThemes[normalizedTheme];
+        const primarySoft = document.documentElement.getAttribute('data-theme') === 'dark'
+            ? primarySoftDark
+            : primarySoftLight;
+
+        document.documentElement.style.setProperty('--primary', primary);
+        document.documentElement.style.setProperty('--primary-dark', primaryDark);
+        document.documentElement.style.setProperty('--primary-soft', primarySoft);
+        document.documentElement.style.setProperty('--primary-gradient-end', gradientEnd);
+
+        accentThemeControls.forEach((control) => {
+            if (!(control instanceof HTMLElement)) {
+                return;
+            }
+
+            const isActive = control.dataset.accentTheme === normalizedTheme;
+            control.classList.toggle('is-active', isActive);
+            control.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+        });
+
+        try {
+            window.localStorage.setItem('sgeap-accent', normalizedTheme);
+        } catch (error) {
+        }
+    };
+
+    const setTheme = (theme) => {
+        const isDark = theme === 'dark';
+
+        if (isDark) {
+            document.documentElement.setAttribute('data-theme', 'dark');
+        } else {
+            document.documentElement.removeAttribute('data-theme');
+        }
+
+        if (themeToggleLabel instanceof HTMLElement) {
+            themeToggleLabel.textContent = isDark ? 'Modo claro' : 'Modo oscuro';
+        }
+
+        try {
+            setAccentTheme(window.localStorage.getItem('sgeap-accent') || 'blue');
+        } catch (error) {
+            setAccentTheme('blue');
+        }
+
+        try {
+            window.localStorage.setItem('sgeap-theme', isDark ? 'dark' : 'light');
+        } catch (error) {
+        }
+    };
+
+    if (themeToggle instanceof HTMLButtonElement) {
+        const currentTheme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+        setTheme(currentTheme);
+
+        themeToggle.addEventListener('click', () => {
+            setTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+        });
+    }
+
+    if (accentThemeControls.length > 0) {
+        let currentAccent = 'blue';
+
+        try {
+            currentAccent = window.localStorage.getItem('sgeap-accent') || 'blue';
+        } catch (error) {
+        }
+
+        setAccentTheme(currentAccent);
+
+        accentThemeControls.forEach((control) => {
+            if (!(control instanceof HTMLElement)) {
+                return;
+            }
+
+            control.addEventListener('click', () => {
+                setAccentTheme(control.dataset.accentTheme || 'blue');
+            });
+        });
+    }
 
     if (firstField instanceof HTMLInputElement) {
         firstField.focus();

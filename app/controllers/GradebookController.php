@@ -34,9 +34,31 @@ class GradebookController extends Controller
         $selectedCourse = $useAdministrativeSelection && $selectedCourseId > 0 && $periodId > 0
             ? $model->courseByPeriod($selectedCourseId, $periodId)
             : false;
-        $subjects = $useAdministrativeSelection && $selectedCourse !== false
-            ? $model->courseSubjects((int) $selectedCourse['curid'], $periodId)
-            : $teacherSubjects;
+
+        if (!$useAdministrativeSelection && $selectedCourseId > 0) {
+            foreach ($teacherSubjects as $subject) {
+                if ((int) ($subject['curid'] ?? 0) === $selectedCourseId) {
+                    $selectedCourse = [
+                        'curid' => $selectedCourseId,
+                        'nednombre' => (string) ($subject['nednombre'] ?? ''),
+                        'granombre' => (string) ($subject['granombre'] ?? ''),
+                        'prlnombre' => (string) ($subject['prlnombre'] ?? ''),
+                    ];
+                    break;
+                }
+            }
+        }
+
+        if ($useAdministrativeSelection && $selectedCourse !== false) {
+            $subjects = $model->courseSubjects((int) $selectedCourse['curid'], $periodId);
+        } elseif (!$useAdministrativeSelection && $selectedCourseId > 0) {
+            $subjects = array_values(array_filter(
+                $teacherSubjects,
+                static fn (array $subject): bool => (int) ($subject['curid'] ?? 0) === $selectedCourseId
+            ));
+        } else {
+            $subjects = $teacherSubjects;
+        }
         $selectedSubjectId = (int) ($_GET['mtcid'] ?? 0);
         $selectedSubperiodId = (int) ($_GET['spcid'] ?? 0);
         $selectedComponentId = (int) ($_GET['cpcid'] ?? 0);
@@ -48,7 +70,7 @@ class GradebookController extends Controller
                 ? $model->selectedCourseSubject($periodId, $selectedSubjectId)
                 : $model->selectedTeacherSubject((int) ($user['perid'] ?? 0), $periodId, $selectedSubjectId);
 
-            if ($useAdministrativeSelection && $selectedSubject !== false && (int) $selectedSubject['curid'] !== (int) $selectedCourse['curid']) {
+            if ($selectedCourseId > 0 && $selectedSubject !== false && (int) $selectedSubject['curid'] !== $selectedCourseId) {
                 $selectedSubject = false;
             }
         }
@@ -101,7 +123,7 @@ class GradebookController extends Controller
             }
         }
 
-        $this->view('calificaciones.registro', [
+        $viewData = [
             'appName' => config('app')['name'] ?? 'SGEap',
             'pageTitle' => 'Registro de calificaciones',
             'currentModule' => 'academico',
@@ -129,7 +151,24 @@ class GradebookController extends Controller
             'today' => date('Y-m-d'),
             'success' => sessionFlash('success'),
             'error' => sessionFlash('error'),
-        ]);
+        ];
+
+        if ((string) ($_GET['pdf'] ?? '') === '1') {
+            if ($selectedSubject === false || ($selectedSubperiodId <= 0 && !$showFinalAverages)) {
+                sessionFlash('error', 'Selecciona una materia y un subperiodo o la vista de promedios finales para generar el PDF.');
+                $this->redirect('/calificaciones/registro');
+            }
+
+            (new PdfReportService())->streamView(
+                'pdf.registro_calificaciones',
+                $viewData,
+                'registro-calificaciones.pdf',
+                'A4',
+                'landscape'
+            );
+        }
+
+        $this->view('calificaciones.registro', $viewData);
     }
 
     public function storeActivity(): void

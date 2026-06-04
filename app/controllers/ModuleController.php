@@ -8,6 +8,9 @@ use App\Core\Controller;
 use App\Models\AttendanceModel;
 use App\Models\CourseModel;
 use App\Models\GradeModel;
+use App\Models\GradebookModel;
+use App\Models\InstitutionModel;
+use App\Services\PdfReportService;
 
 class ModuleController extends Controller
 {
@@ -117,6 +120,93 @@ class ModuleController extends Controller
                 ],
             ]
         );
+    }
+
+    public function teacherCourses(): void
+    {
+        $user = $this->requireAuth();
+        $period = currentAcademicPeriod();
+        $periodId = $period !== null ? (int) $period['pleid'] : 0;
+
+        $this->view('auth.dashboard_docente', [
+            'appName' => config('app')['name'] ?? 'SGEap',
+            'pageTitle' => 'Mis cursos',
+            'currentModule' => 'academico',
+            'currentSection' => 'docente_cursos',
+            'user' => $user,
+            'currentPeriod' => $period,
+            'teacherCourses' => $periodId > 0 ? (new GradebookModel())->teacherCourses((int) ($user['perid'] ?? 0), $periodId) : [],
+            'success' => sessionFlash('success'),
+            'error' => sessionFlash('error'),
+        ]);
+    }
+
+    public function teacherCourse(): void
+    {
+        $user = $this->requireAuth();
+        $period = currentAcademicPeriod();
+        $periodId = $period !== null ? (int) $period['pleid'] : 0;
+        $courseId = max(0, (int) ($_GET['curid'] ?? 0));
+        $courses = $periodId > 0 ? (new GradebookModel())->teacherCourses((int) ($user['perid'] ?? 0), $periodId) : [];
+        $course = $this->teacherCourseFromList($courses, $courseId);
+
+        if ($course === null) {
+            sessionFlash('error', 'El curso seleccionado no esta asignado a tu usuario docente.');
+            $this->redirect('/docente/cursos');
+        }
+
+        $this->view('docente.curso', [
+            'appName' => config('app')['name'] ?? 'SGEap',
+            'pageTitle' => 'Curso docente',
+            'currentModule' => 'academico',
+            'currentSection' => 'docente_curso',
+            'user' => $user,
+            'currentPeriod' => $period,
+            'course' => $course,
+            'success' => sessionFlash('success'),
+            'error' => sessionFlash('error'),
+        ]);
+    }
+
+    public function teacherCourseList(): void
+    {
+        $user = $this->requireAuth();
+        $period = currentAcademicPeriod();
+        $periodId = $period !== null ? (int) $period['pleid'] : 0;
+        $courseId = max(0, (int) ($_GET['curid'] ?? 0));
+        $courses = $periodId > 0 ? (new GradebookModel())->teacherCourses((int) ($user['perid'] ?? 0), $periodId) : [];
+        $course = $this->teacherCourseFromList($courses, $courseId);
+
+        if ($course === null) {
+            sessionFlash('error', 'El curso seleccionado no esta asignado a tu usuario docente.');
+            $this->redirect('/docente/cursos');
+        }
+
+        $students = (new GradebookModel())->studentsByCourse($courseId);
+
+        if ((string) ($_GET['pdf'] ?? '') === '1') {
+            (new PdfReportService())->streamView('pdf.docente_lista_curso', [
+                'appName' => config('app')['name'] ?? 'SGEap',
+                'institution' => (new InstitutionModel())->current(),
+                'period' => $period,
+                'course' => $course,
+                'students' => $students,
+                'generatedAt' => date('Y-m-d H:i'),
+            ], 'lista-curso-' . $courseId . '.pdf', 'A4', 'portrait');
+        }
+
+        $this->view('docente.lista_curso', [
+            'appName' => config('app')['name'] ?? 'SGEap',
+            'pageTitle' => 'Lista de curso',
+            'currentModule' => 'academico',
+            'currentSection' => 'docente_lista_curso',
+            'user' => $user,
+            'currentPeriod' => $period,
+            'course' => $course,
+            'students' => $students,
+            'success' => sessionFlash('success'),
+            'error' => sessionFlash('error'),
+        ]);
     }
 
     public function configuration(): void
@@ -414,5 +504,16 @@ class ModuleController extends Controller
             'moduleDescription' => $description,
             'moduleCards' => $cards,
         ]);
+    }
+
+    private function teacherCourseFromList(array $courses, int $courseId): ?array
+    {
+        foreach ($courses as $course) {
+            if ((int) ($course['curid'] ?? 0) === $courseId) {
+                return $course;
+            }
+        }
+
+        return null;
     }
 }
