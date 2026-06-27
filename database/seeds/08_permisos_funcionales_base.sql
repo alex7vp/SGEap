@@ -49,6 +49,8 @@ VALUES
     ('Gestion Contable - representante comprobantes subir', 'contabilidad.representante.comprobantes.subir', 'Carga de comprobantes de matricula y pensiones por el representante', true),
     ('Gestion Contable - representante pagos ver', 'contabilidad.representante.pagos.ver', 'Consulta de historial de pagos por el representante', true),
     ('Gestion Contable - representante rubros ver', 'contabilidad.representante.rubros.ver', 'Consulta de rubros adicionales por el representante', true),
+    ('Comunicados - gestionar', 'comunicados.gestionar', 'Creacion, envio y anulacion de comunicados institucionales', true),
+    ('Comunicados - ver propios', 'comunicados.ver_propios', 'Consulta de comunicados recibidos por el usuario', true),
     ('Backups - gestionar', 'backups.gestionar', 'Generacion, descarga y eliminacion de respaldos del sistema', true)
 ON CONFLICT (prmcodigo) DO UPDATE
 SET prmnombre = EXCLUDED.prmnombre,
@@ -105,6 +107,8 @@ INNER JOIN permiso p ON p.prmcodigo IN (
     'contabilidad.representante.comprobantes.subir',
     'contabilidad.representante.pagos.ver',
     'contabilidad.representante.rubros.ver',
+    'comunicados.gestionar',
+    'comunicados.ver_propios',
     'backups.gestionar'
 )
 WHERE r.rolnombre = 'Administrador'
@@ -123,6 +127,8 @@ INNER JOIN permiso p ON p.prmcodigo IN (
     'justificaciones.gestionar',
     'novedades.registrar',
     'novedades.supervisar',
+    'comunicados.gestionar',
+    'comunicados.ver_propios',
     'calificaciones.configurar',
     'calificaciones.registrar',
     'calificaciones.validar',
@@ -166,6 +172,8 @@ INNER JOIN permiso p ON p.prmcodigo IN (
     'justificaciones.gestionar',
     'novedades.registrar',
     'novedades.supervisar',
+    'comunicados.gestionar',
+    'comunicados.ver_propios',
     'calificaciones.configurar',
     'calificaciones.registrar',
     'calificaciones.validar',
@@ -215,7 +223,8 @@ INNER JOIN permiso p ON p.prmcodigo IN (
     'contabilidad.pagos.documento_externo.editar',
     'contabilidad.reportes.ver',
     'contabilidad.reportes.exportar',
-    'contabilidad.auditoria.ver'
+    'contabilidad.auditoria.ver',
+    'comunicados.ver_propios'
 )
 WHERE r.rolnombre = 'Contabilidad'
 ON CONFLICT (rolid, prmid) DO UPDATE
@@ -231,7 +240,9 @@ INNER JOIN permiso p ON p.prmcodigo IN (
     'asistencia.supervisar',
     'justificaciones.gestionar',
     'novedades.registrar',
-    'novedades.supervisar'
+    'novedades.supervisar',
+    'comunicados.gestionar',
+    'comunicados.ver_propios'
 )
 WHERE r.rolnombre = 'Inspector'
 ON CONFLICT (rolid, prmid) DO UPDATE
@@ -244,6 +255,7 @@ FROM rol r
 INNER JOIN permiso p ON p.prmcodigo IN (
     'asistencia.registrar',
     'novedades.registrar',
+    'comunicados.ver_propios',
     'calificaciones.registrar',
     'calificaciones.extraordinarias.registrar'
 )
@@ -258,6 +270,7 @@ FROM rol r
 INNER JOIN permiso p ON p.prmcodigo IN (
     'asistencia.ver_propia',
     'novedades.ver_propia',
+    'comunicados.ver_propios',
     'calificaciones.ver_propia'
 )
 WHERE r.rolnombre = 'Estudiante'
@@ -273,6 +286,7 @@ INNER JOIN permiso p ON p.prmcodigo IN (
     'representante.estudiantes',
     'asistencia.representante.ver',
     'novedades.representante.ver',
+    'comunicados.ver_propios',
     'calificaciones.representante.ver',
     'contabilidad.representante.obligaciones.ver',
     'contabilidad.representante.comprobantes.subir',

@@ -128,6 +128,137 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    const staffPersonForm = document.querySelector('[data-staff-person-form]');
+
+    if (staffPersonForm instanceof HTMLFormElement) {
+        const cedulaInput = staffPersonForm.querySelector('[data-staff-person-cedula]');
+        const searchButton = staffPersonForm.querySelector('[data-staff-person-search]');
+        const alertHost = staffPersonForm.querySelector('[data-staff-person-alert]');
+        const lookupUrl = staffPersonForm.dataset.staffPersonLookupUrl || '';
+        const personFields = [
+            'pernombres',
+            'perapellidos',
+            'pertelefono1',
+            'pertelefono2',
+            'percorreo',
+            'persexo',
+            'perfechanacimiento',
+            'eciid',
+            'istid',
+            'perprofesion',
+            'perocupacion',
+        ];
+
+        const setStaffPersonAlert = (type, message) => {
+            if (!(alertHost instanceof HTMLElement)) {
+                return;
+            }
+
+            const alert = alertHost.querySelector('.alert');
+            const messageTarget = alertHost.querySelector('span');
+
+            if (alert instanceof HTMLElement) {
+                alert.classList.toggle('alert-success', type === 'success');
+                alert.classList.toggle('alert-error', type !== 'success');
+            }
+
+            if (messageTarget instanceof HTMLElement) {
+                messageTarget.textContent = message;
+            }
+
+            alertHost.hidden = message === '';
+        };
+
+        const setFieldValue = (name, value) => {
+            const field = staffPersonForm.elements.namedItem(name);
+
+            if (field instanceof HTMLInputElement) {
+                if (field.type === 'checkbox') {
+                    field.checked = value === true || value === '1' || value === 1;
+                    return;
+                }
+
+                field.value = String(value ?? '');
+                return;
+            }
+
+            if (field instanceof HTMLSelectElement) {
+                field.value = String(value ?? '');
+            }
+        };
+
+        const clearPersonFields = () => {
+            personFields.forEach((name) => setFieldValue(name, ''));
+            setFieldValue('perhablaingles', false);
+        };
+
+        const runStaffPersonLookup = async () => {
+            if (!(cedulaInput instanceof HTMLInputElement) || !(searchButton instanceof HTMLButtonElement)) {
+                return;
+            }
+
+            const cedula = cedulaInput.value.replace(/\D+/g, '');
+            cedulaInput.value = cedula;
+
+            if (!/^\d{10}$/.test(cedula)) {
+                clearPersonFields();
+                setStaffPersonAlert('error', 'La cedula debe tener 10 digitos.');
+                return;
+            }
+
+            if (lookupUrl === '') {
+                return;
+            }
+
+            searchButton.disabled = true;
+
+            try {
+                const url = new URL(lookupUrl, window.location.origin);
+                url.searchParams.set('cedula', cedula);
+
+                const response = await fetch(url.toString(), {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                });
+                const payload = await response.json();
+
+                if (!response.ok || !payload.found) {
+                    clearPersonFields();
+                    setStaffPersonAlert('error', payload.message || 'No se encontro una persona registrada con esa cedula.');
+                    return;
+                }
+
+                const person = payload.person || {};
+                personFields.forEach((name) => setFieldValue(name, person[name] ?? ''));
+                setFieldValue('perhablaingles', Boolean(person.perhablaingles));
+                setStaffPersonAlert('success', payload.message || 'Datos de persona cargados.');
+            } catch (error) {
+                setStaffPersonAlert('error', 'No se pudo consultar la cedula. Intente nuevamente.');
+            } finally {
+                searchButton.disabled = false;
+            }
+        };
+
+        if (searchButton instanceof HTMLButtonElement) {
+            searchButton.addEventListener('click', runStaffPersonLookup);
+        }
+
+        if (cedulaInput instanceof HTMLInputElement) {
+            cedulaInput.addEventListener('input', () => {
+                cedulaInput.value = cedulaInput.value.replace(/\D+/g, '').slice(0, 10);
+                setStaffPersonAlert('success', '');
+            });
+
+            cedulaInput.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    runStaffPersonLookup();
+                }
+            });
+        }
+    }
+
     const reportDialogOpenButtons = document.querySelectorAll('[data-report-dialog-open]');
     const reportDialogs = document.querySelectorAll('[data-report-dialog]');
 
@@ -316,6 +447,663 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (form instanceof HTMLFormElement) {
                     form.submit();
                 }
+            });
+        }
+    }
+
+    const communicationLoginDialog = document.querySelector('[data-communication-login-dialog]');
+
+    if (communicationLoginDialog instanceof HTMLElement) {
+        const closeButton = communicationLoginDialog.querySelector('[data-communication-login-close]');
+
+        if (typeof communicationLoginDialog.showModal === 'function') {
+            communicationLoginDialog.showModal();
+        } else {
+            communicationLoginDialog.setAttribute('open', 'open');
+        }
+
+        if (closeButton instanceof HTMLButtonElement) {
+            closeButton.addEventListener('click', () => {
+                if (typeof communicationLoginDialog.close === 'function') {
+                    communicationLoginDialog.close('confirm');
+                    return;
+                }
+
+                communicationLoginDialog.removeAttribute('open');
+            });
+        }
+    }
+
+    const communicationMessageDialog = document.querySelector('[data-communication-message-dialog]');
+
+    if (communicationMessageDialog instanceof HTMLElement) {
+        const titleTarget = communicationMessageDialog.querySelector('[data-communication-message-title]');
+        const stateTarget = communicationMessageDialog.querySelector('[data-communication-message-state]');
+        const dateTarget = communicationMessageDialog.querySelector('[data-communication-message-date]');
+        const bodyTarget = communicationMessageDialog.querySelector('[data-communication-message-body]');
+        const closeButton = communicationMessageDialog.querySelector('[data-communication-message-close]');
+        const rows = Array.from(document.querySelectorAll('[data-communication-message-row]'));
+
+        const openCommunicationMessage = (row) => {
+            if (!(row instanceof HTMLElement)) {
+                return;
+            }
+
+            if (titleTarget instanceof HTMLElement) {
+                titleTarget.textContent = row.dataset.communicationTitle || '';
+            }
+
+            if (dateTarget instanceof HTMLElement) {
+                dateTarget.textContent = row.dataset.communicationDate || '';
+            }
+
+            if (bodyTarget instanceof HTMLElement) {
+                bodyTarget.textContent = row.dataset.communicationMessage || '';
+            }
+
+            if ((row.dataset.communicationReadState || '') === 'PENDIENTE') {
+                row.dataset.communicationReadState = 'LEIDO';
+                row.classList.remove('is-unread');
+
+                const readStateTarget = row.querySelector('[data-communication-row-read-state]');
+
+                if (readStateTarget instanceof HTMLElement) {
+                    readStateTarget.classList.remove('is-unread');
+                    readStateTarget.classList.add('is-read');
+                    readStateTarget.setAttribute('title', 'Leido');
+                    readStateTarget.setAttribute('aria-label', 'Leido');
+
+                    const readStateIcon = readStateTarget.querySelector('i');
+
+                    if (readStateIcon instanceof HTMLElement) {
+                        readStateIcon.classList.remove('fa-envelope');
+                        readStateIcon.classList.add('fa-envelope-open');
+                    }
+                }
+
+                const readUrl = row.dataset.communicationReadUrl || '';
+
+                if (readUrl !== '') {
+                    fetch(readUrl, {
+                        method: 'GET',
+                        credentials: 'same-origin',
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                    }).catch(() => {});
+                }
+            }
+
+            if (stateTarget instanceof HTMLElement) {
+                const readState = row.dataset.communicationReadState || '';
+                const communicationState = row.dataset.communicationState || '';
+                stateTarget.textContent = communicationState !== ''
+                    ? readState + ' | ' + communicationState
+                    : readState;
+            }
+
+            if (typeof communicationMessageDialog.showModal === 'function') {
+                communicationMessageDialog.showModal();
+                return;
+            }
+
+            communicationMessageDialog.setAttribute('open', 'open');
+        };
+
+        rows.forEach((row) => {
+            if (!(row instanceof HTMLElement)) {
+                return;
+            }
+
+            row.addEventListener('click', () => openCommunicationMessage(row));
+            row.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    openCommunicationMessage(row);
+                }
+            });
+        });
+
+        if (closeButton instanceof HTMLButtonElement) {
+            closeButton.addEventListener('click', () => {
+                if (typeof communicationMessageDialog.close === 'function') {
+                    communicationMessageDialog.close('confirm');
+                    return;
+                }
+
+                communicationMessageDialog.removeAttribute('open');
+            });
+        }
+    }
+
+    const communicationForm = document.querySelector('[data-communication-form]');
+    const communicationSendDialog = document.querySelector('[data-communication-send-dialog]');
+
+    if (communicationForm instanceof HTMLFormElement && communicationSendDialog instanceof HTMLElement) {
+        const actionInput = communicationForm.querySelector('[data-communication-action]');
+        const sendButton = communicationForm.querySelector('[data-communication-send]');
+        const draftButton = communicationForm.querySelector('[data-communication-draft]');
+        const recipientDialog = document.querySelector('[data-communication-recipient-dialog]');
+        const recipientCloseButton = document.querySelector('[data-communication-recipient-close]');
+        const recipientTitle = document.querySelector('[data-communication-recipient-dialog-title]');
+        const recipientCopy = document.querySelector('[data-communication-recipient-dialog-copy]');
+        const coursePanel = document.querySelector('[data-communication-course-panel]');
+        const searchPanel = document.querySelector('[data-communication-search-panel]');
+        const searchInput = document.querySelector('[data-communication-search-input]');
+        const courseFilterInput = document.querySelector('[data-communication-course-filter]');
+        const searchResults = document.querySelector('[data-communication-search-results]');
+        const selectedList = communicationForm.querySelector('[data-communication-selected-list]');
+        const selectedEmpty = communicationForm.querySelector('[data-communication-selected-empty]');
+        const selectedTitle = communicationForm.querySelector('[data-communication-selected-title]');
+        const hiddenInputs = communicationForm.querySelector('[data-communication-hidden-inputs]');
+        const targetRadios = Array.from(communicationForm.querySelectorAll('[data-communication-target-radio]'));
+        const courseOptions = Array.from(document.querySelectorAll('[data-course-option]'));
+        const cancelButton = communicationSendDialog.querySelector('[data-communication-send-cancel]');
+        const confirmButton = communicationSendDialog.querySelector('[data-communication-send-confirm]');
+        let confirmedSend = false;
+        let searchTimer = 0;
+        let targetWasSelectedOnPointerDown = false;
+
+        const targetConfig = {
+            CURSOS: {
+                title: 'Seleccionar cursos',
+                copy: 'El comunicado llegara a estudiantes y representantes autorizados de los cursos seleccionados.',
+                endpoint: '',
+                inputName: 'course_ids[]',
+            },
+            ESTUDIANTES: {
+                title: 'Seleccionar estudiantes',
+                copy: 'Busque estudiantes por cedula, nombres, apellidos o curso. Se incluira su representante autorizado.',
+                endpoint: 'buscar-estudiantes',
+                inputName: 'matriculation_ids[]',
+            },
+            REPRESENTANTES: {
+                title: 'Seleccionar representantes',
+                copy: 'Busque representantes por cedula, nombres, apellidos o estudiante representado.',
+                endpoint: 'buscar-representantes',
+                inputName: 'representative_user_ids[]',
+            },
+            PERSONAL: {
+                title: 'Seleccionar personal',
+                copy: 'Busque docentes, autoridades o administrativos registrados.',
+                endpoint: 'buscar-personal',
+                inputName: 'staff_user_ids[]',
+            },
+            TODOS: {
+                title: 'Todos los usuarios',
+                copy: 'Este alcance no requiere seleccion adicional.',
+                endpoint: '',
+                inputName: '',
+            },
+        };
+
+        const communicationBaseUrl = (() => {
+            try {
+                const url = new URL(communicationForm.action);
+                return url.href.replace(/\/comunicados\/?$/, '');
+            } catch (error) {
+                return window.location.origin;
+            }
+        })();
+
+        const selectedTarget = () => {
+            const checked = targetRadios.find((radio) => radio instanceof HTMLInputElement && radio.checked);
+            return checked instanceof HTMLInputElement ? checked.value : 'CURSOS';
+        };
+
+        const inputNameForTarget = (target) => (targetConfig[target] || targetConfig.CURSOS).inputName;
+
+        const selectedInputsForTarget = (target) => Array.from(
+            hiddenInputs instanceof HTMLElement
+                ? hiddenInputs.querySelectorAll('input[data-selected-type="' + target + '"]')
+                : []
+        ).filter((input) => input instanceof HTMLInputElement);
+
+        const updateSelectedSummary = () => {
+            if (!(selectedList instanceof HTMLElement) || !(selectedEmpty instanceof HTMLElement)) {
+                return;
+            }
+
+            const target = selectedTarget();
+            const config = targetConfig[target] || targetConfig.CURSOS;
+
+            if (selectedTitle instanceof HTMLElement) {
+                selectedTitle.textContent = target === 'TODOS' ? 'Todos' : config.title.replace('Seleccionar ', '');
+            }
+
+            selectedList.querySelectorAll('[data-selected-chip]').forEach((chip) => chip.remove());
+
+            if (target === 'TODOS') {
+                selectedEmpty.hidden = true;
+                const chip = document.createElement('span');
+                chip.className = 'communication-selected-chip';
+                chip.setAttribute('data-selected-chip', 'true');
+                chip.innerHTML = '<span><strong>Todos los usuarios activos</strong></span>';
+                selectedList.appendChild(chip);
+                return;
+            }
+
+            const inputs = selectedInputsForTarget(target);
+            selectedEmpty.hidden = inputs.length > 0;
+
+            inputs.forEach((input) => {
+                const chip = document.createElement('span');
+                chip.className = 'communication-selected-chip';
+                chip.setAttribute('data-selected-chip', 'true');
+                const label = input.dataset.selectedLabel || input.value;
+                const detail = input.dataset.selectedDetail || '';
+                chip.innerHTML = [
+                    '<span>',
+                    '<strong>' + escapeHtml(label) + '</strong>',
+                    detail !== '' ? '<small>' + escapeHtml(detail) + '</small>' : '',
+                    '</span>',
+                    '<button type="button" aria-label="Quitar destinatario"><i class="fa fa-times" aria-hidden="true"></i></button>',
+                ].join('');
+                const removeButton = chip.querySelector('button');
+
+                if (removeButton instanceof HTMLButtonElement) {
+                    removeButton.addEventListener('click', () => {
+                        if (target === 'CURSOS') {
+                            const courseOption = courseOptions.find((option) => (
+                                option instanceof HTMLInputElement && option.value === input.value
+                            ));
+
+                            if (courseOption instanceof HTMLInputElement) {
+                                courseOption.checked = false;
+                            }
+                        }
+
+                        input.remove();
+                        updateSelectedSummary();
+                    });
+                }
+
+                selectedList.appendChild(chip);
+            });
+
+            refreshSearchResultStates();
+        };
+
+        const syncTargetOptionState = () => {
+            targetRadios.forEach((radio) => {
+                if (!(radio instanceof HTMLInputElement)) {
+                    return;
+                }
+
+                const option = radio.closest('.communication-target-option');
+
+                if (option instanceof HTMLElement) {
+                    option.classList.toggle('is-selected', radio.checked);
+                }
+            });
+        };
+
+        const removeInputsExceptTarget = (target) => {
+            if (!(hiddenInputs instanceof HTMLElement)) {
+                return;
+            }
+
+            hiddenInputs.querySelectorAll('input[data-selected-type]').forEach((input) => {
+                if (input instanceof HTMLInputElement && input.dataset.selectedType !== target) {
+                    input.remove();
+                }
+            });
+
+            if (target !== 'CURSOS') {
+                courseOptions.forEach((option) => {
+                    if (option instanceof HTMLInputElement) {
+                        option.checked = false;
+                    }
+                });
+            }
+        };
+
+        const addSelectedInput = (target, id, label, detail = '') => {
+            if (!(hiddenInputs instanceof HTMLElement)) {
+                return;
+            }
+
+            const normalizedId = String(id);
+            const existing = Array.from(hiddenInputs.querySelectorAll('input[data-selected-type="' + target + '"]'))
+                .find((input) => input instanceof HTMLInputElement && input.dataset.selectedId === normalizedId);
+
+            if (existing instanceof HTMLInputElement) {
+                return;
+            }
+
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = inputNameForTarget(target);
+            input.value = normalizedId;
+            input.dataset.selectedType = target;
+            input.dataset.selectedId = normalizedId;
+            input.dataset.selectedLabel = label;
+            input.dataset.selectedDetail = detail;
+            hiddenInputs.appendChild(input);
+            updateSelectedSummary();
+        };
+
+        const removeSelectedInput = (target, id) => {
+            if (!(hiddenInputs instanceof HTMLElement)) {
+                return;
+            }
+
+            const input = Array.from(hiddenInputs.querySelectorAll('input[data-selected-type="' + target + '"]'))
+                .find((candidate) => candidate instanceof HTMLInputElement && candidate.dataset.selectedId === String(id));
+
+            if (input instanceof HTMLInputElement) {
+                input.remove();
+            }
+
+            updateSelectedSummary();
+        };
+
+        const isRecipientSelected = (target, id) => (
+            hiddenInputs instanceof HTMLElement
+            && Array.from(hiddenInputs.querySelectorAll('input[data-selected-type="' + target + '"]'))
+                .some((input) => input instanceof HTMLInputElement && input.dataset.selectedId === String(id))
+        );
+
+        const markSearchResultSelected = (button, selected) => {
+            button.classList.toggle('is-selected', selected);
+            button.setAttribute('aria-pressed', selected ? 'true' : 'false');
+            const icon = button.querySelector('i');
+
+            if (icon instanceof HTMLElement) {
+                icon.classList.toggle('fa-plus', !selected);
+                icon.classList.toggle('fa-check', selected);
+            }
+        };
+
+        const refreshSearchResultStates = () => {
+            const target = selectedTarget();
+
+            if (!(searchResults instanceof HTMLElement)) {
+                return;
+            }
+
+            searchResults.querySelectorAll('[data-result-id]').forEach((button) => {
+                if (button instanceof HTMLButtonElement) {
+                    markSearchResultSelected(button, isRecipientSelected(target, button.dataset.resultId || ''));
+                }
+            });
+        };
+
+        const syncRecipientDialog = () => {
+            const target = selectedTarget();
+            const config = targetConfig[target] || targetConfig.CURSOS;
+
+            if (recipientTitle instanceof HTMLElement) {
+                recipientTitle.textContent = config.title;
+            }
+
+            if (recipientCopy instanceof HTMLElement) {
+                recipientCopy.textContent = config.copy;
+            }
+
+            if (coursePanel instanceof HTMLElement) {
+                coursePanel.hidden = target !== 'CURSOS';
+            }
+
+            if (searchPanel instanceof HTMLElement) {
+                searchPanel.hidden = !['ESTUDIANTES', 'REPRESENTANTES', 'PERSONAL'].includes(target);
+            }
+
+            if (searchInput instanceof HTMLInputElement) {
+                searchInput.value = '';
+                searchInput.placeholder = target === 'PERSONAL'
+                    ? 'Cedula, nombres, apellidos o cargo'
+                    : 'Cedula, nombres, apellidos o curso';
+            }
+
+            if (courseFilterInput instanceof HTMLInputElement) {
+                courseFilterInput.value = '';
+                courseOptions.forEach((option) => {
+                    const row = option instanceof HTMLInputElement ? option.closest('.communication-selector-row') : null;
+
+                    if (row instanceof HTMLElement) {
+                        row.hidden = false;
+                    }
+                });
+            }
+
+            if (searchResults instanceof HTMLElement) {
+                searchResults.innerHTML = target === 'TODOS'
+                    ? '<div class="empty-state">No se requiere seleccion adicional.</div>'
+                    : '<div class="empty-state">Ingrese un criterio para buscar.</div>';
+            }
+        };
+
+        const openRecipientDialog = () => {
+            const target = selectedTarget();
+
+            if (target === 'TODOS') {
+                updateSelectedSummary();
+                return;
+            }
+
+            syncRecipientDialog();
+
+            if (recipientDialog instanceof HTMLElement && typeof recipientDialog.showModal === 'function') {
+                recipientDialog.showModal();
+                return;
+            }
+
+            if (recipientDialog instanceof HTMLElement) {
+                recipientDialog.setAttribute('open', 'open');
+            }
+        };
+
+        const runRecipientSearch = async () => {
+            const target = selectedTarget();
+            const config = targetConfig[target] || null;
+
+            if (!(config && config.endpoint) || !(searchResults instanceof HTMLElement) || !(searchInput instanceof HTMLInputElement)) {
+                return;
+            }
+
+            const query = searchInput.value.trim();
+            searchResults.innerHTML = '<div class="empty-state">Buscando...</div>';
+
+            try {
+                const response = await fetch(
+                    communicationBaseUrl + '/comunicados/' + config.endpoint + '?q=' + encodeURIComponent(query),
+                    { headers: { 'Accept': 'application/json' } }
+                );
+
+                if (!response.ok) {
+                    throw new Error('Communication recipient search failed');
+                }
+
+                const payload = await response.json();
+                const results = Array.isArray(payload.results) ? payload.results : [];
+
+                if (results.length === 0) {
+                    searchResults.innerHTML = '<div class="empty-state">No se encontraron resultados.</div>';
+                    return;
+                }
+
+                searchResults.innerHTML = results.map((result) => {
+                    const id = String(result.id || '');
+                    const label = String(result.label || 'Sin nombre');
+                    const detail = String(result.detail || '');
+                    const selected = isRecipientSelected(target, id);
+
+                    return [
+                        '<button class="communication-search-result' + (selected ? ' is-selected' : '') + '" type="button" aria-pressed="' + (selected ? 'true' : 'false') + '" data-result-id="' + escapeHtml(id) + '" data-result-label="' + escapeHtml(label) + '" data-result-detail="' + escapeHtml(detail) + '">',
+                        '<span><strong>' + escapeHtml(label) + '</strong>',
+                        detail !== '' ? '<small>' + escapeHtml(detail) + '</small>' : '',
+                        '</span>',
+                        '<i class="fa ' + (selected ? 'fa-check' : 'fa-plus') + '" aria-hidden="true"></i>',
+                        '</button>',
+                    ].join('');
+                }).join('');
+
+                searchResults.querySelectorAll('[data-result-id]').forEach((button) => {
+                    if (!(button instanceof HTMLButtonElement)) {
+                        return;
+                    }
+
+                    button.addEventListener('click', () => {
+                        addSelectedInput(target, button.dataset.resultId || '', button.dataset.resultLabel || '', button.dataset.resultDetail || '');
+                        markSearchResultSelected(button, true);
+                    });
+                });
+            } catch (error) {
+                searchResults.innerHTML = '<div class="empty-state">No se pudo completar la busqueda.</div>';
+            }
+        };
+
+        targetRadios.forEach((radio) => {
+            if (!(radio instanceof HTMLInputElement)) {
+                return;
+            }
+
+            const option = radio.closest('.communication-target-option');
+
+            if (option instanceof HTMLElement) {
+                option.addEventListener('pointerdown', () => {
+                    targetWasSelectedOnPointerDown = radio.checked;
+                });
+
+                option.addEventListener('click', () => {
+                    window.setTimeout(() => {
+                        if (targetWasSelectedOnPointerDown && radio.checked && radio.value !== 'TODOS') {
+                            openRecipientDialog();
+                        }
+
+                        targetWasSelectedOnPointerDown = false;
+                    }, 0);
+                });
+            }
+
+            radio.addEventListener('change', () => {
+                if (!radio.checked) {
+                    return;
+                }
+
+                removeInputsExceptTarget(radio.value);
+                syncTargetOptionState();
+                updateSelectedSummary();
+
+                if (radio.value !== 'TODOS') {
+                    openRecipientDialog();
+                }
+            });
+        });
+
+        courseOptions.forEach((option) => {
+            if (!(option instanceof HTMLInputElement)) {
+                return;
+            }
+
+            option.addEventListener('change', () => {
+                if (option.checked) {
+                    addSelectedInput('CURSOS', option.value, option.dataset.label || option.value);
+                    return;
+                }
+
+                removeSelectedInput('CURSOS', option.value);
+            });
+        });
+
+        if (courseFilterInput instanceof HTMLInputElement) {
+            courseFilterInput.addEventListener('input', () => {
+                const term = courseFilterInput.value.trim().toLowerCase();
+
+                courseOptions.forEach((option) => {
+                    if (!(option instanceof HTMLInputElement)) {
+                        return;
+                    }
+
+                    const row = option.closest('.communication-selector-row');
+
+                    if (!(row instanceof HTMLElement)) {
+                        return;
+                    }
+
+                    const label = (option.dataset.label || row.textContent || '').toLowerCase();
+                    row.hidden = term !== '' && !label.includes(term);
+                });
+            });
+        }
+
+        if (recipientCloseButton instanceof HTMLButtonElement && recipientDialog instanceof HTMLElement) {
+            recipientCloseButton.addEventListener('click', () => {
+                if (typeof recipientDialog.close === 'function') {
+                    recipientDialog.close('confirm');
+                } else {
+                    recipientDialog.removeAttribute('open');
+                }
+            });
+        }
+
+        if (searchInput instanceof HTMLInputElement) {
+            searchInput.addEventListener('input', () => {
+                window.clearTimeout(searchTimer);
+                searchTimer = window.setTimeout(runRecipientSearch, 250);
+            });
+        }
+
+        updateSelectedSummary();
+        syncTargetOptionState();
+
+        if (draftButton instanceof HTMLButtonElement) {
+            draftButton.addEventListener('click', () => {
+                if (actionInput instanceof HTMLInputElement) {
+                    actionInput.value = 'draft';
+                }
+            });
+        }
+
+        if (sendButton instanceof HTMLButtonElement) {
+            sendButton.addEventListener('click', () => {
+                if (actionInput instanceof HTMLInputElement) {
+                    actionInput.value = 'send';
+                }
+            });
+        }
+
+        communicationForm.addEventListener('submit', (event) => {
+            if (!(actionInput instanceof HTMLInputElement) || actionInput.value !== 'send' || confirmedSend) {
+                return;
+            }
+
+            event.preventDefault();
+
+            if (typeof communicationSendDialog.showModal === 'function') {
+                communicationSendDialog.showModal();
+                return;
+            }
+
+            communicationSendDialog.setAttribute('open', 'open');
+        });
+
+        if (cancelButton instanceof HTMLButtonElement) {
+            cancelButton.addEventListener('click', () => {
+                if (typeof communicationSendDialog.close === 'function') {
+                    communicationSendDialog.close('cancel');
+                } else {
+                    communicationSendDialog.removeAttribute('open');
+                }
+            });
+        }
+
+        if (confirmButton instanceof HTMLButtonElement) {
+            confirmButton.addEventListener('click', () => {
+                confirmedSend = true;
+
+                if (actionInput instanceof HTMLInputElement) {
+                    actionInput.value = 'send';
+                }
+
+                if (typeof communicationSendDialog.close === 'function') {
+                    communicationSendDialog.close('confirm');
+                } else {
+                    communicationSendDialog.removeAttribute('open');
+                }
+
+                communicationForm.submit();
             });
         }
     }

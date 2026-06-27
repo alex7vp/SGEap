@@ -79,6 +79,7 @@ class AuthController extends Controller
             'last_name' => trim((string) ($user['perapellidos'] ?? '')),
             'permissions' => $permissionCodes,
         ];
+        $_SESSION['show_login_communications_modal'] = true;
         refreshAuthenticatedSessionActivity();
 
         $periodModel = new PeriodModel();
