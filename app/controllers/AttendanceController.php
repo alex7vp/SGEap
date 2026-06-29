@@ -7,6 +7,7 @@ namespace App\Controllers;
 use App\Core\Controller;
 use App\Models\AttendanceModel;
 use App\Models\CourseModel;
+use App\Models\GradebookModel;
 use App\Models\NoveltyModel;
 use App\Models\PersonalModel;
 use App\Models\StudentModel;
@@ -215,7 +216,7 @@ class AttendanceController extends Controller
             ? null
             : ($this->hasPermission('novedades.registrar', $user) ? (int) ($user['perid'] ?? 0) : null);
 
-        $this->view('asistencia.registro', [
+        $viewData = [
             'appName' => config('app')['name'] ?? 'SGEap',
             'pageTitle' => 'Registro de asistencia y novedades',
             'currentSection' => 'asistencia_registro',
@@ -251,7 +252,24 @@ class AttendanceController extends Controller
                 : [],
             'success' => sessionFlash('success'),
             'error' => sessionFlash('error'),
-        ]);
+        ];
+
+        if ((string) ($_GET['pdf'] ?? '') === '1') {
+            if ($session === false) {
+                sessionFlash('error', 'Debe seleccionar una sesion de asistencia para generar el PDF.');
+                $this->redirect('/asistencia/registro?mes=' . $month . '&fecha=' . $date . ($selectedCourseId > 0 ? '&curid=' . $selectedCourseId : '') . '#calendario-docente');
+            }
+
+            (new PdfReportService())->streamView(
+                'pdf.asistencia_sesion_docente',
+                $viewData,
+                'asistencia-sesion.pdf',
+                'A4',
+                'portrait'
+            );
+        }
+
+        $this->view('asistencia.registro', $viewData);
     }
 
     public function calendar(): void
@@ -444,6 +462,14 @@ class AttendanceController extends Controller
         $period = currentAcademicPeriod();
         $periodId = $period !== null ? (int) $period['pleid'] : 0;
         $attendanceModel = new AttendanceModel();
+        $canSuperviseAttendance = $this->hasPermission('asistencia.supervisar', $user);
+        $teacherReportCourses = !$canSuperviseAttendance && $periodId > 0
+            ? (new GradebookModel())->teacherCourses((int) ($user['perid'] ?? 0), $periodId)
+            : [];
+        $teacherReportCourseIds = array_values(array_filter(
+            array_map(static fn (array $course): int => (int) ($course['curid'] ?? 0), $teacherReportCourses),
+            static fn (int $courseId): bool => $courseId > 0
+        ));
         $classDateRange = $periodId > 0 ? $attendanceModel->classDateRangeByPeriod($periodId) : null;
         $availableMonths = $classDateRange !== null
             ? $this->monthsBetween((string) $classDateRange['start'], (string) $classDateRange['end'])
@@ -488,6 +514,20 @@ class AttendanceController extends Controller
         $courseSubjectId = (int) ($_GET['mtcid'] ?? 0);
         $teacherPersonId = (int) ($_GET['perid_docente'] ?? 0);
 
+        if (!$canSuperviseAttendance) {
+            $teacherPersonId = (int) ($user['perid'] ?? 0);
+
+            if ($teacherReportCourseIds !== []) {
+                if ($courseId <= 0 || !in_array($courseId, $teacherReportCourseIds, true)) {
+                    $courseId = $teacherReportCourseIds[0];
+                }
+            } else {
+                $courseId = 0;
+                $studentId = 0;
+                $courseSubjectId = 0;
+            }
+        }
+
         if ($courseId <= 0) {
             $studentId = 0;
         }
@@ -498,6 +538,43 @@ class AttendanceController extends Controller
 
         $courseModel = new CourseModel();
         $studentModel = new StudentModel();
+        $courses = $periodId > 0 ? array_values(array_filter(
+            $courseModel->allByPeriod($periodId),
+            static fn (array $course): bool => !empty($course['curestado'])
+        )) : [];
+        $courseSubjects = $periodId > 0 ? $attendanceModel->reportCourseSubjects($periodId) : [];
+        $students = $periodId > 0 ? $studentModel->allWithPerson($periodId, $courseId > 0 ? ['curid' => $courseId] : []) : [];
+        $teachers = $periodId > 0 ? $attendanceModel->reportTeachers($periodId) : [];
+
+        if (!$canSuperviseAttendance) {
+            $allowedCourseIds = array_flip($teacherReportCourseIds);
+            $courses = array_values(array_filter(
+                $courses,
+                static fn (array $course): bool => isset($allowedCourseIds[(int) ($course['curid'] ?? 0)])
+            ));
+            $courseSubjects = array_values(array_filter(
+                $courseSubjects,
+                static fn (array $subject): bool => isset($allowedCourseIds[(int) ($subject['curid'] ?? 0)])
+                    && ($courseId <= 0 || (int) ($subject['curid'] ?? 0) === $courseId)
+            ));
+            $teachers = [];
+
+            if ($courseSubjectId > 0) {
+                $selectedSubjectBelongsToTeacher = false;
+
+                foreach ($courseSubjects as $subject) {
+                    if ((int) ($subject['mtcid'] ?? 0) === $courseSubjectId) {
+                        $selectedSubjectBelongsToTeacher = true;
+                        break;
+                    }
+                }
+
+                if (!$selectedSubjectBelongsToTeacher) {
+                    $courseSubjectId = 0;
+                }
+            }
+        }
+
         $matrixReport = $periodId > 0
             ? $attendanceModel->attendanceMatrixReport(
                 $periodId,
@@ -520,6 +597,22 @@ class AttendanceController extends Controller
                 $teacherPersonId
             )
             : [];
+        $reportDates = $matrixReport['dates'] ?? [];
+        $reportRows = $matrixReport['rows'] ?? [];
+
+        if ($periodId > 0 && !$customRange && $studentId <= 0) {
+            $reportDates = $attendanceModel->enabledAttendanceDatesByRange($periodId, $startDate, $endDate, $courseId);
+
+            $shouldCompleteMonthlyRows = $courseSubjectId <= 0
+                && ($canSuperviseAttendance ? $teacherPersonId <= 0 : $courseId > 0);
+
+            if ($shouldCompleteMonthlyRows) {
+                $reportRows = $this->completeMonthlyAttendanceRows(
+                    $reportRows,
+                    $attendanceModel->activeStudentsForAttendanceReport($periodId, $courseId)
+                );
+            }
+        }
 
         $viewData = [
             'appName' => config('app')['name'] ?? 'SGEap',
@@ -538,15 +631,13 @@ class AttendanceController extends Controller
             'selectedStudentId' => $studentId,
             'selectedCourseSubjectId' => $courseSubjectId,
             'selectedTeacherPersonId' => $teacherPersonId,
-            'courses' => $periodId > 0 ? array_values(array_filter(
-                $courseModel->allByPeriod($periodId),
-                static fn (array $course): bool => !empty($course['curestado'])
-            )) : [],
-            'students' => $periodId > 0 ? $studentModel->allWithPerson($periodId) : [],
-            'courseSubjects' => $periodId > 0 ? $attendanceModel->reportCourseSubjects($periodId) : [],
-            'teachers' => $periodId > 0 ? $attendanceModel->reportTeachers($periodId) : [],
-            'reportDates' => $matrixReport['dates'] ?? [],
-            'reportRows' => $matrixReport['rows'] ?? [],
+            'courses' => $courses,
+            'students' => $students,
+            'courseSubjects' => $courseSubjects,
+            'teachers' => $teachers,
+            'canSuperviseAttendance' => $canSuperviseAttendance,
+            'reportDates' => $reportDates,
+            'reportRows' => $reportRows,
             'studentHourlyMatrix' => $studentHourlyMatrix,
             'success' => sessionFlash('success'),
             'error' => sessionFlash('error'),
@@ -558,7 +649,7 @@ class AttendanceController extends Controller
                 $viewData,
                 'reporte-asistencia.pdf',
                 'A4',
-                count((array) ($matrixReport['dates'] ?? [])) > 12 ? 'landscape' : 'portrait'
+                count((array) $reportDates) > 12 ? 'landscape' : 'portrait'
             );
         }
 
@@ -1460,6 +1551,49 @@ class AttendanceController extends Controller
             $rows,
             static fn (array $row): bool => (int) ($row['curid'] ?? 0) === $courseId
         ));
+    }
+
+    private function completeMonthlyAttendanceRows(array $reportRows, array $students): array
+    {
+        $rowsByKey = [];
+
+        foreach ($reportRows as $row) {
+            $key = (string) ($row['estid'] ?? 0) . '-' . (string) ($row['curid'] ?? 0);
+            $rowsByKey[$key] = $row;
+        }
+
+        foreach ($students as $student) {
+            $key = (string) ($student['estid'] ?? 0) . '-' . (string) ($student['curid'] ?? 0);
+
+            if (isset($rowsByKey[$key])) {
+                continue;
+            }
+
+            $rowsByKey[$key] = [
+                'estid' => (int) ($student['estid'] ?? 0),
+                'curid' => (int) ($student['curid'] ?? 0),
+                'percedula' => (string) ($student['percedula'] ?? ''),
+                'perapellidos' => (string) ($student['perapellidos'] ?? ''),
+                'pernombres' => (string) ($student['pernombres'] ?? ''),
+                'granombre' => (string) ($student['granombre'] ?? ''),
+                'prlnombre' => (string) ($student['prlnombre'] ?? ''),
+                'dias' => [],
+                'total_asistencias' => 0,
+                'total_atrasos' => 0,
+                'total_faltas_justificadas' => 0,
+                'total_faltas_injustificadas' => 0,
+            ];
+        }
+
+        usort(
+            $rowsByKey,
+            static fn (array $a, array $b): int => strcmp(
+                (string) ($a['granombre'] ?? '') . (string) ($a['prlnombre'] ?? '') . (string) ($a['perapellidos'] ?? '') . (string) ($a['pernombres'] ?? ''),
+                (string) ($b['granombre'] ?? '') . (string) ($b['prlnombre'] ?? '') . (string) ($b['perapellidos'] ?? '') . (string) ($b['pernombres'] ?? '')
+            )
+        );
+
+        return array_values($rowsByKey);
     }
 
     private function dateInsideClassRange(string $date, ?array $classDateRange): bool

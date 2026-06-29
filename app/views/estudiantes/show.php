@@ -25,6 +25,13 @@ $studentId = (int) ($student['estid'] ?? 0);
 $isOwnProfile = !empty($isOwnProfile);
 $isRepresentativeProfile = !empty($isRepresentativeProfile);
 $canRepresentativeMatriculate = !empty($canRepresentativeMatriculate);
+$userPermissions = (array) ($user['permissions'] ?? []);
+$canRepresentativeAccounting = in_array('contabilidad.representante.obligaciones.ver', $userPermissions, true)
+    || in_array('contabilidad.representante.pagos.ver', $userPermissions, true)
+    || in_array('contabilidad.representante.comprobantes.subir', $userPermissions, true);
+$canRepresentativeAttendance = in_array('asistencia.representante.ver', $userPermissions, true)
+    || in_array('novedades.representante.ver', $userPermissions, true);
+$canRepresentativeGrades = in_array('calificaciones.representante.ver', $userPermissions, true);
 $studentEditUrl = baseUrl('estudiantes/editar?id=' . $studentId);
 $matriculationId = (int) ($matriculation['matid'] ?? 0);
 $moduleUrl = static function (string $section) use ($isOwnProfile, $isRepresentativeProfile, $studentId): string {
@@ -95,9 +102,42 @@ $cards = [
         'url' => $moduleUrl('historial'),
     ],
 ];
+
+if ($isRepresentativeProfile) {
+    $cards = [
+        [
+            'label' => 'Estudiante',
+            'value' => $studentName !== '' ? $studentName : 'Estudiante sin nombre',
+            'url' => '',
+        ],
+        [
+            'label' => 'Curso',
+            'value' => $courseName,
+            'url' => '',
+        ],
+        [
+            'label' => 'Estado',
+            'value' => !empty($student['estestado']) ? 'Activo' : 'Inactivo',
+            'url' => '',
+        ],
+        [
+            'label' => 'Periodo',
+            'value' => $empty($matriculation['pledescripcion'] ?? $currentPeriod['pledescripcion'] ?? null, 'Sin periodo'),
+            'url' => '',
+        ],
+    ];
+}
 ?>
 <div class="toolbar">
-    <p><?= $isOwnProfile ? 'Consulta de tu informacion academica y de matricula.' : 'Ficha operativa del estudiante y su matricula asociada.'; ?></p>
+    <p>
+        <?php if ($isOwnProfile): ?>
+            Consulta de tu informacion academica y de matricula.
+        <?php elseif ($isRepresentativeProfile): ?>
+            Consulta general del estudiante representado. Las opciones disponibles dependen de los permisos habilitados por la institucion.
+        <?php else: ?>
+            Ficha operativa del estudiante y su matricula asociada.
+        <?php endif; ?>
+    </p>
     <?php if ($isRepresentativeProfile): ?>
         <a class="text-link" href="<?= $h(baseUrl('dashboard')); ?>">Volver al dashboard</a>
     <?php elseif (!$isOwnProfile): ?>
@@ -107,7 +147,7 @@ $cards = [
 
 <section class="student-profile-hero">
     <div>
-        <span class="summary-label">Ficha del estudiante</span>
+        <span class="summary-label"><?= $isRepresentativeProfile ? 'Estudiante representado' : 'Ficha del estudiante'; ?></span>
         <h3><?= $h($studentName !== '' ? $studentName : 'Estudiante sin nombre'); ?></h3>
         <p>
             Cedula: <?= $h($empty($student['percedula'] ?? null)); ?>
@@ -122,7 +162,7 @@ $cards = [
         <?php if ($canRepresentativeMatriculate): ?>
             <a class="btn-primary btn-auto" href="<?= $h(baseUrl('matricula-temporal?estudiante=' . $studentId)); ?>">Matricular</a>
         <?php endif; ?>
-        <?php if ($isRepresentativeProfile && $matriculationId > 0): ?>
+        <?php if (!$isRepresentativeProfile && $matriculationId > 0): ?>
             <a class="btn-secondary btn-auto" href="<?= $h(baseUrl('matriculas/ficha?id=' . $matriculationId)); ?>" target="_blank" rel="noopener noreferrer">
                 <i class="fa fa-file-pdf-o" aria-hidden="true"></i>
                 <span>Ficha PDF</span>
@@ -134,12 +174,43 @@ $cards = [
     </div>
 </section>
 
+<?php if ($isRepresentativeProfile): ?>
+    <section class="dashboard-grid">
+        <?php if ($canRepresentativeAccounting): ?>
+            <a class="summary-card student-card-link student-compact-card" href="<?= $h(baseUrl('representante/contabilidad')); ?>">
+                <span class="summary-label">Pagos</span>
+                <strong>Consultar pagos</strong>
+            </a>
+        <?php endif; ?>
+        <?php if ($canRepresentativeAttendance): ?>
+            <a class="summary-card student-card-link student-compact-card" href="<?= $h(baseUrl('asistencia/representante?estid=' . $studentId)); ?>">
+                <span class="summary-label">Asistencia</span>
+                <strong>Asistencia y novedades</strong>
+            </a>
+        <?php endif; ?>
+        <?php if ($canRepresentativeGrades): ?>
+            <article class="summary-card student-compact-card">
+                <span class="summary-label">Calificaciones</span>
+                <strong>Pendiente de habilitar vista</strong>
+                <p>El permiso existe, pero aun falta implementar la consulta para representantes.</p>
+            </article>
+        <?php endif; ?>
+    </section>
+<?php endif; ?>
+
 <section class="student-profile-index-grid">
     <?php foreach ($cards as $card): ?>
-        <a class="summary-card student-profile-card student-card-link student-compact-card" href="<?= $h($card['url']); ?>">
-            <span class="summary-label"><?= $h($card['label']); ?></span>
-            <strong><?= $h($card['value']); ?></strong>
-        </a>
+        <?php if ($isRepresentativeProfile): ?>
+            <article class="summary-card student-profile-card student-compact-card">
+                <span class="summary-label"><?= $h($card['label']); ?></span>
+                <strong><?= $h($card['value']); ?></strong>
+            </article>
+        <?php else: ?>
+            <a class="summary-card student-profile-card student-card-link student-compact-card" href="<?= $h($card['url']); ?>">
+                <span class="summary-label"><?= $h($card['label']); ?></span>
+                <strong><?= $h($card['value']); ?></strong>
+            </a>
+        <?php endif; ?>
     <?php endforeach; ?>
 </section>
 <?php require BASE_PATH . '/app/views/partials/footer.php'; ?>

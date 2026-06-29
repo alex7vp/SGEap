@@ -137,8 +137,8 @@ $isStudentReport = $selectedStudentId > 0;
             </table>
         <?php endforeach; ?>
         <p class="note">As= Asistencia | At= Atraso | FJ= Falta Justificada | FI= Falta Injustificada</p>
-    <?php elseif ($reportRows === []): ?>
-        <div class="empty">No hay registros de asistencia para los filtros seleccionados.</div>
+    <?php elseif ($reportRows === [] || $reportDates === []): ?>
+        <div class="empty">No hay dias habilitados o estudiantes activos para los filtros seleccionados.</div>
     <?php else: ?>
         <table>
             <thead>

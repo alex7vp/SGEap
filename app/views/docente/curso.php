@@ -28,6 +28,12 @@ $actions = [
         'url' => baseUrl('docente/curso/lista?curid=' . $courseId),
         'icon' => 'fa-list-ol',
     ],
+    [
+        'label' => 'Reporte mensual',
+        'description' => 'Generar la matriz mensual de asistencia del curso.',
+        'url' => baseUrl('reportes/asistencia?curid=' . $courseId),
+        'icon' => 'fa-bar-chart',
+    ],
 ];
 ?>
 <section class="security-assignment-block teacher-course-detail">

@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Models\InstitutionModel;
 use App\Models\MatriculationConfigurationModel;
 use App\Models\RepresentativeMatriculationAuthorizationModel;
+use App\Models\StudentModel;
 use App\Models\UserModel;
 
 $topModules = [
@@ -123,7 +124,7 @@ $sidebarModules = [
             ],
             [
                 'key' => 'representante_pagos',
-                'label' => 'Mis pagos',
+                'label' => 'Pagos de representados',
                 'url' => baseUrl('representante/contabilidad'),
                 'icon' => 'fa-file-text-o',
             ],
@@ -416,12 +417,17 @@ if (in_array((string) ($currentSection ?? ''), ['personal', 'personal_register',
 }
 
 $userPermissions = (array) ($user['permissions'] ?? []);
+$isRepresentativeContext = in_array('representante.estudiantes', $userPermissions, true);
 $representativeNewStudentEnabled = false;
+$representativeRematriculationEnabled = false;
+$representativeSidebarStudents = [];
 $teacherCourseOnlyNavigation = false;
 
 try {
     $userModel = new UserModel();
     $teacherCourseOnlyNavigation = $userModel->hasAnyRoleName((int) ($user['usuid'] ?? 0), ['Docente'])
+        && !in_array('representante.estudiantes', $userPermissions, true)
+        && !in_array('estudiante.mi_matricula', $userPermissions, true)
         && !$userModel->hasAnyRoleName((int) ($user['usuid'] ?? 0), [
             'Administrador',
             'Coordinador',
@@ -439,18 +445,36 @@ if (in_array('representante.matricula_nueva', $userPermissions, true)) {
         $enabledPeriod = (new MatriculationConfigurationModel())->findEnabledPeriod();
 
         if ($enabledPeriod !== false) {
-            $representativeNewStudentEnabled = (new RepresentativeMatriculationAuthorizationModel())->activeByUserAndPeriod(
+            $representativeAuthorizationModel = new RepresentativeMatriculationAuthorizationModel();
+            $representativeNewStudentEnabled = $representativeAuthorizationModel->activeNewStudentByUserAndPeriod(
+                (int) ($user['usuid'] ?? 0),
+                (int) $enabledPeriod['pleid']
+            ) !== false;
+            $representativeRematriculationEnabled = $representativeAuthorizationModel->activeByUserAndPeriod(
                 (int) ($user['usuid'] ?? 0),
                 (int) $enabledPeriod['pleid']
             ) !== false;
         }
     } catch (\Throwable) {
         $representativeNewStudentEnabled = false;
+        $representativeRematriculationEnabled = false;
+    }
+}
+
+if ($isRepresentativeContext) {
+    try {
+        $sidebarPeriod = currentAcademicPeriod();
+        $representativeSidebarStudents = (new StudentModel())->allByRepresentativePerson(
+            (int) ($user['perid'] ?? 0),
+            is_array($sidebarPeriod) ? (int) $sidebarPeriod['pleid'] : null
+        );
+    } catch (\Throwable) {
+        $representativeSidebarStudents = [];
     }
 }
 
 $permissionMap = [
-    'dashboard' => ['dashboard.ver', 'asistencia.registrar', 'novedades.registrar', 'calificaciones.registrar', 'calificaciones.editar'],
+    'dashboard' => ['dashboard.ver', 'representante.estudiantes', 'asistencia.registrar', 'novedades.registrar', 'calificaciones.registrar', 'calificaciones.editar'],
     'matricula_temporal' => ['matricula_temporal.ver', 'representante.matricula_nueva'],
     'mi_matricula' => 'estudiante.mi_matricula',
     'representante_pagos' => ['contabilidad.representante.obligaciones.ver', 'contabilidad.representante.pagos.ver', 'contabilidad.representante.comprobantes.subir', 'contabilidad.representante.rubros.ver'],
@@ -493,7 +517,7 @@ $permissionMap = [
     'materias_curso' => 'asistencia.calendario.gestionar',
     'docentes_materias' => 'asistencia.calendario.gestionar',
     'calificaciones' => ['calificaciones.configurar', 'calificaciones.plantillas.gestionar'],
-    'reporte_asistencia' => 'asistencia.supervisar',
+    'reporte_asistencia' => ['asistencia.supervisar', 'asistencia.registrar'],
     'reporte_libreta' => ['calificaciones.validar', 'calificaciones.configurar', 'calificaciones.registrar', 'calificaciones.editar', 'calificaciones.publicar'],
     'reporte_cuadro_final' => ['calificaciones.validar', 'calificaciones.configurar', 'calificaciones.registrar', 'calificaciones.editar'],
     'reportes_home' => ['asistencia.supervisar', 'calificaciones.validar', 'calificaciones.configurar', 'calificaciones.registrar', 'calificaciones.editar', 'calificaciones.publicar'],
@@ -558,7 +582,7 @@ if (!in_array('dashboard.ver', $userPermissions, true) && in_array('matricula_te
     $topModules['inicio']['url'] = baseUrl('matricula-temporal');
 }
 
-if (!in_array('dashboard.ver', $userPermissions, true) && $representativeNewStudentEnabled) {
+if (!in_array('dashboard.ver', $userPermissions, true) && $representativeNewStudentEnabled && !$isRepresentativeContext) {
     $topModules['inicio']['url'] = baseUrl('matricula-temporal');
 }
 
@@ -567,6 +591,111 @@ if (!$representativeNewStudentEnabled && !in_array('matricula_temporal.ver', $us
         $sidebarModules['inicio']['items'],
         static fn (array $item): bool => ($item['key'] ?? '') !== 'matricula_temporal'
     ));
+}
+
+if ($isRepresentativeContext) {
+    $studentOnlySidebarItems = [
+        'mi_matricula',
+        'asistencia_propia',
+        'novedades_propias',
+        'representante_pagos',
+    ];
+
+    foreach ($sidebarModules as $moduleKey => $module) {
+        if (isset($module['items'])) {
+            $sidebarModules[$moduleKey]['items'] = array_values(array_filter(
+                (array) $module['items'],
+                static fn (array $item): bool => !in_array((string) ($item['key'] ?? ''), $studentOnlySidebarItems, true)
+            ));
+        }
+
+        if (isset($module['groups'])) {
+            foreach ($module['groups'] as $groupIndex => $group) {
+                $sidebarModules[$moduleKey]['groups'][$groupIndex]['items'] = array_values(array_filter(
+                    (array) ($group['items'] ?? []),
+                    static fn (array $item): bool => !in_array((string) ($item['key'] ?? ''), $studentOnlySidebarItems, true)
+                ));
+            }
+        }
+    }
+
+    $principalItems = array_values(array_filter(
+        (array) ($sidebarModules['inicio']['items'] ?? []),
+        static fn (array $item): bool => in_array((string) ($item['key'] ?? ''), ['dashboard', 'matricula_temporal'], true)
+    ));
+    $representativeGroups = [
+        [
+            'title' => 'Panel principal',
+            'items' => $principalItems,
+        ],
+    ];
+
+    foreach ($representativeSidebarStudents as $student) {
+        $studentId = (int) ($student['estid'] ?? 0);
+        $studentName = trim((string) (($student['pernombres'] ?? '') . ' ' . ($student['perapellidos'] ?? '')));
+
+        if ($studentId <= 0) {
+            continue;
+        }
+
+        $items = [
+            [
+                'key' => 'representante_estudiantes',
+                'label' => 'Resumen',
+                'url' => baseUrl('representante/estudiante?id=' . $studentId),
+                'icon' => 'fa-user',
+            ],
+        ];
+
+        if ($representativeRematriculationEnabled) {
+            $items[] = [
+                'key' => 'matricula_temporal',
+                'label' => 'Matricular',
+                'url' => baseUrl('matricula-temporal?estudiante=' . $studentId),
+                'icon' => 'fa-address-card',
+            ];
+        }
+
+        if (in_array('contabilidad.representante.obligaciones.ver', $userPermissions, true)
+            || in_array('contabilidad.representante.pagos.ver', $userPermissions, true)
+            || in_array('contabilidad.representante.comprobantes.subir', $userPermissions, true)
+        ) {
+            $items[] = [
+                'key' => 'representante_pagos',
+                'label' => 'Pagos',
+                'url' => baseUrl('representante/contabilidad?estid=' . $studentId),
+                'icon' => 'fa-file-text-o',
+            ];
+        }
+
+        if (in_array('asistencia.representante.ver', $userPermissions, true)
+            || in_array('novedades.representante.ver', $userPermissions, true)
+        ) {
+            $items[] = [
+                'key' => 'asistencia_representante',
+                'label' => 'Asistencia y novedades',
+                'url' => baseUrl('asistencia/representante?estid=' . $studentId),
+                'icon' => 'fa-calendar-check-o',
+            ];
+        }
+
+        if (in_array('calificaciones.representante.ver', $userPermissions, true)) {
+            $items[] = [
+                'key' => 'calificaciones_representante',
+                'label' => 'Calificaciones',
+                'url' => '#',
+                'icon' => 'fa-check-square',
+            ];
+        }
+
+        $representativeGroups[] = [
+            'title' => $studentName !== '' ? $studentName : 'Estudiante',
+            'items' => $items,
+        ];
+    }
+
+    $sidebarModules['inicio']['groups'] = $representativeGroups;
+    unset($sidebarModules['inicio']['items']);
 }
 
 if ($teacherCourseOnlyNavigation) {

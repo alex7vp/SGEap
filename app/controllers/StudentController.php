@@ -6,8 +6,10 @@ namespace App\Controllers;
 
 use App\Core\Controller;
 use App\Models\CourseModel;
+use App\Models\MatriculationConfigurationModel;
 use App\Models\MatriculationModel;
 use App\Models\PersonModel;
+use App\Models\RepresentativeMatriculationAuthorizationModel;
 use App\Models\StudentModel;
 
 class StudentController extends Controller
@@ -106,13 +108,13 @@ class StudentController extends Controller
 
         $this->view('estudiantes.show', [
             'appName' => config('app')['name'] ?? 'SGEap',
-            'pageTitle' => 'Ficha del estudiante',
+            'pageTitle' => 'Mi representado',
             'currentSection' => 'representante_estudiantes',
             'user' => $user,
             'currentPeriod' => $currentPeriod,
             'profile' => $profile,
             'isRepresentativeProfile' => true,
-            'canRepresentativeMatriculate' => true,
+            'canRepresentativeMatriculate' => $this->representativeMatriculationEnabled((int) ($user['usuid'] ?? 0)),
             'success' => sessionFlash('success'),
             'error' => sessionFlash('error'),
         ]);
@@ -136,6 +138,9 @@ class StudentController extends Controller
             sessionFlash('error', 'El modulo solicitado no es valido.');
             $this->redirect('/representante/estudiante?id=' . $studentId);
         }
+
+        sessionFlash('error', 'La ficha operativa del estudiante solo esta disponible para personal autorizado.');
+        $this->redirect('/representante/estudiante?id=' . $studentId);
 
         $currentPeriod = currentAcademicPeriod();
         $profile = $studentModel->profile($studentId, is_array($currentPeriod) ? (int) $currentPeriod['pleid'] : null);
@@ -690,6 +695,20 @@ class StudentController extends Controller
             'documentos' => 'Documentos',
             'historial' => 'Historial de matriculas',
         ];
+    }
+
+    private function representativeMatriculationEnabled(int $userId): bool
+    {
+        $period = (new MatriculationConfigurationModel())->findEnabledPeriod();
+
+        if ($userId <= 0 || $period === false) {
+            return false;
+        }
+
+        return (new RepresentativeMatriculationAuthorizationModel())->activeByUserAndPeriod(
+            $userId,
+            (int) $period['pleid']
+        ) !== false;
     }
 
     private function healthPanel(string $panel): string

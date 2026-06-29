@@ -1482,6 +1482,80 @@ class AttendanceModel extends Model
         ];
     }
 
+    public function enabledAttendanceDatesByRange(int $periodId, string $startDate, string $endDate, int $courseId = 0): array
+    {
+        $courseCondition = $courseId > 0
+            ? "AND (
+                   ca.catipo_jornada <> 'ESPECIAL'
+                   OR EXISTS (
+                       SELECT 1
+                       FROM calendario_asistencia_detalle cad
+                       WHERE cad.caid = ca.caid
+                         AND cad.curid = :course_id
+                         AND cad.cadhabilitado = true
+                   )
+               )"
+            : '';
+        $statement = $this->db->prepare(
+            "SELECT ca.cafecha
+             FROM calendario_asistencia ca
+             WHERE ca.pleid = :period_id
+               AND ca.cahabilitado = true
+               AND ca.cafecha BETWEEN :start_date AND :end_date
+               {$courseCondition}
+             ORDER BY ca.cafecha ASC"
+        );
+        $statement->bindValue(':period_id', $periodId, PDO::PARAM_INT);
+        $statement->bindValue(':start_date', $startDate, PDO::PARAM_STR);
+        $statement->bindValue(':end_date', $endDate, PDO::PARAM_STR);
+
+        if ($courseId > 0) {
+            $statement->bindValue(':course_id', $courseId, PDO::PARAM_INT);
+        }
+
+        $statement->execute();
+
+        return array_map(static fn (array $row): string => (string) $row['cafecha'], $statement->fetchAll());
+    }
+
+    public function activeStudentsForAttendanceReport(int $periodId, int $courseId = 0): array
+    {
+        $courseFilter = $courseId > 0 ? 'AND c.curid = :course_id' : '';
+        $statement = $this->db->prepare(
+            "SELECT
+                    m.matid,
+                    e.estid,
+                    c.curid,
+                    p.percedula,
+                    p.perapellidos,
+                    p.pernombres,
+                    g.granombre,
+                    pr.prlnombre
+             FROM matricula m
+             INNER JOIN curso c ON c.curid = m.curid
+             INNER JOIN estado_matricula em ON em.emdid = m.emdid
+             INNER JOIN grado g ON g.graid = c.graid
+             INNER JOIN paralelo pr ON pr.prlid = c.prlid
+             INNER JOIN estudiante e ON e.estid = m.estid
+             INNER JOIN persona p ON p.perid = e.perid
+             WHERE c.pleid = :period_id
+               AND e.estestado = true
+               AND LOWER(em.emdnombre) IN ('activo', 'activa')
+               AND m.matfecha_retiro IS NULL
+               {$courseFilter}
+             ORDER BY g.graid ASC, pr.prlnombre ASC, p.perapellidos ASC, p.pernombres ASC"
+        );
+        $statement->bindValue(':period_id', $periodId, PDO::PARAM_INT);
+
+        if ($courseId > 0) {
+            $statement->bindValue(':course_id', $courseId, PDO::PARAM_INT);
+        }
+
+        $statement->execute();
+
+        return $statement->fetchAll();
+    }
+
     public function studentAttendanceHourlyMatrixReport(
         int $periodId,
         string $startDate,

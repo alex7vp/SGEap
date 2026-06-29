@@ -143,6 +143,11 @@ class AuthController extends Controller
                 $currentPeriod !== false ? (int) $currentPeriod['pleid'] : null
             )
             : [];
+        $canRepresentativeRematriculate = $currentPeriod !== false
+            && (new RepresentativeMatriculationAuthorizationModel())->activeByUserAndPeriod(
+                (int) ($user['usuid'] ?? 0),
+                (int) $currentPeriod['pleid']
+            ) !== false;
 
         $this->view('auth.dashboard', [
             'appName' => config('app')['name'] ?? 'SGEap',
@@ -151,6 +156,7 @@ class AuthController extends Controller
             'user' => $user,
             'stats' => $stats,
             'representativeStudents' => $representativeStudents,
+            'canRepresentativeRematriculate' => $canRepresentativeRematriculate,
             'currentPeriod' => $currentPeriod !== false ? $currentPeriod : null,
             'canCreateMatricula' => $canCreateMatricula,
             'newMatriculaLabel' => $newMatriculaLabel,
@@ -264,12 +270,21 @@ class AuthController extends Controller
             return false;
         }
 
-        return (new RepresentativeMatriculationAuthorizationModel())->activeByUserAndPeriod($userId, (int) $period['pleid']) !== false;
+        return (new RepresentativeMatriculationAuthorizationModel())->activeNewStudentByUserAndPeriod($userId, (int) $period['pleid']) !== false;
     }
 
     private function usesTeacherDashboard(array $user): bool
     {
         if (!$this->userHasAnyRoleName($user, ['Docente'])) {
+            return false;
+        }
+
+        $permissions = (array) ($user['permissions'] ?? []);
+
+        if (
+            in_array('representante.estudiantes', $permissions, true)
+            || in_array('estudiante.mi_matricula', $permissions, true)
+        ) {
             return false;
         }
 

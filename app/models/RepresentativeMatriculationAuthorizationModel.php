@@ -9,6 +9,8 @@ use DateTimeInterface;
 
 class RepresentativeMatriculationAuthorizationModel extends Model
 {
+    public const REMATRICULATION_OBSERVATION = 'Habilitado desde gestion de matriculas';
+
     protected string $table = 'representante_habilitacion_matricula';
     protected string $primaryKey = 'rhmid';
 
@@ -99,11 +101,56 @@ class RepresentativeMatriculationAuthorizationModel extends Model
         return $statement->fetch();
     }
 
+    public function activeNewStudentByUserAndPeriod(int $userId, int $periodId): array|false
+    {
+        $authorization = $this->activeByUserAndPeriod($userId, $periodId);
+
+        if ($authorization === false) {
+            return false;
+        }
+
+        return trim((string) ($authorization['rhmobservacion'] ?? '')) === self::REMATRICULATION_OBSERVATION
+            ? false
+            : $authorization;
+    }
+
+    public function activeRematriculationByUserAndPeriod(int $userId, int $periodId): array|false
+    {
+        $authorization = $this->activeByUserAndPeriod($userId, $periodId);
+
+        if ($authorization === false) {
+            return false;
+        }
+
+        return str_contains((string) ($authorization['rhmobservacion'] ?? ''), self::REMATRICULATION_OBSERVATION)
+            ? $authorization
+            : false;
+    }
+
     public function createForUser(int $userId, int $periodId, int $secretaryUserId, ?DateTimeInterface $expiresAt, string $observation = ''): int
     {
         $existing = $this->activeByUserAndPeriod($userId, $periodId);
 
         if ($existing !== false) {
+            $observation = $this->mergedObservation(
+                (string) ($existing['rhmobservacion'] ?? ''),
+                trim($observation)
+            );
+            $statement = $this->db->prepare(
+                "UPDATE {$this->table}
+                 SET rhmfecha_expiracion = :expires_at,
+                     rhmusuid_secretaria = :secretary_user_id,
+                     rhmobservacion = NULLIF(:observation, ''),
+                     rhmfecha_modificacion = CURRENT_TIMESTAMP
+                 WHERE {$this->primaryKey} = :authorization_id"
+            );
+            $statement->execute([
+                'authorization_id' => (int) $existing['rhmid'],
+                'expires_at' => $expiresAt?->format('Y-m-d H:i:s'),
+                'secretary_user_id' => $secretaryUserId,
+                'observation' => $observation,
+            ]);
+
             return (int) $existing['rhmid'];
         }
 
@@ -124,6 +171,24 @@ class RepresentativeMatriculationAuthorizationModel extends Model
         ]);
 
         return (int) $statement->fetchColumn();
+    }
+
+    private function mergedObservation(string $existingObservation, string $newObservation): string
+    {
+        $existingObservation = trim($existingObservation);
+        $newObservation = trim($newObservation);
+        $existingHasRematriculation = str_contains($existingObservation, self::REMATRICULATION_OBSERVATION);
+        $newIsRematriculation = $newObservation === self::REMATRICULATION_OBSERVATION;
+
+        if ($newIsRematriculation && $existingObservation !== '' && !$existingHasRematriculation) {
+            return self::REMATRICULATION_OBSERVATION . ' | ' . $existingObservation;
+        }
+
+        if (!$newIsRematriculation && $existingHasRematriculation) {
+            return self::REMATRICULATION_OBSERVATION . ' | ' . ($newObservation !== '' ? $newObservation : 'Alumno nuevo');
+        }
+
+        return $newObservation !== '' ? $newObservation : $existingObservation;
     }
 
     public function useActive(int $userId, int $periodId): void

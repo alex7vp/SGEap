@@ -105,6 +105,13 @@ class ModuleController extends Controller
                     'permission' => 'asistencia.registrar',
                 ],
                 [
+                    'label' => 'Reportes de asistencia',
+                    'description' => 'Genera matrices mensuales segun dias habilitados, curso, materia, docente o estudiante.',
+                    'url' => baseUrl('reportes/asistencia'),
+                    'icon' => 'fa-bar-chart',
+                    'permission' => 'asistencia.supervisar|asistencia.registrar',
+                ],
+                [
                     'label' => 'Mi asistencia y novedades',
                     'description' => 'Consulta el resumen mensual y el detalle de asistencia y novedades del estudiante.',
                     'url' => baseUrl('asistencia/mi-asistencia'),
@@ -409,7 +416,7 @@ class ModuleController extends Controller
                     'description' => 'Consolida asistencias, atrasos y faltas por rango, curso o estudiante.',
                     'url' => baseUrl('reportes/asistencia'),
                     'icon' => 'fa-calendar-check-o',
-                    'permission' => 'asistencia.supervisar',
+                    'permission' => 'asistencia.supervisar|asistencia.registrar',
                 ],
                 [
                     'label' => 'Cuadro final',

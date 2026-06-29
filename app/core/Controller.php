@@ -104,7 +104,7 @@ abstract class Controller
         $path = $path === '/' ? '/dashboard' : $path;
 
         $exact = [
-            '/dashboard' => 'dashboard.ver|asistencia.registrar|novedades.registrar|calificaciones.registrar|calificaciones.editar',
+            '/dashboard' => 'dashboard.ver|representante.estudiantes|asistencia.registrar|novedades.registrar|calificaciones.registrar|calificaciones.editar',
             '/matricula-temporal' => 'matricula_temporal.ver|representante.matricula_nueva|representante.estudiantes',
             '/matricula-temporal/persona' => 'matricula_temporal.editar|representante.matricula_nueva',
             '/mi-matricula' => 'estudiante.mi_matricula',
@@ -134,7 +134,7 @@ abstract class Controller
             '/configuracion/backups/descargar' => 'backups.gestionar|configuracion.gestionar',
             '/configuracion/backups/eliminar' => 'backups.gestionar|configuracion.gestionar',
             '/reportes' => 'dashboard.ver|asistencia.supervisar|calificaciones.validar|calificaciones.configurar|calificaciones.registrar|calificaciones.editar|calificaciones.publicar',
-            '/reportes/asistencia' => 'asistencia.supervisar',
+            '/reportes/asistencia' => 'asistencia.supervisar|asistencia.registrar',
             '/reportes/libreta' => 'calificaciones.validar|calificaciones.configurar|calificaciones.registrar|calificaciones.editar|calificaciones.publicar',
             '/reportes/cuadro-final' => 'calificaciones.validar|calificaciones.configurar|calificaciones.registrar|calificaciones.editar',
             '/contabilidad' => 'contabilidad.ver',

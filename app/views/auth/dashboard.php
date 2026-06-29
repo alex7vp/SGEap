@@ -8,6 +8,7 @@ $stats = is_array($stats ?? null) ? $stats : [];
 $representativeStudents = is_array($representativeStudents ?? null) ? $representativeStudents : [];
 $currentPeriod = is_array($currentPeriod ?? null) ? $currentPeriod : null;
 $canCreateMatricula = !empty($canCreateMatricula);
+$canRepresentativeRematriculate = !empty($canRepresentativeRematriculate);
 $newMatriculaLabel = (string) ($newMatriculaLabel ?? 'Nueva matricula');
 $userPermissions = (array) ($user['permissions'] ?? []);
 $can = static fn (string $permission): bool => in_array($permission, $userPermissions, true);
@@ -22,6 +23,7 @@ $canUsuarios = $can('seguridad.usuarios');
 $canRolesPermisos = $can('seguridad.roles_permisos');
 $canOwnMatriculation = $can('estudiante.mi_matricula');
 $canRepresentativeStudents = $can('representante.estudiantes');
+$showOwnStudentAccess = !$canRepresentativeStudents;
 $canOwnAttendance = $can('asistencia.ver_propia');
 $canRepresentativeAttendance = $can('asistencia.representante.ver');
 $canOwnNovelties = $can('novedades.ver_propia');
@@ -84,13 +86,12 @@ $metricCards = [
 $metricCards = array_values(array_filter($metricCards, static fn (array $card): bool => !empty($card['visible'])));
 
 $quickLinks = [
-    ['visible' => $canAttendanceModule, 'label' => 'Novedades y asistencia', 'url' => baseUrl('asistencia')],
+    ['visible' => !$canRepresentativeStudents && $canAttendanceModule, 'label' => 'Novedades y asistencia', 'url' => baseUrl('asistencia')],
     ['visible' => $canGradesModule, 'label' => 'Calificaciones', 'url' => baseUrl('calificaciones/registro')],
-    ['visible' => $canOwnMatriculation, 'label' => 'Mi matricula', 'url' => baseUrl('mi-matricula')],
-    ['visible' => $canOwnAttendance || $canOwnNovelties, 'label' => 'Mi asistencia y novedades', 'url' => baseUrl('asistencia/mi-asistencia')],
-    ['visible' => $canRepresentativeStudents, 'label' => 'Mis estudiantes', 'url' => baseUrl('dashboard')],
-    ['visible' => $canRepresentativeAccounting, 'label' => 'Mis pagos', 'url' => baseUrl('representante/contabilidad')],
-    ['visible' => $canRepresentativeAttendance || $canRepresentativeNovelties, 'label' => 'Asistencia y novedades representados', 'url' => baseUrl('asistencia/representante')],
+    ['visible' => $showOwnStudentAccess && $canOwnMatriculation, 'label' => 'Mi matricula', 'url' => baseUrl('mi-matricula')],
+    ['visible' => $showOwnStudentAccess && ($canOwnAttendance || $canOwnNovelties), 'label' => 'Mi asistencia y novedades', 'url' => baseUrl('asistencia/mi-asistencia')],
+    ['visible' => !$canRepresentativeStudents && $canRepresentativeAccounting, 'label' => 'Pagos de representados', 'url' => baseUrl('representante/contabilidad')],
+    ['visible' => !$canRepresentativeStudents && ($canRepresentativeAttendance || $canRepresentativeNovelties), 'label' => 'Asistencia y novedades representados', 'url' => baseUrl('asistencia/representante')],
     ['visible' => $canPersonas, 'label' => 'Ver personal', 'url' => baseUrl('personal')],
     ['visible' => $canEstudiantes, 'label' => 'Registrar estudiante', 'url' => baseUrl('estudiantes/crear')],
     ['visible' => $canMatriculas && $canCreateMatricula, 'label' => $newMatriculaLabel, 'url' => baseUrl('matriculas?panel=nueva')],
@@ -139,7 +140,13 @@ $quickLinks = array_values(array_filter($quickLinks, static fn (array $link): bo
 <?php endif; ?>
 
 <?php if ($canRepresentativeStudents): ?>
-    <section class="dashboard-grid dashboard-metrics-grid">
+    <section class="representative-students-section">
+        <header class="dashboard-section-header">
+            <div>
+                <span class="summary-label">Mis representados</span>
+                <h3>Estudiantes vinculados</h3>
+            </div>
+        </header>
         <?php if ($representativeStudents === []): ?>
             <article class="summary-card">
                 <span class="summary-label">Mis estudiantes</span>
@@ -147,20 +154,55 @@ $quickLinks = array_values(array_filter($quickLinks, static fn (array $link): bo
                 <p>No existen estudiantes asociados a tu usuario representante en el periodo actual.</p>
             </article>
         <?php else: ?>
-            <?php foreach ($representativeStudents as $student): ?>
-                <?php
-                $studentName = trim((string) (($student['perapellidos'] ?? '') . ' ' . ($student['pernombres'] ?? '')));
-                $studentUrl = baseUrl('representante/estudiante?id=' . (int) ($student['estid'] ?? 0));
-                ?>
-                <a class="summary-card student-card-link student-compact-card" href="<?= htmlspecialchars($studentUrl, ENT_QUOTES, 'UTF-8'); ?>">
-                    <span class="summary-label">Estudiante</span>
-                    <strong><?= htmlspecialchars($studentName !== '' ? $studentName : 'Estudiante sin nombre', ENT_QUOTES, 'UTF-8'); ?></strong>
-                    <p>
-                        <?= htmlspecialchars((string) ($student['curso'] ?? 'Sin curso'), ENT_QUOTES, 'UTF-8'); ?>
-                        | <?= !empty($student['estestado']) ? 'Activo' : 'Inactivo'; ?>
-                    </p>
-                </a>
-            <?php endforeach; ?>
+            <div class="dashboard-grid representative-student-grid">
+                <?php foreach ($representativeStudents as $student): ?>
+                    <?php
+                    $studentId = (int) ($student['estid'] ?? 0);
+                    $studentName = trim((string) (($student['pernombres'] ?? '') . ' ' . ($student['perapellidos'] ?? '')));
+                    $studentUrl = baseUrl('representante/estudiante?id=' . $studentId);
+                    ?>
+                    <article class="summary-card representative-student-card">
+                        <div>
+                            <span class="summary-label">Representado</span>
+                            <strong><?= htmlspecialchars($studentName !== '' ? $studentName : 'Estudiante sin nombre', ENT_QUOTES, 'UTF-8'); ?></strong>
+                            <p>
+                                <?= htmlspecialchars((string) ($student['curso'] ?? 'Sin curso'), ENT_QUOTES, 'UTF-8'); ?>
+                                | <?= !empty($student['estestado']) ? 'Activo' : 'Inactivo'; ?>
+                            </p>
+                        </div>
+                        <div class="representative-student-actions">
+                            <a class="btn-secondary btn-auto" href="<?= htmlspecialchars($studentUrl, ENT_QUOTES, 'UTF-8'); ?>">
+                                <i class="fa fa-user" aria-hidden="true"></i>
+                                <span>Resumen</span>
+                            </a>
+                            <?php if ($canRepresentativeRematriculate): ?>
+                                <a class="btn-primary btn-auto" href="<?= htmlspecialchars(baseUrl('matricula-temporal?estudiante=' . $studentId), ENT_QUOTES, 'UTF-8'); ?>">
+                                    <i class="fa fa-address-card" aria-hidden="true"></i>
+                                    <span>Matricular</span>
+                                </a>
+                            <?php endif; ?>
+                            <?php if ($canRepresentativeAccounting): ?>
+                                <a class="btn-secondary btn-auto" href="<?= htmlspecialchars(baseUrl('representante/contabilidad?estid=' . $studentId), ENT_QUOTES, 'UTF-8'); ?>">
+                                    <i class="fa fa-file-text-o" aria-hidden="true"></i>
+                                    <span>Pagos</span>
+                                </a>
+                            <?php endif; ?>
+                            <?php if ($canRepresentativeAttendance || $canRepresentativeNovelties): ?>
+                                <a class="btn-secondary btn-auto" href="<?= htmlspecialchars(baseUrl('asistencia/representante?estid=' . $studentId), ENT_QUOTES, 'UTF-8'); ?>">
+                                    <i class="fa fa-calendar-check-o" aria-hidden="true"></i>
+                                    <span>Asistencia</span>
+                                </a>
+                            <?php endif; ?>
+                            <?php if ($can('calificaciones.representante.ver')): ?>
+                                <span class="btn-secondary btn-auto is-disabled" title="Pendiente de implementar consulta de calificaciones">
+                                    <i class="fa fa-check-square" aria-hidden="true"></i>
+                                    <span>Calificaciones</span>
+                                </span>
+                            <?php endif; ?>
+                        </div>
+                    </article>
+                <?php endforeach; ?>
+            </div>
         <?php endif; ?>
     </section>
 <?php endif; ?>

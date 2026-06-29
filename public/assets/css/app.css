@@ -4030,6 +4030,46 @@ button.student-compact-card:hover {
     margin-bottom: 18px;
 }
 
+.dashboard-section-header {
+    margin: 0 0 12px;
+}
+
+.dashboard-section-header h3 {
+    margin: 2px 0 0;
+    font-size: 1.2rem;
+}
+
+.representative-students-section {
+    margin-bottom: 18px;
+}
+
+.representative-student-grid {
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.representative-student-card {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.representative-student-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.representative-student-actions .btn-primary,
+.representative-student-actions .btn-secondary {
+    min-height: 32px;
+    padding: 0 10px;
+}
+
+.representative-student-actions .is-disabled {
+    pointer-events: none;
+    opacity: 0.55;
+}
+
 .dashboard-metric-value {
     font-size: 1.9rem !important;
     line-height: 1;

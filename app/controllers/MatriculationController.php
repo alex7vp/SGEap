@@ -226,6 +226,10 @@ class MatriculationController extends Controller
                 $this->temporaryMatriculationForbidden('No tiene permiso para matricular este estudiante.');
             }
 
+            if ($period === false || !$this->hasActiveRepresentativeRematriculationAuthorization($user, (int) $period['pleid'])) {
+                $this->temporaryMatriculationForbidden('Secretaria debe habilitar la opcion de rematricula.');
+            }
+
             $existingStudentProfile = $studentModel->profile($existingStudentId);
 
             if ($existingStudentProfile === false) {
@@ -300,6 +304,11 @@ class MatriculationController extends Controller
                 || !$studentModel->representativeCanAccessStudent((int) ($user['perid'] ?? 0), $existingStudentId)
             ) {
                 $this->flashMatriculaFormFeedback('error', 'No tiene permiso para matricular este estudiante.');
+                $this->redirect($redirectTo);
+            }
+
+            if (!$this->hasActiveRepresentativeRematriculationAuthorization($user, (int) $period['pleid'])) {
+                $this->flashMatriculaFormFeedback('error', 'Secretaria debe habilitar la opcion de rematricula.');
                 $this->redirect($redirectTo);
             }
         }
@@ -549,7 +558,7 @@ class MatriculationController extends Controller
                     (int) $period['pleid'],
                     (int) ($user['usuid'] ?? 0),
                     null,
-                    'Habilitado desde gestion de matriculas'
+                    RepresentativeMatriculationAuthorizationModel::REMATRICULATION_OBSERVATION
                 );
                 $userModel->assignRoleToUser($representativeUserId, 'Representante matricula nueva');
 
@@ -1746,9 +1755,17 @@ class MatriculationController extends Controller
         return $this->activeRepresentativeAuthorization($user, $periodId) !== false;
     }
 
-    private function activeRepresentativeAuthorization(array $user, int $periodId): array|false
+    private function hasActiveRepresentativeRematriculationAuthorization(array $user, int $periodId): bool
     {
         return (new RepresentativeMatriculationAuthorizationModel())->activeByUserAndPeriod(
+            (int) ($user['usuid'] ?? 0),
+            $periodId
+        ) !== false;
+    }
+
+    private function activeRepresentativeAuthorization(array $user, int $periodId): array|false
+    {
+        return (new RepresentativeMatriculationAuthorizationModel())->activeNewStudentByUserAndPeriod(
             (int) ($user['usuid'] ?? 0),
             $periodId
         );

@@ -21,6 +21,7 @@ $courses = is_array($courses ?? null) ? $courses : [];
 $students = is_array($students ?? null) ? $students : [];
 $courseSubjects = is_array($courseSubjects ?? null) ? $courseSubjects : [];
 $teachers = is_array($teachers ?? null) ? $teachers : [];
+$canSuperviseAttendance = !empty($canSuperviseAttendance);
 $selectedCourse = null;
 $selectedStudent = null;
 $selectedSubject = null;
@@ -189,7 +190,9 @@ $isStudentReport = $selectedStudentId > 0;
                     <div class="input-group">
                         <span class="input-addon">Curso</span>
                         <select name="curid" data-report-course>
-                            <option value="0">Todos</option>
+                            <?php if ($canSuperviseAttendance): ?>
+                                <option value="0">Todos</option>
+                            <?php endif; ?>
                             <?php foreach ($courses as $course): ?>
                                 <option value="<?= htmlspecialchars((string) $course['curid'], ENT_QUOTES, 'UTF-8'); ?>" <?= $selectedCourseId === (int) $course['curid'] ? 'selected' : ''; ?>>
                                     <?= htmlspecialchars((string) $course['granombre'] . ' ' . $course['prlnombre'], ENT_QUOTES, 'UTF-8'); ?>
@@ -232,19 +235,21 @@ $isStudentReport = $selectedStudentId > 0;
                         </select>
                     </div>
                 </div>
-                <div>
-                    <div class="input-group">
-                        <span class="input-addon">Docente</span>
-                        <select name="perid_docente">
-                            <option value="0">Todos</option>
-                            <?php foreach ($teachers as $teacher): ?>
-                                <option value="<?= htmlspecialchars((string) $teacher['perid'], ENT_QUOTES, 'UTF-8'); ?>" <?= $selectedTeacherPersonId === (int) $teacher['perid'] ? 'selected' : ''; ?>>
-                                    <?= htmlspecialchars((string) $teacher['perapellidos'] . ' ' . $teacher['pernombres'], ENT_QUOTES, 'UTF-8'); ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
+                <?php if ($canSuperviseAttendance): ?>
+                    <div>
+                        <div class="input-group">
+                            <span class="input-addon">Docente</span>
+                            <select name="perid_docente">
+                                <option value="0">Todos</option>
+                                <?php foreach ($teachers as $teacher): ?>
+                                    <option value="<?= htmlspecialchars((string) $teacher['perid'], ENT_QUOTES, 'UTF-8'); ?>" <?= $selectedTeacherPersonId === (int) $teacher['perid'] ? 'selected' : ''; ?>>
+                                        <?= htmlspecialchars((string) $teacher['perapellidos'] . ' ' . $teacher['pernombres'], ENT_QUOTES, 'UTF-8'); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
                     </div>
-                </div>
+                <?php endif; ?>
             </div>
             <div class="actions-row">
                 <button class="btn-primary btn-inline" type="submit">Generar reporte</button>
@@ -257,7 +262,7 @@ $isStudentReport = $selectedStudentId > 0;
         <header class="security-assignment-header">
             <div>
                 <h3>Consolidado</h3>
-                <p>El reporte muestra solo las asistencias que cumplen los filtros aplicados.</p>
+                <p><?= $customRange ? 'El reporte muestra solo las asistencias que cumplen los filtros aplicados.' : 'El reporte mensual muestra los dias habilitados del calendario y las asistencias registradas.'; ?></p>
             </div>
         </header>
 
@@ -338,8 +343,8 @@ $isStudentReport = $selectedStudentId > 0;
                 </div>
             <?php endforeach; ?>
             <p class="report-matrix-note">As= Asistencia &nbsp;&nbsp; At= Atraso &nbsp;&nbsp; FJ= Falta Justificada &nbsp;&nbsp; FI= Falta Injustificada</p>
-        <?php elseif ($reportRows === []): ?>
-            <div class="empty-state">No hay registros de asistencia para los filtros seleccionados.</div>
+        <?php elseif ($reportRows === [] || $reportDates === []): ?>
+            <div class="empty-state">No hay dias habilitados o estudiantes activos para los filtros seleccionados.</div>
         <?php else: ?>
             <div class="table-wrap">
                 <table class="data-table attendance-matrix-table">

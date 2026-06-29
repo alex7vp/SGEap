@@ -459,6 +459,10 @@ $contextLabels = [
                         | <?= htmlspecialchars((string) $session['sclestado'], ENT_QUOTES, 'UTF-8'); ?>
                     </p>
                 </div>
+                <a class="btn-secondary btn-auto" href="<?= htmlspecialchars(baseUrl('asistencia/registro?sclid=' . (string) $session['sclid'] . $courseQuerySuffix . '&pdf=1'), ENT_QUOTES, 'UTF-8'); ?>" target="_blank" rel="noopener noreferrer">
+                    <i class="fa fa-file-pdf-o" aria-hidden="true"></i>
+                    <span>Generar PDF</span>
+                </a>
             </header>
 
             <?php if (empty($students)): ?>
