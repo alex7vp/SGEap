@@ -638,7 +638,7 @@ if ($isRepresentativeContext) {
 
     $principalItems = array_values(array_filter(
         (array) ($sidebarModules['inicio']['items'] ?? []),
-        static fn (array $item): bool => in_array((string) ($item['key'] ?? ''), ['dashboard', 'matricula_temporal'], true)
+        static fn (array $item): bool => in_array((string) ($item['key'] ?? ''), ['dashboard', 'matricula_temporal', 'mis_comunicados'], true)
     ));
     $representativeGroups = [
         [
