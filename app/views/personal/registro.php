@@ -14,13 +14,29 @@ $selectedTypeIds = array_map('intval', (array) ($old['type_ids'] ?? []));
 
 <p class="module-note">Si la cedula ya existe como persona en el sistema, se reutiliza ese registro. Los tipos con rol operativo crean el usuario automaticamente.</p>
 
-<form class="data-form" method="POST" action="<?= htmlspecialchars(baseUrl('personal/registro'), ENT_QUOTES, 'UTF-8'); ?>">
+<form
+    class="data-form"
+    method="POST"
+    action="<?= htmlspecialchars(baseUrl('personal/registro'), ENT_QUOTES, 'UTF-8'); ?>"
+    data-staff-person-form
+    data-staff-person-lookup-url="<?= htmlspecialchars(baseUrl('personal/registro/persona'), ENT_QUOTES, 'UTF-8'); ?>"
+>
     <?= csrfField(); ?>
     <div class="form-grid">
         <div class="form-group">
-            <div class="input-group">
-                <span class="input-addon">Cedula</span>
-                <input id="percedula" name="percedula" maxlength="10" placeholder="Ingrese la cedula" required value="<?= htmlspecialchars((string) ($old['percedula'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>">
+            <div class="family-lookup-row">
+                <div class="input-group">
+                    <span class="input-addon">Cedula</span>
+                    <input id="percedula" name="percedula" maxlength="10" inputmode="numeric" placeholder="Ingrese la cedula" required value="<?= htmlspecialchars((string) ($old['percedula'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" data-staff-person-cedula>
+                </div>
+                <button class="btn-primary btn-auto" type="button" data-staff-person-search>
+                    Buscar
+                </button>
+            </div>
+            <div class="family-lookup-alert" data-staff-person-alert hidden>
+                <div class="alert alert-success form-field-alert">
+                    <span></span>
+                </div>
             </div>
         </div>
 

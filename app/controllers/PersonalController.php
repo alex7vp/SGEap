@@ -64,6 +64,56 @@ class PersonalController extends Controller
         ]);
     }
 
+    public function findPerson(): void
+    {
+        $this->requireAuth();
+
+        header('Content-Type: application/json; charset=UTF-8');
+
+        $cedula = trim((string) ($_GET['cedula'] ?? ''));
+
+        if (preg_match('/^\d{10}$/', $cedula) !== 1) {
+            http_response_code(422);
+            echo json_encode([
+                'found' => false,
+                'message' => 'La cedula debe tener 10 digitos.',
+            ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            return;
+        }
+
+        $personModel = new PersonModel();
+        $person = $personModel->findByCedula($cedula);
+
+        if ($person === false) {
+            echo json_encode([
+                'found' => false,
+                'message' => 'No se encontro una persona registrada con esa cedula.',
+            ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            return;
+        }
+
+        echo json_encode([
+            'found' => true,
+            'message' => 'Datos de persona cargados.',
+            'person' => [
+                'perid' => (int) ($person['perid'] ?? 0),
+                'percedula' => (string) ($person['percedula'] ?? ''),
+                'pernombres' => (string) ($person['pernombres'] ?? ''),
+                'perapellidos' => (string) ($person['perapellidos'] ?? ''),
+                'pertelefono1' => (string) ($person['pertelefono1'] ?? ''),
+                'pertelefono2' => (string) ($person['pertelefono2'] ?? ''),
+                'percorreo' => (string) ($person['percorreo'] ?? ''),
+                'persexo' => (string) ($person['persexo'] ?? ''),
+                'perfechanacimiento' => (string) ($person['perfechanacimiento'] ?? ''),
+                'eciid' => (int) ($person['eciid'] ?? 0),
+                'istid' => (int) ($person['istid'] ?? 0),
+                'perprofesion' => (string) ($person['perprofesion'] ?? ''),
+                'perocupacion' => (string) ($person['perocupacion'] ?? ''),
+                'perhablaingles' => !empty($person['perhablaingles']),
+            ],
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    }
+
     public function assignment(): void
     {
         $user = $this->requireAuth();

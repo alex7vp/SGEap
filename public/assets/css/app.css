@@ -7230,3 +7230,264 @@ a.is-disabled {
 :root[data-theme="dark"] .calendar-dialog::backdrop {
     background: rgba(0, 0, 0, 0.72) !important;
 }
+
+.communication-target-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 14px;
+}
+
+.communication-target-option {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 38px;
+    padding: 7px 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--card-soft);
+    cursor: pointer;
+}
+
+.communication-target-option input {
+    margin: 0;
+}
+
+.communication-target-option span {
+    display: inline;
+}
+
+.communication-target-option input[type="radio"] {
+    width: 16px;
+    height: 16px;
+}
+
+.communication-target-option.is-selected,
+.communication-target-option:has(input:checked) {
+    border-color: rgba(15, 118, 110, 0.55);
+    background: rgba(20, 184, 166, 0.1);
+    color: #0f766e;
+}
+
+.communication-target-option small {
+    display: none;
+}
+
+.communication-target-option small,
+.communication-item small,
+.communication-modal-item small {
+    color: var(--muted);
+}
+
+.communication-list,
+.communication-modal-list {
+    display: grid;
+    gap: 12px;
+}
+
+.communication-item {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    align-items: flex-start;
+}
+
+.communication-modal-item {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px;
+    background: var(--card-soft);
+}
+
+.communication-modal-item p,
+.communication-item p {
+    margin: 8px 0;
+}
+
+.communication-row {
+    cursor: pointer;
+}
+
+.communication-row.is-unread .cell-title {
+    font-weight: 800;
+}
+
+.communication-row:hover {
+    background: rgba(20, 184, 166, 0.06);
+}
+
+.communication-read-state {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    background: var(--card-soft);
+    color: var(--muted);
+}
+
+.communication-read-state.is-unread {
+    border-color: rgba(13, 79, 134, 0.35);
+    background: rgba(13, 79, 134, 0.08);
+    color: #0d4f86;
+}
+
+.communication-read-state.is-read {
+    border-color: rgba(15, 118, 110, 0.35);
+    background: rgba(20, 184, 166, 0.1);
+    color: #0f766e;
+}
+
+.communication-message-dialog {
+    width: min(720px, calc(100vw - 32px));
+}
+
+.communication-message-body {
+    white-space: pre-wrap;
+    color: var(--text);
+    line-height: 1.55;
+}
+
+.communication-selected-panel {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    background: var(--card-soft);
+    display: grid;
+    gap: 12px;
+}
+
+.communication-selected-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.communication-selected-list .empty-state {
+    width: 100%;
+}
+
+.communication-selected-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    max-width: 100%;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--card);
+}
+
+.communication-selected-chip span {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+}
+
+.communication-selected-chip strong,
+.communication-selected-chip small {
+    overflow-wrap: anywhere;
+}
+
+.communication-selected-chip button {
+    width: 28px;
+    height: 28px;
+    border: 0;
+    border-radius: 50%;
+    background: var(--card-soft);
+    color: var(--muted);
+    cursor: pointer;
+}
+
+.communication-recipient-dialog {
+    width: min(820px, calc(100vw - 32px));
+}
+
+.communication-selector-panel,
+.communication-search-results {
+    display: grid;
+    gap: 10px;
+}
+
+.communication-selector-list {
+    display: grid;
+    gap: 8px;
+    max-height: 48vh;
+    overflow: auto;
+}
+
+.communication-selector-row,
+.communication-search-result {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    width: 100%;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    background: var(--card);
+    color: var(--text);
+    text-align: left;
+}
+
+.communication-search-result {
+    cursor: pointer;
+}
+
+.communication-search-result.is-selected {
+    border-color: rgba(22, 163, 74, 0.62);
+    background: rgba(22, 163, 74, 0.1);
+}
+
+.communication-search-result.is-selected strong,
+.communication-search-result.is-selected i {
+    color: #15803d;
+}
+
+.communication-selector-row span,
+.communication-search-result span {
+    display: grid;
+    gap: 3px;
+}
+
+.communication-search-results {
+    max-height: 46vh;
+    overflow: auto;
+}
+
+.communication-login-dialog {
+    max-width: min(720px, calc(100vw - 32px));
+}
+
+.topbar-notification-button.has-notifications .fa {
+    animation: communication-bell-ring 1.6s ease-in-out infinite;
+    transform-origin: 50% 0;
+}
+
+@keyframes communication-bell-ring {
+    0%,
+    60%,
+    100% {
+        transform: rotate(0deg);
+    }
+
+    10%,
+    30% {
+        transform: rotate(12deg);
+    }
+
+    20%,
+    40% {
+        transform: rotate(-12deg);
+    }
+}
+
+@media (max-width: 720px) {
+    .communication-item {
+        display: grid;
+    }
+}

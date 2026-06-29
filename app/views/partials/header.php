@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Models\InstitutionModel;
+use App\Models\CommunicationModel;
 use App\Models\MatriculationConfigurationModel;
 use App\Models\RepresentativeMatriculationAuthorizationModel;
 use App\Models\StudentModel;
@@ -41,7 +42,9 @@ $sectionModuleMap = [
     'matricula_temporal' => 'inicio',
     'mi_matricula' => 'inicio',
     'representante_pagos' => 'inicio',
+    'mis_comunicados' => 'inicio',
     'academico_home' => 'academico',
+    'comunicados' => 'academico',
     'docente_cursos' => 'academico',
     'docente_curso' => 'academico',
     'docente_lista_curso' => 'academico',
@@ -128,6 +131,12 @@ $sidebarModules = [
                 'url' => baseUrl('representante/contabilidad'),
                 'icon' => 'fa-file-text-o',
             ],
+            [
+                'key' => 'mis_comunicados',
+                'label' => 'Mis comunicados',
+                'url' => baseUrl('mis-comunicados'),
+                'icon' => 'fa-bell-o',
+            ],
         ],
     ],
     'academico' => [
@@ -171,6 +180,12 @@ $sidebarModules = [
                         'label' => 'Calificaciones',
                         'url' => baseUrl('calificaciones/registro'),
                         'icon' => 'fa-check-square',
+                    ],
+                    [
+                        'key' => 'comunicados',
+                        'label' => 'Comunicados',
+                        'url' => baseUrl('comunicados'),
+                        'icon' => 'fa-bullhorn',
                     ],
                     [
                         'key' => 'reportes_home',
@@ -478,6 +493,7 @@ $permissionMap = [
     'matricula_temporal' => ['matricula_temporal.ver', 'representante.matricula_nueva'],
     'mi_matricula' => 'estudiante.mi_matricula',
     'representante_pagos' => ['contabilidad.representante.obligaciones.ver', 'contabilidad.representante.pagos.ver', 'contabilidad.representante.comprobantes.subir', 'contabilidad.representante.rubros.ver'],
+    'mis_comunicados' => ['comunicados.ver_propios', 'comunicados.gestionar'],
     'representante_estudiantes' => 'representante.estudiantes',
     'asistencia_propia' => ['asistencia.ver_propia', 'novedades.ver_propia'],
     'asistencia_representante' => ['asistencia.representante.ver', 'novedades.representante.ver'],
@@ -485,7 +501,7 @@ $permissionMap = [
     'novedades_supervision' => 'novedades.supervisar',
     'novedades_propias' => 'novedades.ver_propia',
     'novedades_representante' => 'novedades.representante.ver',
-    'academico_home' => ['estudiantes.gestionar', 'personas.gestionar', 'matriculas.gestionar', 'asistencia.registrar', 'asistencia.supervisar', 'justificaciones.gestionar', 'asistencia.ver_propia', 'asistencia.representante.ver', 'novedades.registrar', 'novedades.supervisar', 'novedades.ver_propia', 'novedades.representante.ver', 'calificaciones.registrar', 'calificaciones.editar', 'calificaciones.configurar', 'calificaciones.validar', 'calificaciones.publicar', 'calificaciones.auditoria.ver'],
+    'academico_home' => ['estudiantes.gestionar', 'personas.gestionar', 'matriculas.gestionar', 'asistencia.registrar', 'asistencia.supervisar', 'justificaciones.gestionar', 'asistencia.ver_propia', 'asistencia.representante.ver', 'novedades.registrar', 'novedades.supervisar', 'novedades.ver_propia', 'novedades.representante.ver', 'comunicados.gestionar', 'calificaciones.registrar', 'calificaciones.editar', 'calificaciones.configurar', 'calificaciones.validar', 'calificaciones.publicar', 'calificaciones.auditoria.ver'],
     'docente_cursos' => ['asistencia.registrar', 'novedades.registrar', 'calificaciones.registrar', 'calificaciones.editar'],
     'estudiantes' => 'estudiantes.gestionar',
     'personal' => 'personas.gestionar',
@@ -493,6 +509,7 @@ $permissionMap = [
     'personal_assignment' => 'personas.gestionar',
     'personal_listing' => 'personas.gestionar',
     'matriculas' => 'matriculas.gestionar',
+    'comunicados' => 'comunicados.gestionar',
     'calificaciones_registro' => ['asistencia.registrar', 'calificaciones.registrar', 'calificaciones.editar', 'calificaciones.configurar', 'calificaciones.validar', 'calificaciones.publicar', 'calificaciones.auditoria.ver'],
     'asistencia_home' => ['asistencia.registrar', 'asistencia.supervisar', 'justificaciones.gestionar', 'asistencia.ver_propia', 'asistencia.representante.ver', 'novedades.registrar', 'novedades.supervisar', 'novedades.ver_propia', 'novedades.representante.ver'],
     'asistencia_configuracion' => 'asistencia.calendario.gestionar',
@@ -550,8 +567,8 @@ $canAccess = static function (string $key) use ($permissionMap, $userPermissions
     return false;
 };
 $modulePermissions = [
-    'inicio' => ['dashboard.ver', 'asistencia.registrar', 'novedades.registrar', 'calificaciones.registrar', 'calificaciones.editar', 'matricula_temporal.ver', 'representante.matricula_nueva', 'estudiante.mi_matricula', 'representante.estudiantes', 'asistencia.ver_propia', 'asistencia.representante.ver', 'novedades.ver_propia', 'novedades.representante.ver', 'contabilidad.representante.obligaciones.ver', 'contabilidad.representante.pagos.ver', 'contabilidad.representante.comprobantes.subir'],
-    'academico' => ['estudiantes.gestionar', 'personas.gestionar', 'matriculas.gestionar', 'asistencia.calendario.gestionar', 'asistencia.registrar', 'asistencia.supervisar', 'justificaciones.gestionar', 'asistencia.ver_propia', 'asistencia.representante.ver', 'novedades.registrar', 'novedades.supervisar', 'novedades.ver_propia', 'novedades.representante.ver', 'calificaciones.registrar', 'calificaciones.editar', 'calificaciones.configurar', 'calificaciones.validar', 'calificaciones.publicar', 'calificaciones.auditoria.ver'],
+    'inicio' => ['dashboard.ver', 'asistencia.registrar', 'novedades.registrar', 'calificaciones.registrar', 'calificaciones.editar', 'matricula_temporal.ver', 'representante.matricula_nueva', 'estudiante.mi_matricula', 'representante.estudiantes', 'asistencia.ver_propia', 'asistencia.representante.ver', 'novedades.ver_propia', 'novedades.representante.ver', 'comunicados.ver_propios', 'comunicados.gestionar', 'contabilidad.representante.obligaciones.ver', 'contabilidad.representante.pagos.ver', 'contabilidad.representante.comprobantes.subir'],
+    'academico' => ['estudiantes.gestionar', 'personas.gestionar', 'matriculas.gestionar', 'asistencia.calendario.gestionar', 'asistencia.registrar', 'asistencia.supervisar', 'justificaciones.gestionar', 'asistencia.ver_propia', 'asistencia.representante.ver', 'novedades.registrar', 'novedades.supervisar', 'novedades.ver_propia', 'novedades.representante.ver', 'comunicados.gestionar', 'calificaciones.registrar', 'calificaciones.editar', 'calificaciones.configurar', 'calificaciones.validar', 'calificaciones.publicar', 'calificaciones.auditoria.ver'],
     'configuracion' => ['configuracion.gestionar', 'catalogos.gestionar', 'cursos.gestionar', 'matriculas.documentos', 'asistencia.calendario.gestionar', 'calificaciones.configurar', 'calificaciones.plantillas.gestionar', 'contabilidad.configurar', 'backups.gestionar'],
     'contabilidad' => ['contabilidad.ver', 'contabilidad.configurar', 'contabilidad.obligaciones.ver', 'contabilidad.rubros.ver', 'contabilidad.comprobantes.revisar', 'contabilidad.pagos.registrar', 'contabilidad.reportes.ver', 'contabilidad.auditoria.ver'],
     'seguridad' => ['seguridad.usuarios', 'seguridad.roles_permisos', 'usuarios_temporales.gestionar'],
@@ -770,8 +787,17 @@ foreach ($sidebarModules as $moduleKey => $module) {
 
 $currentModule = $currentModule ?? ($sectionModuleMap[$currentSection ?? ''] ?? 'inicio');
 $activeSidebar = $sidebarModules[$currentModule] ?? ($sidebarModules['inicio'] ?? reset($sidebarModules));
+
+if (!is_array($activeSidebar)) {
+    $activeSidebar = [
+        'title' => 'Sin permisos',
+        'items' => [],
+    ];
+    $error = $error ?? 'El usuario no tiene permisos asignados para acceder al sistema. Contacte al administrador.';
+}
+
 $activeSidebarGroups = $activeSidebar['groups'] ?? [[
-    'title' => $activeSidebar['title'],
+    'title' => $activeSidebar['title'] ?? 'Sin permisos',
     'items' => $activeSidebar['items'] ?? [],
 ]];
 $currentPeriod = currentAcademicPeriod();
@@ -786,7 +812,38 @@ $displayFirstName = trim((string) ($user['first_name'] ?? ''));
 $displayFirstName = $displayFirstName !== '' ? preg_split('/\s+/', $displayFirstName)[0] : $displayUserName;
 $canOpenConfiguration = $canAccessModule('configuracion');
 $canOpenSecurity = $canAccessModule('seguridad');
-$topbarNotifications = array_values(array_filter((array) ($notifications ?? []), static fn (mixed $notification): bool => is_array($notification)));
+$loginCommunications = [];
+$communicationNotifications = [];
+
+try {
+    $communicationModel = new CommunicationModel();
+    $unreadCommunications = $communicationModel->unreadByUser((int) ($user['usuid'] ?? 0), 10);
+
+    if (!empty($_SESSION['show_login_communications_modal'])) {
+        $loginCommunications = $unreadCommunications;
+        $communicationModel->markReadForUser(
+            (int) ($user['usuid'] ?? 0),
+            array_map(static fn (array $row): int => (int) ($row['comid'] ?? 0), $loginCommunications)
+        );
+        unset($_SESSION['show_login_communications_modal']);
+        $unreadCommunications = [];
+    }
+
+    foreach ($unreadCommunications as $communication) {
+        $communicationNotifications[] = [
+            'title' => (string) ($communication['comtitulo'] ?? 'Comunicado'),
+            'body' => 'Comunicado pendiente de lectura',
+            'url' => 'mis-comunicados/leer?id=' . (int) ($communication['comid'] ?? 0),
+        ];
+    }
+} catch (\Throwable) {
+    unset($_SESSION['show_login_communications_modal']);
+}
+
+$topbarNotifications = array_values(array_filter(
+    array_merge((array) ($notifications ?? []), $communicationNotifications),
+    static fn (mixed $notification): bool => is_array($notification)
+));
 $topbarNotificationCount = count($topbarNotifications);
 
 $institutionName = (string) ($appName ?? 'SGEap');
@@ -1108,6 +1165,32 @@ foreach ($logoPatterns as $logoPattern) {
             </header>
 
             <div class="content-body">
+                <?php if (!empty($loginCommunications)): ?>
+                    <dialog class="calendar-dialog communication-login-dialog" data-communication-login-dialog>
+                        <header class="security-assignment-header">
+                            <div>
+                                <h3>Comunicados recibidos</h3>
+                                <p>Estos comunicados quedan marcados como leidos al mostrarse.</p>
+                            </div>
+                        </header>
+                        <div class="communication-modal-list">
+                            <?php foreach ($loginCommunications as $communication): ?>
+                                <article class="communication-modal-item">
+                                    <strong><?= htmlspecialchars((string) ($communication['comtitulo'] ?? 'Comunicado'), ENT_QUOTES, 'UTF-8'); ?></strong>
+                                    <p><?= nl2br(htmlspecialchars((string) ($communication['commensaje'] ?? ''), ENT_QUOTES, 'UTF-8')); ?></p>
+                                    <?php if (!empty($communication['comfecha_publicacion'])): ?>
+                                        <small><?= htmlspecialchars((string) $communication['comfecha_publicacion'], ENT_QUOTES, 'UTF-8'); ?></small>
+                                    <?php endif; ?>
+                                </article>
+                            <?php endforeach; ?>
+                        </div>
+                        <div class="actions-row">
+                            <a class="btn-secondary btn-inline" href="<?= htmlspecialchars(baseUrl('mis-comunicados'), ENT_QUOTES, 'UTF-8'); ?>">Ver historial</a>
+                            <button class="btn-primary btn-inline" type="button" data-communication-login-close>Aceptar</button>
+                        </div>
+                    </dialog>
+                <?php endif; ?>
+
                 <?php if (($currentSection ?? '') === 'calificaciones_registro' && (!empty($error) || !empty($success))): ?>
                     <dialog class="calendar-dialog gradebook-feedback-dialog" data-gradebook-feedback-dialog>
                         <header class="security-assignment-header">

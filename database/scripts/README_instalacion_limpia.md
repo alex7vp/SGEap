@@ -27,8 +27,10 @@ Para bases ya instaladas antes de los ultimos ajustes de configuracion contable,
 3. `database/scripts/27_gestion_contable_conceptos_categoria.sql`
 4. `database/scripts/28_gestion_contable_configuracion_modulo.sql`
 5. `database/scripts/30_matriculas_permiso_roles_administrativos.sql`
+6. `database/scripts/31_comunicados.sql`
+7. `database/scripts/32_comunicados_whatsapp.sql`
 
-No hace falta en instalaciones limpias porque el consolidado y `24_gestion_contable.sql` ya incluyen ese estado.
+No hace falta en instalaciones limpias porque el consolidado ya incluye ese estado.
 
 ## Opcion modular
 
@@ -48,6 +50,7 @@ Si se prefiere revisar o ejecutar la estructura por bloques, usar este orden:
 12. `database/scripts/21_calificaciones_grupos_materia.sql`
 13. `database/scripts/23_calificaciones_habilitacion_registro.sql`
 14. `database/scripts/24_gestion_contable.sql`
+15. `database/scripts/31_comunicados.sql`
 
 Despues de la estructura modular, ejecutar las mismas semillas listadas en la opcion recomendada.
 
